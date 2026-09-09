@@ -157,4 +157,18 @@ pageEditor.redo(); assert.equal(pageEditor.document.slides.length,pageResult.pag
 pageEditor.undo();
 assert.throws(()=>pageEditor.paginateSlide(0,{maxSlides:1}));
 assert.deepEqual(pageEditor.document,pageBefore);
-assert.equal(pageEditor.paginateSlide(1).change,null);
+assert.ok(pageEditor.paginateSlide(1).change);
+assert.equal(pageEditor.document.slides[1].composition.minFontSize,24);
+assert.equal(pageEditor.paginateSlide(1).change,null,'An already persisted policy is a no-op');
+pageEditor.undo(); assert.deepEqual(pageEditor.document,pageBefore,'One-page policy changes are undoable');
+pageEditor.redo(); assert.equal(pageEditor.document.slides[1].composition.minFontSize,24);
+
+const quoteEditor=createEditorSession({design:{fontScheme:'roboto'},slides:[{quote:{text:'Keep the source readable.',attribution:'Reviewer',source:'Recorded interview'}}]});
+const quoteBefore=quoteEditor.document;
+const quotePage=quoteEditor.paginateSlide(0);
+assert.equal(quotePage.pagination.slides.length,1);
+assert.ok(quotePage.change);
+assert.equal(quoteEditor.composeSlide(0).items[0].quoteLayout.parts[1].fit.fontSize,24);
+assert.equal(quoteEditor.paginateSlide(0).change,null);
+quoteEditor.undo(); assert.deepEqual(quoteEditor.document,quoteBefore);
+quoteEditor.redo(); assert.equal(quoteEditor.composeSlide(0).items[0].quoteLayout.parts[1].fit.fontSize,24);
