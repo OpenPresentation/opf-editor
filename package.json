@@ -1,6 +1,6 @@
 {
   "name": "@openpresentation/opf-editor",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Embeddable local OPF editor primitives built on the deterministic renderer.",
   "license": "MIT",
   "type": "module",
@@ -83,10 +83,10 @@
     "test:playground": "npm run build:playground && node test/playground-pptx.mjs"
   },
   "dependencies": {
-    "@openpresentation/opf": "^0.7.0"
+    "@openpresentation/opf": "^0.8.0"
   },
   "peerDependencies": {
-    "@openpresentation/opf-render": "^0.5.0"
+    "@openpresentation/opf-render": "^0.6.0"
   },
   "peerDependenciesMeta": {
     "@openpresentation/opf-render": {
@@ -94,8 +94,8 @@
     }
   },
   "devDependencies": {
-    "@openpresentation/opf-pptx": "0.5.1",
-    "@openpresentation/opf-render": "0.5.0",
+    "@openpresentation/opf-pptx": "0.6.0",
+    "@openpresentation/opf-render": "0.6.0",
     "esbuild": "0.28.2",
     "playwright": "1.63.0"
   }
