@@ -1,10 +1,10 @@
 {
-  "checkedAt": "2026-09-10T07:29:44.560Z",
+  "checkedAt": "2026-09-10T07:40:30.375Z",
   "packed": {
     "node": "v20.20.2",
     "name": "@openpresentation/opf-editor",
     "version": "0.6.0",
-    "integrity": "sha512-wHe6j1p06WQysXhHIvaiRAaoZH5d8o5GgDhbT9DEeZiINMaZZ7mZc9k6eWLK8AO9+F+vDWLvFwF0c0qPenvE0w==",
+    "integrity": "sha512-xjVnrpPTjWdkwODFS5Tu+HS4LBOL6S7iYzKhb9tOQb+VIj/RVP3QYLKPuv1TnqBycx9b5OHXdudIremu/gpfUw==",
     "files": {
       "LICENSE": "e8c5cecaad448c0cab00af38f7ed8b6bb647c77ba79f3c50d20a9ea92e256cd3",
       "README.md": "39217bcd170386f5d09378891187e865e2d0e288774bdb1fcd13f599fd429e59",
@@ -13,7 +13,7 @@
       "dist/blocks.js": "f9926a4cb8c2b0380ffbe67055a428d01089873141af401edb72d8ebe6e7cdaf",
       "dist/canvas-fields.js": "0159649cf54332879cc0f125b19fa52de120a85a9e29d7ea757fea55822f6ef6",
       "dist/canvas.d.ts": "afafd31860ce913c3efcadf5b2ebb1bfc51e7f1524eb96228bdfc250c7181605",
-      "dist/canvas.js": "2a25c42aa58bb34ed2a910208b62d5456cb3e07333fc0fdbc355a5256174261f",
+      "dist/canvas.js": "35d57747d1671555127a3fb7b871ee819f741f5638cd96a1f0a82cfaebc07e85",
       "dist/data.d.ts": "74c193ed7ccadb27d1e11659ec55d51fb6da78d6cd1e5aac97b72e538f6e4dd5",
       "dist/data.js": "32d3d8d7ca017a574ac791541ab1a2bb024dcff386ff1e5c5c1ac845b33d3dff",
       "dist/galleries.d.ts": "21db86ccf7c9186391d643c057938ee813d391cd0cbe78f56e2446befcd15373",
@@ -107,8 +107,8 @@
     "codeBrowser": {
       "browser": "152.0.4191.66",
       "platform": "win32",
-      "bundleSha256": "dfc6bcaac5633f695f8c1754a0b013ad7be1f730262a601ee3bc42e5d6e9d8a3",
-      "verifierSha256": "9c6a23d252bbf4d4f815a1bc762a3033c5469cce4c4ba83d9a571a6e9cf4cd55",
+      "bundleSha256": "478b5db4f8ff013391c30f458f465bdc6505d1c927878fa42c9b7e14308a0c51",
+      "verifierSha256": "d4cf644d14de3e8b9417363a1a9b1ec22060aeed9fdaf7208ebad5883c4d2ca4",
       "fontHashes": [
         {
           "family": "Roboto",
@@ -145,6 +145,22 @@
           "exportBytes": 17725,
           "acceptedLines": 6,
           "exactCodeRoundTrip": true,
+          "selectionVisibility": {
+            "source": {
+              "color": "rgb(229, 231, 235)",
+              "selectionColor": "rgb(229, 231, 235)",
+              "start": 0,
+              "end": 47,
+              "length": 47
+            },
+            "filename": {
+              "color": "rgb(147, 197, 253)",
+              "selectionColor": "rgb(147, 197, 253)",
+              "start": 0,
+              "end": 20,
+              "length": 20
+            }
+          },
           "substitutions": [
             {
               "requestedFamily": "Aptos Display",
@@ -175,6 +191,22 @@
           "exportBytes": 17726,
           "acceptedLines": 6,
           "exactCodeRoundTrip": true,
+          "selectionVisibility": {
+            "source": {
+              "color": "rgb(229, 231, 235)",
+              "selectionColor": "rgb(229, 231, 235)",
+              "start": 0,
+              "end": 47,
+              "length": 47
+            },
+            "filename": {
+              "color": "rgb(147, 197, 253)",
+              "selectionColor": "rgb(147, 197, 253)",
+              "start": 0,
+              "end": 20,
+              "length": 20
+            }
+          },
           "substitutions": [
             {
               "requestedFamily": "Aptos Display",
@@ -230,8 +262,8 @@
   "sourceCodeBrowser": {
     "browser": "152.0.4191.66",
     "platform": "win32",
-    "bundleSha256": "dfc6bcaac5633f695f8c1754a0b013ad7be1f730262a601ee3bc42e5d6e9d8a3",
-    "verifierSha256": "9c6a23d252bbf4d4f815a1bc762a3033c5469cce4c4ba83d9a571a6e9cf4cd55",
+    "bundleSha256": "478b5db4f8ff013391c30f458f465bdc6505d1c927878fa42c9b7e14308a0c51",
+    "verifierSha256": "d4cf644d14de3e8b9417363a1a9b1ec22060aeed9fdaf7208ebad5883c4d2ca4",
     "fontHashes": [
       {
         "family": "Roboto",
@@ -268,6 +300,22 @@
         "exportBytes": 17725,
         "acceptedLines": 6,
         "exactCodeRoundTrip": true,
+        "selectionVisibility": {
+          "source": {
+            "color": "rgb(229, 231, 235)",
+            "selectionColor": "rgb(229, 231, 235)",
+            "start": 0,
+            "end": 47,
+            "length": 47
+          },
+          "filename": {
+            "color": "rgb(147, 197, 253)",
+            "selectionColor": "rgb(147, 197, 253)",
+            "start": 0,
+            "end": 20,
+            "length": 20
+          }
+        },
         "substitutions": [
           {
             "requestedFamily": "Aptos Display",
@@ -298,6 +346,22 @@
         "exportBytes": 17726,
         "acceptedLines": 6,
         "exactCodeRoundTrip": true,
+        "selectionVisibility": {
+          "source": {
+            "color": "rgb(229, 231, 235)",
+            "selectionColor": "rgb(229, 231, 235)",
+            "start": 0,
+            "end": 47,
+            "length": 47
+          },
+          "filename": {
+            "color": "rgb(147, 197, 253)",
+            "selectionColor": "rgb(147, 197, 253)",
+            "start": 0,
+            "end": 20,
+            "length": 20
+          }
+        },
         "substitutions": [
           {
             "requestedFamily": "Aptos Display",
@@ -352,7 +416,7 @@
     "test": "f5c48684d9888f7c586cccd018c04434e5a193b526afb7b1b7f5ae5f5d894a80",
     "test-playground": "0b20278887b5f58fd94bd91a0cc64d39155977e7c2196ad948c589a42a0299ad",
     "test-code-browser": "33b4cc93f04a5f97ced1ef54bffc0494389d13c2f44f04934a499d74130ae487",
-    "test-packed": "4e72fe60ac3b7c11b9101d85aa566e8e8c83097857fffe6bbd62621f60626450"
+    "test-packed": "83743709bfdb4e5ae63efcc79d0fce6e1907ae943ecc791053ce26d62962b757"
   },
   "scope": "Editor 0.6.0 candidate installed from a local archive with actual registry core 0.9.0, renderer/PPTX 0.7.0. All 32 files match; nine model suites, offline playground, wide/portrait code editing, blank targets, CRLF/no-op, Tab/cancel, pagination/readability, undo/redo and exact code export/reimport pass. Native formatting/theme/geometry restoration and pixel equivalence are not claimed. Final CI/review and actual editor registry verification remain release gates."
 }

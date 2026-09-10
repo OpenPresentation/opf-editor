@@ -52,7 +52,7 @@ export function createCanvasEditor(container, options = {}) {
   notice.hidden = true;
   const style = doc.createElement("style");
   style.textContent =
-    ".opf-canvas-preview>svg{display:block;width:100%;height:auto}.opf-canvas [data-canvas-target]{cursor:text}.opf-canvas .opf-inline-input::selection{background:#8975d933;color:transparent}.opf-canvas [data-canvas-target]:focus{outline:none}.opf-canvas [data-canvas-target]:hover>.opf-selection{stroke:#9c90df}.opf-canvas [data-canvas-selected]>.opf-selection,.opf-canvas [data-canvas-target]:focus-visible>.opf-selection{stroke:#7765d0}.opf-canvas button:focus-visible,.opf-canvas textarea:focus-visible,.opf-canvas input:focus-visible{outline:2px solid #8170d5;outline-offset:2px}";
+    ".opf-canvas-preview>svg{display:block;width:100%;height:auto}.opf-canvas [data-canvas-target]{cursor:text}.opf-canvas .opf-inline-input::selection{background:#8975d933;color:var(--opf-inline-selection-color,transparent)}.opf-canvas [data-canvas-target]:focus{outline:none}.opf-canvas [data-canvas-target]:hover>.opf-selection{stroke:#9c90df}.opf-canvas [data-canvas-selected]>.opf-selection,.opf-canvas [data-canvas-target]:focus-visible>.opf-selection{stroke:#7765d0}.opf-canvas button:focus-visible,.opf-canvas textarea:focus-visible,.opf-canvas input:focus-visible{outline:2px solid #8170d5;outline-offset:2px}";
   root.append(style, preview, overlay, notice);
   container.replaceChildren(root);
   const report = (error) => {
@@ -296,7 +296,9 @@ export function createCanvasEditor(container, options = {}) {
     });
     active.input.style.left = `${svgRect.left - rootRect.left + (left - viewBox.x) * scale}px`;
     active.input.style.top = `${svgRect.top - rootRect.top + (y - viewBox.y) * scale}px`;
-    // Keep the canonical SVG visible. The transparent input supplies native selection and caret.
+    // When the input supplies visible text, its selected text needs the same fill.
+    active.input.style.setProperty('--opf-inline-selection-color',active.composing || active.isCode ? font.fill : 'transparent');
+    // Other text keeps the canonical SVG visible beneath the transparent input.
     target.style.opacity = active.composing || active.isCode ? "0" : "1";
   }
   function beginEdit(path) {

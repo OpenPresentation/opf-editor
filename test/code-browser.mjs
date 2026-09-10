@@ -33,12 +33,19 @@ try {
   await page.setContent('<button id="undo">Undo</button><button id="redo">Redo</button><button id="paginate">Paginate</button><button id="export">Export</button><button id="import">Import</button><div id="canvas" style="width:1000px"></div>');
   await page.addScriptTag({content:bundle});await page.context().setOffline(true);
   const document=()=>page.evaluate(()=>editor.document);
+  const visibleSelection=async input=>{
+    const state=await input.evaluate(node=>({color:getComputedStyle(node).color,selectionColor:getComputedStyle(node,'::selection').color,start:node.selectionStart,end:node.selectionEnd,length:node.value.length}));
+    assert.equal(state.start,0);assert.equal(state.end,state.length);assert.ok(state.length>0);
+    assert.notEqual(state.color,'rgba(0, 0, 0, 0)');assert.equal(state.selectionColor,state.color,'Selected code must stay visible while its canonical SVG is hidden');
+    return state;
+  };
   for(const dimensions of [{width:1280,height:720},{width:540,height:960}]) {
     const source='\tconst value = "two  spaces";  \r\n\r\nreturn value;\r\n';
     const deck={design:{fontScheme:'roboto',dimensions:{widthInches:dimensions.width/96,heightInches:dimensions.height/96}},slides:[{code:{source,filename:'src/CaseSensitive.ts',language:'TypeScript'}}]};
     await page.evaluate(args=>mountCode(args),{deck,faces});
     const body=page.locator('[data-canvas-target][data-opf-path="slides.0.code.source"]');
     await body.dblclick();let input=page.getByRole('textbox',{name:'Edit source inline',exact:true});
+    const sourceSelection=await visibleSelection(input);
     await input.press('Control+Enter');assert.deepEqual(await document(),deck);assert.equal(await page.evaluate(()=>editor.canUndo),false,'Opening CRLF source must not create an edit');
     await body.dblclick();input=page.getByRole('textbox',{name:'Edit source inline',exact:true});
     const editedSource=source.replace('const value','const renamed');
@@ -46,6 +53,7 @@ try {
     await page.getByRole('button',{name:'Undo',exact:true}).click();assert.deepEqual(await document(),deck);
     await page.getByRole('button',{name:'Redo',exact:true}).click();assert.equal((await document()).slides[0].code.source,editedSource);
     const filename=page.locator('[data-canvas-target][data-opf-path="slides.0.code.filename"]');await filename.dblclick();
+    const filenameSelection=await visibleSelection(page.getByRole('textbox',{name:'Edit filename inline',exact:true}));
     await page.getByRole('textbox',{name:'Edit filename inline',exact:true}).fill('src/Renamed.ts');await page.getByRole('textbox',{name:'Edit filename inline',exact:true}).press('Control+Enter');
     assert.equal((await document()).slides[0].code.filename,'src/Renamed.ts');
     await body.dblclick();input=page.getByRole('textbox',{name:'Edit source inline',exact:true});await input.press('ArrowRight');await input.press('Tab');
@@ -64,7 +72,7 @@ try {
     assert.deepEqual(imported.slides[0].blocks,[{type:'code',code:accepted.slides[0].code}],'Code semantics, metadata and every source newline round-trip exactly');
     await page.getByRole('button',{name:'Undo',exact:true}).click();assert.deepEqual(await document(),accepted);
     assert.deepEqual(await page.evaluate(()=>failures),[]);
-    results.push({dimensions,exportSha256:hash(new Uint8Array(bytes)),exportBytes:bytes.length,acceptedLines:displayed.length,exactCodeRoundTrip:true,substitutions:await page.evaluate(()=>fonts.substitutions)});
+    results.push({dimensions,exportSha256:hash(new Uint8Array(bytes)),exportBytes:bytes.length,acceptedLines:displayed.length,exactCodeRoundTrip:true,selectionVisibility:{source:sourceSelection,filename:filenameSelection},substitutions:await page.evaluate(()=>fonts.substitutions)});
   }
   // A shorthand value targets its body; the generated "code" label is not an editable source line.
   await page.evaluate(args=>mountCode(args),{faces,deck:{design:{fontScheme:'roboto'},slides:[{code:'\tshorthand\r\n'}]}});
