@@ -85,7 +85,7 @@ try {
     blankTargets.push({dimensions,acceptedHeight:accepted.box.height,selectableHeight:accepted.box.height+8,noOpPreserved:true,editUndoPreserved:true});
   }
   assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);
-  const report={browser:browser.version(),platform:process.platform,bundleSha256:hash(bundle),verifierSha256:hash(await readFile(new URL(import.meta.url))),results,blankTargets,errors,externalRequests:requests,
+  const report={browser:browser.version(),platform:process.platform,bundleSha256:hash(bundle),verifierSha256:hash(await readFile(new URL(import.meta.url))),fontHashes:faces.map(face=>({family:face.family,weight:face.weight,italic:face.italic,sha256:hash(Buffer.from(face.dataUrl.split(',')[1],'base64'))})),results,blankTargets,errors,externalRequests:requests,
     scope:'Offline candidate canvas: real pointer/keyboard code and filename edits, CRLF no-op/preservation, tab insertion/cancel, undo/redo, one-page pagination/readability undo, browser native export and undoable exact code/metadata/source-boundary reimport. Native formatting, positioning and font scheme are not reconstructed; font fallback uses the existing playground policy and is recorded. No native PowerPoint or raster equivalence claim.'};
   if(process.argv[2])await writeFile(process.argv[2],JSON.stringify(report,null,2)+'\n');
   console.log('Code canvas: wide/portrait source editing, metadata, CRLF, tabs, pagination, undo, offline export and bounded reimport checks pass.');
