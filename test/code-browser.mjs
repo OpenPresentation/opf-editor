@@ -27,7 +27,7 @@ const bundled=await build({stdin:{resolveDir:fileURLToPath(new URL('../',import.
     action('import',async()=>{window.lastImport=await fromPptx(lastExport);editor.set('',lastImport,{rejectInvalid:true});});
   };`},bundle:true,platform:'browser',format:'iife',write:false,minify:true});
 const bundle=bundled.outputFiles[0].text,browser=await chromium.launch({channel:process.platform==='win32'?'msedge':undefined});
-const errors=[],requests=[],results=[];
+const errors=[],requests=[],results=[],blankTargets=[];
 try {
   const page=await browser.newPage({viewport:{width:1440,height:1200}});page.on('pageerror',error=>errors.push(error.message));page.on('request',request=>{if(/^https?:/.test(request.url()))requests.push(request.url());});
   await page.setContent('<button id="undo">Undo</button><button id="redo">Redo</button><button id="paginate">Paginate</button><button id="export">Export</button><button id="import">Import</button><div id="canvas" style="width:1000px"></div>');
@@ -70,8 +70,22 @@ try {
   await page.evaluate(args=>mountCode(args),{faces,deck:{design:{fontScheme:'roboto'},slides:[{code:'\tshorthand\r\n'}]}});
   const target=page.locator('[data-canvas-target][data-opf-path="slides.0.code"]');assert.equal(await target.count(),1);assert.equal(await target.getAttribute('data-opf-code-role'),'body');
   await target.dblclick();await page.getByRole('textbox',{name:'Edit code inline',exact:true}).press('Control+Enter');assert.equal(await page.evaluate(()=>editor.get('slides.0.code')),'\tshorthand\r\n');assert.equal(await page.evaluate(()=>editor.canUndo),false);
+  for(const dimensions of [{width:1280,height:720},{width:540,height:960}]){
+    const blank='\r\n\r\n\n',deck={design:{fontScheme:'roboto',dimensions:{widthInches:dimensions.width/96,heightInches:dimensions.height/96}},slides:[{code:blank}]};
+    await page.evaluate(args=>mountCode(args),{faces,deck});
+    const body=page.locator('[data-canvas-target][data-opf-path="slides.0.code"]');
+    const accepted=await page.evaluate(()=>editor.composeSlide(0,{textMeasurement:fonts.textMeasurement}).items[0].codeLayout.parts.find(part=>part.role==='body'));
+    const selection=body.locator(':scope > rect.opf-selection');
+    assert.equal(Number(await selection.getAttribute('height')),accepted.box.height+8,'Entire blank code part must remain selectable');
+    await body.dblclick();let input=page.getByRole('textbox',{name:'Edit code inline',exact:true});
+    await input.press('Control+Enter');assert.deepEqual(await document(),deck);assert.equal(await page.evaluate(()=>editor.canUndo),false);
+    await body.dblclick();input=page.getByRole('textbox',{name:'Edit code inline',exact:true});
+    await input.fill('Visible code');await input.press('Control+Enter');assert.equal((await document()).slides[0].code,'Visible code');
+    await page.getByRole('button',{name:'Undo',exact:true}).click();assert.deepEqual(await document(),deck);
+    blankTargets.push({dimensions,acceptedHeight:accepted.box.height,selectableHeight:accepted.box.height+8,noOpPreserved:true,editUndoPreserved:true});
+  }
   assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);
-  const report={browser:browser.version(),platform:process.platform,bundleSha256:hash(bundle),verifierSha256:hash(await readFile(new URL(import.meta.url))),results,errors,externalRequests:requests,
+  const report={browser:browser.version(),platform:process.platform,bundleSha256:hash(bundle),verifierSha256:hash(await readFile(new URL(import.meta.url))),results,blankTargets,errors,externalRequests:requests,
     scope:'Offline candidate canvas: real pointer/keyboard code and filename edits, CRLF no-op/preservation, tab insertion/cancel, undo/redo, one-page pagination/readability undo, browser native export and undoable exact code/metadata/source-boundary reimport. Native formatting, positioning and font scheme are not reconstructed; font fallback uses the existing playground policy and is recorded. No native PowerPoint or raster equivalence claim.'};
   if(process.argv[2])await writeFile(process.argv[2],JSON.stringify(report,null,2)+'\n');
   console.log('Code canvas: wide/portrait source editing, metadata, CRLF, tabs, pagination, undo, offline export and bounded reimport checks pass.');
