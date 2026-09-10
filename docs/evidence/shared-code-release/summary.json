@@ -1,0 +1,22 @@
+{
+  "checkedAt": "2026-09-10T07:29:44.564Z",
+  "candidate": "@openpresentation/opf-editor@0.6.0",
+  "published": false,
+  "reports": [
+    {
+      "node": "v20.20.2",
+      "file": "node20.json",
+      "sha256": "432848d50b8aeb244e2abb765fccaf1be6446083642760308f626694769bd5db",
+      "integrity": "sha512-wHe6j1p06WQysXhHIvaiRAaoZH5d8o5GgDhbT9DEeZiINMaZZ7mZc9k6eWLK8AO9+F+vDWLvFwF0c0qPenvE0w==",
+      "shippedFileMatches": 32
+    },
+    {
+      "node": "v24.20.0",
+      "file": "node24.json",
+      "sha256": "03e019ff758f0764909836029b93ff1dfcd9c4f6b02ae2f7631cc0ba4d0d4e5d",
+      "integrity": "sha512-wHe6j1p06WQysXhHIvaiRAaoZH5d8o5GgDhbT9DEeZiINMaZZ7mZc9k6eWLK8AO9+F+vDWLvFwF0c0qPenvE0w==",
+      "shippedFileMatches": 32
+    }
+  ],
+  "scope": "Local candidate evidence. Actual registry verification follows trusted publication of the reviewed merge."
+}
