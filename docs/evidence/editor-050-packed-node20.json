@@ -2,7 +2,7 @@
   "node": "v20.20.2",
   "name": "@openpresentation/opf-editor",
   "version": "0.5.0",
-  "integrity": "sha512-U5YIpJie6nH/3HauGUufOV5NhixG9xmYqWjVwAi8M+A6GzRU0bLHMnF23Chb+P2d8YIjJhYEbu0swehyOJNs0w==",
+  "integrity": "sha512-klsfsUO86L+6dPd0lzDkMtH0TyunHZPsrEWz7PNkYt6rSmBEx3rLGUVMohXfJ771SU2AbxWkpSJVRxMXmAJTkA==",
   "files": {
     "LICENSE": "e8c5cecaad448c0cab00af38f7ed8b6bb647c77ba79f3c50d20a9ea92e256cd3",
     "README.md": "3ea4044b2dd2ca57810c098173d19528d5107ee10fd684b9806e429a943ccf46",
@@ -17,7 +17,7 @@
     "dist/galleries.d.ts": "21db86ccf7c9186391d643c057938ee813d391cd0cbe78f56e2446befcd15373",
     "dist/galleries.js": "239539250f0bfa1ff02e5a717213bd6f40305221b43a78ff707df3c683208ada",
     "dist/index.d.ts": "a316bbfa61677c7b395fb11f365ee84085af612121219592a5937d5c7f76a752",
-    "dist/index.js": "1e55461e1670d07b8bc725cad2272d6a13cb16358a03c45b0661ee2e6024a5a7",
+    "dist/index.js": "319748313605683f433c93baf8cf7470d3b726add9c736a80611b6a5b4638cef",
     "dist/layout-handles.js": "e9f9d4197cae2fe07825abc894fd6243ea35c3d70974762d1a9021bd23781414",
     "dist/layout.d.ts": "73d6212cf549436597dc97d9562faceaf3b171107c74a23210d6958f8893110e",
     "dist/layout.js": "de8dc48f08a7c4ed6c99fcbcfa3e4508930d7b306827fc2cd29865c190141df8",
@@ -57,7 +57,7 @@
   "tests": [
     {
       "file": "smoke.mjs",
-      "fixtureSha256": "ae6f10d7f23aa896fd014ab5f99290ea9c66e68818e80e2458d90761948e6999",
+      "fixtureSha256": "61775ddfc9f680c183fbb61df12489b2b521d123048c7c25244c987eddb40705",
       "output": "opf-editor smoke passed"
     },
     {

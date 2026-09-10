@@ -172,3 +172,16 @@ assert.equal(quoteEditor.composeSlide(0).items[0].quoteLayout.parts[1].fit.fontS
 assert.equal(quoteEditor.paginateSlide(0).change,null);
 quoteEditor.undo(); assert.deepEqual(quoteEditor.document,quoteBefore);
 quoteEditor.redo(); assert.equal(quoteEditor.composeSlide(0).items[0].quoteLayout.parts[1].fit.fontSize,24);
+
+// Object order is not an editorial change. Test ordinary JSON variants through
+// the public operation and retain an existing redo entry across the no-op.
+const reverseKeys=value=>Array.isArray(value)?value.map(reverseKeys):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).reverse().map(([key,child])=>[key,reverseKeys(child)])):value;
+const orderedSlide={title:'Keep history',composition:{mode:'column',minFontSize:24},blocks:[{composition:{mode:'column',minFontSize:24},blocks:[{quote:{text:'Keep the body.',attribution:'Reviewer',source:'Source'}}]}]};
+for(const slide of [orderedSlide,reverseKeys(orderedSlide)]){
+  const session=createEditorSession({slides:[slide]});
+  session.set('slides.0.title','Redo this title');session.undo();
+  const before=JSON.stringify(session.document);
+  assert.equal(session.paginateSlide(0).change,null,'Already persisted nested policies are unchanged in either JSON key order');
+  assert.equal(JSON.stringify(session.document),before,'No-op pagination must preserve the original document including key order');
+  assert.equal(session.redo()?.document.slides[0].title,'Redo this title','No-op pagination must preserve an existing redo entry');
+}
