@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Edit code source and metadata through accepted renderer trace targets, including empty source and shorthand values. Preserve source line endings through no-op commits and edits; insert literal tabs and support cancel/undo. Generated labels are not editable source targets, and code selection does not offer invalid rich-text formatting.
+- Verify offline pointer/keyboard edits, pagination policy, undo/redo, native export and exact code/metadata/source-boundary reimport in wide and portrait canvases. The source textarea uses native browser editing, while committed preview uses accepted SVG geometry. Native formatting/font theme and pixel equivalence remain separate gaps. Requires coordinated unreleased core/renderer/PPTX integration.
+
 ## 0.5.0
 
 - Commit pagination readability changes even when content stays on one slide, with undo/redo and no duplicate history after an unchanged repeat. Requires core 0.8.0 and renderer 0.6.0 for persisted minimums and shared quote geometry.

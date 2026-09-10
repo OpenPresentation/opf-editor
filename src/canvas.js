@@ -135,6 +135,8 @@ export function createCanvasEditor(container, options = {}) {
       const value = getValueAtPath(document, path);
       if (
         seen.has(path) ||
+        node.getAttribute('data-opf-generated') === 'true' ||
+        (node.hasAttribute('data-opf-code-container') && typeof value === 'string') ||
         (!item && !node.matches("g") && !node.matches("image")) ||
         value === undefined ||
         path === `slides.${slideIndex}` ||
@@ -157,6 +159,7 @@ export function createCanvasEditor(container, options = {}) {
       );
       if (node.matches("g")) {
         let bounds = node.getBBox();
+        if (!bounds.width && !bounds.height && node.hasAttribute('data-opf-code-role')) bounds={x:Number(node.dataset.opfBoxX),y:Number(node.dataset.opfBoxY),width:Number(node.dataset.opfBoxWidth),height:Number(node.dataset.opfBoxHeight)};
         const lines = JSON.parse(node.getAttribute("data-opf-rich-lines") ?? "[]");
         if (!bounds.width && !bounds.height && lines.length) bounds = {x:lines[0].x,y:lines[0].y,width:Number(node.getAttribute("data-opf-box-width"))||8,height:lines.reduce((sum,line)=>sum+line.height,0)};
         const rect = doc.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -228,7 +231,7 @@ export function createCanvasEditor(container, options = {}) {
         return;
       }
       try {
-        const value = active.kind === "rich-text" ? active.rich.value : parseCanvasValue(active.input.value, active.type);
+        const value = active.kind === "rich-text" ? active.rich.value : parseCanvasValue(active.input.value, active.type, active.originalValue);
         const draft = createCanvasDraft(editor.document, active.path, value);
         clearNotice();
         active.valid = true;
@@ -283,7 +286,7 @@ export function createCanvasEditor(container, options = {}) {
       fontWeight: font.fontWeight,
       fontStyle: font.fontStyle,
       lineHeight: `${lineHeight * scale}px`,
-      color: active.composing ? font.fill : "transparent",
+      color: active.composing || active.isCode ? font.fill : "transparent",
       caretColor: font.fill,
       textAlign: anchor === "middle" ? "center" : anchor === "end" ? "right" : "left",
       width: `${width * scale}px`,
@@ -294,7 +297,7 @@ export function createCanvasEditor(container, options = {}) {
     active.input.style.left = `${svgRect.left - rootRect.left + (left - viewBox.x) * scale}px`;
     active.input.style.top = `${svgRect.top - rootRect.top + (y - viewBox.y) * scale}px`;
     // Keep the canonical SVG visible. The transparent input supplies native selection and caret.
-    target.style.opacity = active.composing ? "0" : "1";
+    target.style.opacity = active.composing || active.isCode ? "0" : "1";
   }
   function beginEdit(path) {
     if (disposed) return;
@@ -321,18 +324,22 @@ export function createCanvasEditor(container, options = {}) {
       input.className = "opf-inline-input";
       input.value = String(value);
       input.setAttribute("aria-label", `Edit ${path.split(".").at(-1)} inline`);
-      input.spellcheck = true;
+      const isCode=text.hasAttribute('data-opf-code-role');
+      input.spellcheck = !isCode;
       input.style.cssText =
         "position:absolute;pointer-events:auto;resize:none;border:0;outline:1px solid #8975d9;outline-offset:4px;margin:0;padding:0;background:transparent;overflow:hidden;min-height:0;box-shadow:none;border-radius:0;white-space:pre-wrap;overflow-wrap:break-word;box-sizing:border-box;z-index:2";
       active = {
         kind: "text",
         path,
         base: JSON.stringify(value),
+        originalValue:value,
+        isCode,
         type: typeof value,
         input,
         valid: true,
       };
       overlay.append(input);
+      if(isCode){input.style.background='#111827';input.style.tabSize='4';input.style.overflow='auto';}
       // Only offer rich text where the canonical schema accepts TextRun[].
       if (typeof value === "string") {
         try {
@@ -366,7 +373,9 @@ export function createCanvasEditor(container, options = {}) {
       });
       input.addEventListener("keydown", (event) => {
         if (event.isComposing) return;
-        if (event.key === "Escape") {
+        if (isCode && event.key === 'Tab' && !event.shiftKey) {
+          event.preventDefault();input.setRangeText('\t',input.selectionStart,input.selectionEnd,'end');input.dispatchEvent(new win.Event('input',{bubbles:true}));
+        } else if (event.key === "Escape") {
           event.preventDefault();
           event.stopPropagation();
           cancel();
@@ -400,6 +409,7 @@ export function createCanvasEditor(container, options = {}) {
       value: parseCanvasValue(
         field.type === "boolean" ? input.checked : input.value,
         field.type,
+        field.value,
       ),
     }));
   }
@@ -594,7 +604,7 @@ export function createCanvasEditor(container, options = {}) {
       let value;
       if (edit.kind === "rich-text") value = edit.rich.value;
       else if (edit.kind === "text")
-        value = parseCanvasValue(edit.input.value, edit.type);
+        value = parseCanvasValue(edit.input.value, edit.type, edit.originalValue);
       else value = propertyDraft(edit);
       if (edit.kind === "text" || edit.kind === "rich-text")
         renderSvg(createCanvasDraft(editor.document, edit.path, value), {...renderOptions,slideIndex});
