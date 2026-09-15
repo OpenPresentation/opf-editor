@@ -25,8 +25,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           path: opf-editor
-      # Unpublished shared APIs require the coordinated source graph. Registry
-      # predecessor checks remain a release gate after core publication.
+      # Verify registry dependencies before linking the pinned source graph.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
@@ -64,6 +63,8 @@ jobs:
           for repo in opf-render opf-pptx opf-editor; do
             npm ci --prefix "$repo"
           done
+      - name: Verify editor with published dependencies
+        run: npm run test:packed
       - name: Build and link coordinated sources
         working-directory: opf
         run: |
@@ -109,6 +110,8 @@ jobs:
             opf-editor/artifacts/json-editor-browser.json
             opf-editor/artifacts/prepared-carets.json
             opf/artifacts/editor/prepared-carets-installed.json
+            opf-editor/artifacts/packed-consumer-node24.json
+            opf-editor/artifacts/packed-json*-node24.json
             opf/artifacts/editor/json-editor-installed.json
             opf-editor/artifacts/rich-input-browser*.png
             opf/artifacts/editor/rich-input-installed*.json
