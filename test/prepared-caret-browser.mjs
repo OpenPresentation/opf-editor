@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {navigationText,checkHardLineNavigation,checkSoftLineNavigation} from './visual-navigation.mjs';
 import {createHash} from 'node:crypto';
 import {readFile,writeFile,mkdir,realpath} from 'node:fs/promises';
 import {createRequire} from 'node:module';
@@ -50,7 +51,7 @@ for(const face of faces){
  }
 }
 const browser=await chromium.launch();const report={node:process.version,browser:browser.version(),runtime:consumer?'installed':'checkout',inputs,
- bundleSha256:hash(bundle.outputFiles[0].contents),wasmSha256:hash(wasm),verifierSha256:hash(await readFile(new URL(import.meta.url))),
+ bundleSha256:hash(bundle.outputFiles[0].contents),wasmSha256:hash(wasm),verifierSha256:hash(await readFile(new URL(import.meta.url))),navigationVerifierSha256:hash(await readFile(new URL('./visual-navigation.mjs',import.meta.url))),
  ...(consumer?{lockSha256:hash(await readFile(path.join(consumer,'package-lock.json')))}:{}),checks:[],errors:[],externalRequests:[],status:'running'};
 let page;
 try{
@@ -198,6 +199,31 @@ try{
   assert.deepEqual(await page.evaluate(()=>editor.document),{...original,slides:[{...original.slides[0],text:expected}]},fixture.name+' preserves source representation and formatting');
   await page.evaluate(()=>editor.undo());assert.deepEqual(await page.evaluate(()=>editor.document),original);
   assert.deepEqual(await page.evaluate(()=>failures),[]);report.checks.push(details);
+ }
+ // A textarea only one CSS pixel wide cannot supply visible-line navigation.
+ // Known authored lines give an independent source-offset oracle for these keys.
+ for(const scalar of [false,true]){
+  const source=navigationText;
+  const value=scalar?source:[{text:source,fontSize:32,underline:true}];
+  const original={name:'Navigation',design:{fontScheme:{id:'roboto',heading:{family:'Arimo'},body:{family:'Arimo'},code:{family:'Arimo'}}},slides:[{text:value,notes:'Keep notes'}]};
+  await page.evaluate(args=>mount(args),{deck:original,faces,width:640});await paint();
+  await page.evaluate(()=>canvas.beginEdit('slides.0.text'));await paint();
+  const input=page.locator('.opf-rich-input');
+  await checkHardLineNavigation(page,input,paint);
+  assert.deepEqual(await page.evaluate(()=>editor.document),original,'Navigation must not commit or rewrite the draft');
+  await input.pressSequentially('!');await input.press('Control+Enter');await paint();
+  const edited=await page.evaluate(()=>editor.document);assert.deepEqual(edited.slides[0].text,scalar?source+'!':[{...value[0],text:source+'!'}]);
+  await page.evaluate(()=>editor.undo());assert.deepEqual(await page.evaluate(()=>editor.document),original);
+  assert.deepEqual(await page.evaluate(()=>failures),[]);report.checks.push({name:'Visible hard-line navigation',scalar});
+ }
+ for(const scalar of [false,true]){
+  const source='office affine AABBCC '.repeat(16),value=scalar?source:[{text:source,fontSize:32,underline:true}];
+  const original={design:{fontScheme:{id:'roboto',heading:{family:'Arimo'},body:{family:'Arimo'},code:{family:'Arimo'}}},slides:[{text:value}]};
+  await page.evaluate(args=>mount(args),{deck:original,faces,width:640});await paint();
+  await page.evaluate(()=>canvas.beginEdit('slides.0.text'));await paint();
+  const lines=await checkSoftLineNavigation(page,page.locator('.opf-rich-input'),paint);
+  assert.deepEqual(await page.evaluate(()=>editor.document),original);
+  assert.deepEqual(await page.evaluate(()=>failures),[]);report.checks.push({name:'Visible soft-line navigation',scalar,lines});
  }
  assert.deepEqual(report.errors,[]);assert.deepEqual(report.externalRequests,[]);report.status='passed';
  console.log(`Prepared caret browser: ${report.checks.length} scalar/rich, font/interpolated, responsive, selection, pointer and exact-source undo workflows pass (${report.runtime}).`);

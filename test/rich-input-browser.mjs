@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {navigationText,checkHardLineNavigation,checkSoftLineNavigation} from './visual-navigation.mjs';
 import {createHash} from 'node:crypto';
 import {readFile,writeFile,mkdir,realpath} from 'node:fs/promises';
 import {fileURLToPath,pathToFileURL} from 'node:url';
@@ -56,7 +57,7 @@ for(const name of ['opf','opf-render','opf-editor']){
 }
 const browser=await chromium.launch();
 const report={node:process.version,browser:browser.version(),platform:process.platform,mode,status:'running',
-  bundleSha256:hash(bundle),verifierSha256:hash(await readFile(new URL(import.meta.url))),inputs,
+  bundleSha256:hash(bundle),verifierSha256:hash(await readFile(new URL(import.meta.url))),navigationVerifierSha256:hash(await readFile(new URL('./visual-navigation.mjs',import.meta.url))),inputs,
   runtime:consumer?'installed':'checkout',packages,fontModuleSha256:hash(await readFile(fontModule)),...(lockBytes?{lockSha256:hash(lockBytes)}:{}),
   fonts:faces.map(face=>({family:face.family,weight:face.weight,italic:face.italic,sha256:hash(Buffer.from(face.dataUrl.split(',')[1],'base64'))})),
   ...(wasm?{wasmSha256:hash(wasm)}:{}),checks:[],errors:[],externalRequests:[],
@@ -162,6 +163,17 @@ try{
   });assert.equal(blankCaret.sourceOffset,23);assert.ok(Math.abs(blankCaret.dx)<1&&Math.abs(blankCaret.dy)<1);
   await commit();assert.deepEqual(await text(),[original[0],{...original[1],text:'Second\rThird\r\n\r\n'}]);
   await page.evaluate(()=>editor.undo());assert.deepEqual(await text(),original);await passed('Trailing blank lines keep their source offset and insertion caret',{blankCaret});
+  const navigationValue=[{text:navigationText,fontSize:32,underline:true}];
+  await mount(deckFor(navigationValue));await begin();
+  await checkHardLineNavigation(page,input(),paint);
+  assert.deepEqual(await document(),deckFor(navigationValue));
+  await input().pressSequentially('!');await commit();
+  assert.deepEqual(await text(),[{...navigationValue[0],text:navigationText+'!'}]);
+  await page.evaluate(()=>editor.undo());assert.deepEqual(await text(),navigationValue);
+  await passed('Visible hard-line navigation preserves source, formatting and undo');
+  await mount(deckFor([{text:'office affine AABBCC '.repeat(16),fontSize:32,underline:true}]));await begin();
+  const navigationLines=await checkSoftLineNavigation(page,input(),paint);
+  await input().press('Escape');await passed('Visible soft-line navigation keeps caret affinity',{lines:navigationLines});
   await page.evaluate(()=>{canvas.destroy();fonts.dispose();});assert.equal(await page.locator('#host > *').count(),0);
   assert.equal(await page.evaluate(()=>document.fonts.size),0);assert.deepEqual(report.errors,[]);assert.deepEqual(report.externalRequests,[]);
   for(const [file,digest] of Object.entries(inputs))assert.equal(hash(await readFile(file)),digest,'Browser verification must not rebuild runtime files');

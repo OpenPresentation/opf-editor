@@ -20,6 +20,8 @@ export function createRichTextInput(root, overlay, {path, value, getTarget, onIn
   overlay.append(marks,input,actions);
   let current=structuredClone(initial), composing=false, change=null, anchor=null, disposed=false, emptyAnchor=null;
   let history=[{value:structuredClone(current),start:0,end:input.value.length}], historyIndex=0, compositionBase=null;
+  let navigation=null;
+  const selectionKey=()=>`${input.selectionStart}:${input.selectionEnd}:${input.selectionDirection}`;
   const currentMap=()=>textInputMap(richTextContent(current));
   function remember() {
     history.splice(historyIndex+1);history.push({value:structuredClone(current),start:input.selectionStart,end:input.selectionEnd});historyIndex++;
@@ -51,27 +53,74 @@ export function createRichTextInput(root, overlay, {path, value, getTarget, onIn
     const range=doc.createRange();range.setStart(node.firstChild,start);range.setEnd(node.firstChild,end);return range.getBoundingClientRect();
   }
   function boundaries() {
-    const result=[];
+    const result=[],target=getTarget(path);
+    const lines=target?.hasAttribute('data-opf-rich-lines')?JSON.parse(target.dataset.opfRichLines):
+      [...(target?.querySelectorAll('text[data-opf-source-start]')??[])].map(node=>({start:Number(node.dataset.opfSourceStart),end:Number(node.dataset.opfSourceEnd)}));
+    const add=(point,start,end)=>{
+      // A fragment belongs to one accepted line, even when its final offset
+      // is also the first offset of the next soft-wrapped line.
+      const line=lines.findIndex(line=>line.start<=start&&end<=line.end);
+      result.push({...point,line});
+    };
     for(const {node,map,matrix}of prepared())for(const stop of map.stops){
       const box=mappedBox(matrix,stop.x,stop.x,map.top,map.bottom);
-      result.push({offset:stop.offset,x:box.left,y:box.top,height:box.height,node,basis:stop.basis});
+      add({offset:stop.offset,x:box.left,y:box.top,height:box.height,node,basis:stop.basis},map.start,map.end);
     }
     for(const node of nativeFragments()) {
       if(!node.firstChild)continue;
       const start=Number(node.dataset.opfTextStart),text=node.textContent;
       for(const part of new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(text)) {
         const box=rect(node,part.index,part.index+part.segment.length),rtl=win.getComputedStyle(node).direction==='rtl';
-        result.push({offset:start+part.index,x:rtl?box.right:box.left,y:box.top,height:box.height,node});
-        result.push({offset:start+part.index+part.segment.length,x:rtl?box.left:box.right,y:box.top,height:box.height,node});
+        add({offset:start+part.index,x:rtl?box.right:box.left,y:box.top,height:box.height,node},start,start+text.length);
+        add({offset:start+part.index+part.segment.length,x:rtl?box.left:box.right,y:box.top,height:box.height,node},start,start+text.length);
       }
     }
-    const target=getTarget(path),matrix=target?.getScreenCTM();
-    if(matrix)for(const line of JSON.parse(target.dataset.opfRichLines??'[]')) {
+    const matrix=target?.getScreenCTM();
+    if(matrix)for(const [index,line]of JSON.parse(target.dataset.opfRichLines??'[]').entries()) {
       if(line.start!==line.end)continue;
       const point=new win.DOMPoint(line.x,line.y).matrixTransform(matrix);
-      result.push({offset:line.start,x:point.x,y:point.y,height:line.height*Math.hypot(matrix.c,matrix.d)});
+      result.push({offset:line.start,x:point.x,y:point.y,height:line.height*Math.hypot(matrix.c,matrix.d),line:index});
     }
     return result;
+  }
+  function activePoint(points,offset) {
+    if(navigation?.selection!==selectionKey())navigation=null;
+    return (navigation&&points.findLast(p=>p.offset===offset&&p.line===navigation.line))??
+      points.findLast(p=>p.offset===offset)??points.reduce((best,p)=>!best||Math.abs(p.offset-offset)<Math.abs(best.offset-offset)?p:best,null);
+  }
+  function moveByLine(event) {
+    if(!['ArrowUp','ArrowDown','Home','End'].includes(event.key)||event.altKey)return false;
+    const vertical=event.key==='ArrowUp'||event.key==='ArrowDown';
+    if(vertical&&(event.ctrlKey||event.metaKey))return false;
+    const map=currentMap(),start=map.toSource(input.selectionStart),end=map.toSource(input.selectionEnd);
+    const backward=input.selectionDirection==='backward',focus=backward?start:end,anchor=backward?end:start;
+    const points=boundaries(),point=activePoint(points,focus);
+    if(!point||point.line<0)return false;
+    const goal=vertical?(navigation?.x??point.x):null;
+    const ordered=[...new Set(points.map(p=>p.line).filter(line=>line>=0))].sort((a,b)=>a-b);
+    let line=point.line,target;
+    if(vertical){
+      const next=ordered[ordered.indexOf(line)+(event.key==='ArrowUp'?-1:1)];
+      if(next===undefined){
+        const offset=event.key==='ArrowUp'?0:richTextContent(current).length;
+        target=points.findLast(p=>p.offset===offset);
+      }else{
+        line=next;
+        target=points.filter(p=>p.line===line).reduce((best,p)=>!best||Math.abs(p.x-goal)<Math.abs(best.x-goal)?p:best,null);
+      }
+    }else{
+      const documentEdge=event.ctrlKey||event.metaKey;
+      const choices=documentEdge?points:points.filter(p=>p.line===line);
+      const offset=choices.reduce((offset,p)=>Math[event.key==='Home'?'min':'max'](offset,p.offset),choices[0].offset);
+      target=choices.findLast(p=>p.offset===offset);
+    }
+    if(!target)return false;
+    const fixed=event.shiftKey?anchor:target.offset;
+    input.setSelectionRange(map.toInput(Math.min(fixed,target.offset)),map.toInput(Math.max(fixed,target.offset)),target.offset<fixed?'backward':'forward');
+    // Keep the desired x through short/empty lines and the visual affinity of
+    // a soft-wrap boundary. External selection changes invalidate both.
+    navigation={selection:selectionKey(),line:target.line,x:goal};
+    update();return true;
   }
   function update() {
     if(disposed)return;marks.replaceChildren();
@@ -99,7 +148,7 @@ export function createRichTextInput(root, overlay, {path, value, getTarget, onIn
     if(points.length)emptyAnchor=points[0];
     const offset=input.selectionDirection==='backward'?start:end;
     // Prefer the beginning of the next fragment at wrapped line boundaries.
-    const point=points.findLast(p=>p.offset===offset)??points.reduce((best,p)=>!best||Math.abs(p.offset-offset)<Math.abs(best.offset-offset)?p:best,null);
+    const point=activePoint(points,offset);
     const target=emptyAnchor?{left:emptyAnchor.x,top:emptyAnchor.y,width:1,height:emptyAnchor.height}:getTarget(path)?.getBoundingClientRect();
     const box=point?{left:point.x,top:point.y,width:1,height:point.height,color:point.node?win.getComputedStyle(point.node).fill:undefined}:target;
     if(box) {
@@ -116,26 +165,31 @@ export function createRichTextInput(root, overlay, {path, value, getTarget, onIn
       const vertical=Math.max(p.y-event.clientY,0,event.clientY-p.y-p.height);
       const distance=vertical*vertical*100+Math.pow(p.x-event.clientX,2);
       return !best||distance<best.distance?{...p,distance}:best;
-    },null)?.offset??0;
+    },null)??{offset:0,line:-1};
   }
   function pointerDown(event) {
     if(event.button!==0||!getTarget(path)?.contains(event.target))return;
-    event.preventDefault();event.stopPropagation();
-    const map=currentMap();anchor=event.shiftKey?map.toSource(input.selectionStart):nearest(event);input.focus({preventScroll:true});
-    const end=nearest(event);input.setSelectionRange(map.toInput(Math.min(anchor,end)),map.toInput(Math.max(anchor,end)),end<anchor?'backward':'forward');
+    event.preventDefault();event.stopPropagation();navigation=null;
+    const map=currentMap(),point=nearest(event);
+    anchor=event.shiftKey?map.toSource(input.selectionDirection==='backward'?input.selectionEnd:input.selectionStart):point.offset;input.focus({preventScroll:true});
+    const end=point.offset;input.setSelectionRange(map.toInput(Math.min(anchor,end)),map.toInput(Math.max(anchor,end)),end<anchor?'backward':'forward');
+    navigation={selection:selectionKey(),line:point.line,x:null};
     root.setPointerCapture(event.pointerId);update();
   }
   function pointerMove(event) {
-    if(anchor===null)return;event.preventDefault();const end=nearest(event),map=currentMap();
-    input.setSelectionRange(map.toInput(Math.min(anchor,end)),map.toInput(Math.max(anchor,end)),end<anchor?'backward':'forward');update();
+    if(anchor===null)return;event.preventDefault();const point=nearest(event),end=point.offset,map=currentMap();
+    input.setSelectionRange(map.toInput(Math.min(anchor,end)),map.toInput(Math.max(anchor,end)),end<anchor?'backward':'forward');
+    navigation={selection:selectionKey(),line:point.line,x:null};update();
   }
   function pointerUp(event) {if(anchor!==null){anchor=null;if(root.hasPointerCapture(event.pointerId))root.releasePointerCapture(event.pointerId);}}
   function undo(direction) {
+    navigation=null;
     const next=historyIndex+direction;if(next<0||next>=history.length)return;
     historyIndex=next;const saved=history[next];current=structuredClone(saved.value);input.value=richTextContent(current);
     input.setSelectionRange(saved.start,saved.end);onInput(current);update();
   }
   input.addEventListener('beforeinput',event=>{
+    navigation=null;
     if(event.inputType==='historyUndo'||event.inputType==='historyRedo'){event.preventDefault();undo(event.inputType==='historyUndo'?-1:1);return;}
     change={start:input.selectionStart,end:input.selectionEnd,inputType:event.inputType};
     if(!composing){history[historyIndex].start=input.selectionStart;history[historyIndex].end=input.selectionEnd;}
@@ -148,9 +202,11 @@ export function createRichTextInput(root, overlay, {path, value, getTarget, onIn
   input.addEventListener('compositionend',()=>{composing=false;if(JSON.stringify(current)!==compositionBase)remember();onInput(current);update();});
   input.addEventListener('keydown',event=>{
     if(event.isComposing||composing)return;
-    if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='z'){event.preventDefault();event.stopPropagation();undo(event.shiftKey?1:-1);}
+    if(moveByLine(event)){event.preventDefault();event.stopPropagation();}
+    else if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='z'){event.preventDefault();event.stopPropagation();undo(event.shiftKey?1:-1);}
     else if(event.key==='Escape'){event.preventDefault();event.stopPropagation();onCancel();}
     else if(event.key==='Enter'&&(event.metaKey||event.ctrlKey)){event.preventDefault();onCommit();}
+    else if(!['Shift','Control','Meta','Alt'].includes(event.key))navigation=null;
   });
   input.addEventListener('select',update);input.addEventListener('keyup',update);
   input.addEventListener('blur',()=>{if(!disposed&&!composing)onCommit();});

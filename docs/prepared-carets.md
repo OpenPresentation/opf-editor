@@ -14,6 +14,15 @@ arrows follow pure RTL text. Every accepted tab stop remains available to the
 caret and selection, including consecutive tabs. Rich tabs preserve run styles
 and underlines through the shared core/renderer geometry.
 
+Up/Down and Home/End use the visible accepted lines instead of the hidden
+textarea's wrapping. Vertical movement retains the desired horizontal position
+through short and empty lines. Shift extends from the original selection anchor;
+Ctrl/Command+Home/End move to document boundaries. End and pointer placement
+retain the chosen side of a soft-wrap boundary, where two visual positions can
+share one source offset. Native composition and modified paragraph navigation
+remain with the browser. This changes caret behavior without changing slide ink
+or authored text.
+
 This branch depends on the prepared font renderer PR and is stacked on the
 shared furniture editor branch. It is not a published npm feature yet.
 
@@ -37,7 +46,11 @@ Installed mode rejects browser bundles that load checkout sources.
 Expanded cases cover actual soft wraps across styled runs, selection across
 those runs, empty scalar/rich values, pure Hebrew runs with combining marks,
 RTL keyboard and pointer navigation, consecutive tabs and their underlines.
-The existing ten painted rich-input workflows also remain part of CI.
+The prepared suite now has nineteen workflows. The broader rich-input suite
+has twelve workflows in each of measured, estimated and painted modes, including
+source-offset navigation oracles and rendered soft-line endpoint checks.
+[Navigation evidence](evidence/visual-line-navigation-20260915/README.md) retains
+the original failure and the current passing source results.
 
 Before merge, complete current-head fresh installed and CI acceptance and
 broaden script/feature, performance and lifecycle coverage. Pure RTL cases do
