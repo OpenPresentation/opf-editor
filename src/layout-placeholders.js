@@ -2,7 +2,7 @@ import {listBlockContainers,prepareBlockInsert} from './blocks.js';
 
 const payloadFields=['text','items','bullets','image','video','chart','table','code','metric','quote','timeline'];
 const headingFields=new Set(['title','subtitle','tag']);
-const fields={text:'text',list:'items',picture:'image',media:'video',diagram:'image',chart:'chart',table:'table',code:'code',metric:'metric'};
+const fields={text:'text',list:'items',picture:'image',media:'video',diagram:'image',chart:'chart',table:'table',code:'code',metric:'metric',quote:'quote',timeline:'timeline'};
 const region=key=>/^(?:(?:top|middle|bottom)(?:\+(?:top|middle|bottom))*(?::(?:left|center|right)(?:\+(?:left|center|right))*)?|(?:left|center|right)(?:\+(?:left|center|right))*)$/.test(key);
 
 function emptyPayload(field){
@@ -10,6 +10,8 @@ function emptyPayload(field){
   if(field==='chart')return {type:'bar',data:{columns:['',''],rows:[['',null]]}};
   if(field==='table')return {rows:[]};
   if(field==='metric')return {value:'',label:''};
+  if(field==='quote')return {text:'',attribution:''};
+  if(field==='timeline')return {events:[{when:'',what:''}]};
   return '';
 }
 

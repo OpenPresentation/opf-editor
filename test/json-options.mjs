@@ -96,7 +96,7 @@ assert.deepEqual(explicit.slides[0].blocks,[{type:'text',text:'Typed content'},{
 const custom={id:'custom-metric',name:'Custom metric',placeholders:[{type:'title'},{type:'metric'},{type:'metric'}]};
 assert.equal(choose({slides:[{layout:'text-1x'}],catalogs:{layouts:{records:[custom]}}},custom.id).slides[0].blocks.length,2);
 assert.equal(choose({slides:[{layout:'text-1x'}]},custom.id,{layouts:[custom]}).slides[0].blocks.length,2);
-for(const layout of ['chart-1x','table-1x','image-1x','list-1x']){
+for(const layout of ['chart-1x','table-1x','image-1x','list-1x','quote-1x','timeline-1x']){
   choose({slides:[{layout:'title',title:'Keep'}]},layout);
 }
 assert.equal(replaceFieldOption(metricContext,'title-subtitle'),metricContext.source,'Current choice is a no-op');

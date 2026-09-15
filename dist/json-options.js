@@ -19,8 +19,8 @@ function placeholderSummary(types) {
         return "Placeholders not specified";
     if (!types.length)
         return "No placeholders";
-    const labels = { title: "Title", subtitle: "Subtitle", text: "Text", metric: "Metric", list: "List", picture: "Image", chart: "Chart", table: "Table", code: "Code", media: "Media" };
-    const order = ["title", "subtitle", "text", "metric", "list", "picture", "chart", "table", "code", "media"];
+    const labels = { title: "Title", subtitle: "Subtitle", text: "Text", metric: "Metric", list: "List", picture: "Image", chart: "Chart", table: "Table", code: "Code", media: "Video", quote: "Quote", timeline: "Timeline", tag: "Tag", diagram: "Image" };
+    const order = ["title", "subtitle", "text", "metric", "list", "picture", "chart", "table", "code", "media", "quote", "timeline", "tag", "diagram"];
     return [...new Set(types)].sort((a, b) => order.indexOf(a) - order.indexOf(b)).map(type => {
         const count = types.filter(value => value === type).length;
         return `${labels[type] ?? type}${count > 1 ? ` × ${count}` : ""}`;
