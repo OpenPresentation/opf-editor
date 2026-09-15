@@ -8,6 +8,7 @@ export function createRichTextInput(root, overlay, {path, value, getTarget, onIn
   const input=doc.createElement('textarea'), marks=doc.createElement('div'), actions=doc.createElement('div');
   input.className='opf-rich-input';input.value=richTextContent(initial);
   input.setAttribute('aria-label',scalar?`Edit ${path.split('.').at(-1)} inline`:'Edit rich text inline');input.spellcheck=true;
+  input.dir='auto';
   input.style.cssText='position:absolute;width:1px;padding:0;border:0;opacity:0;pointer-events:none;resize:none;overflow:hidden;z-index:3';
   marks.className='opf-rich-selection';marks.setAttribute('aria-hidden','true');marks.style.cssText='position:absolute;inset:0;pointer-events:none';
   actions.style.cssText='position:absolute;bottom:8px;left:8px;display:flex;gap:6px;pointer-events:auto;z-index:4';
@@ -32,6 +33,7 @@ export function createRichTextInput(root, overlay, {path, value, getTarget, onIn
         const map=JSON.parse(text);
         if(map.version!==1||![map.start,map.end].every(Number.isInteger)||map.start<0||map.end<map.start||
           ![map.top,map.bottom].every(Number.isFinite)||map.bottom<=map.top||!Array.isArray(map.stops)||
+          map.direction!==undefined&&!['ltr','rtl'].includes(map.direction)||
           map.stops.some(stop=>!Number.isInteger(stop.offset)||stop.offset<map.start||stop.offset>map.end||!Number.isFinite(stop.x)))
           throw new Error('Invalid prepared text caret geometry.');
         cached={text,map};mapCache.set(node,cached);
@@ -103,7 +105,10 @@ export function createRichTextInput(root, overlay, {path, value, getTarget, onIn
     if(box) {
       if(start===end)append(box,true);
       input.style.left=`${box.left-origin.left}px`;input.style.top=`${box.top-origin.top}px`;input.style.height=`${Math.max(20,box.height)}px`;
-      if(point?.node)input.style.font=win.getComputedStyle(point.node).font;
+      if(point?.node){
+        input.style.font=win.getComputedStyle(point.node).font;
+        input.dir=mapCache.get(point.node)?.map.direction??'auto';
+      }
     }
   }
   function nearest(event) {
