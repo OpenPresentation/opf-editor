@@ -325,6 +325,24 @@ export function createCanvasEditor(container, options = {}) {
     }
     const target = getTarget(path),
       text = target?.querySelector("text");
+    const preparedScalar=typeof value==='string'&&target?.querySelector('[data-opf-caret-map]');
+    if(preparedScalar||Array.isArray(value)&&target?.hasAttribute('data-opf-rich-text')){
+      let canFormat=Array.isArray(value);
+      if(preparedScalar)try{createCanvasDraft(editor.document,path,[value]);canFormat=true;}catch{/* Scalar-only fields keep their existing shape. */}
+      active={kind:'rich-text',path,base:JSON.stringify(value),valid:true};
+      active.rich=createRichTextInput(root,overlay,{
+        path,value,getTarget,onInput:queueDraft,onCommit:commit,onCancel:cancel,onError:report,
+        ...(canFormat?{onFormat(start,end){
+          if(!commit())return;
+          try {
+            if(preparedScalar)editor.set(path,[editor.get(path)],{source:'canvas-rich-text',rejectInvalid:true});
+            if(start===end)richToolbar.selectAll(path);else richToolbar.selectRange(path,start,end);
+          } catch(error) { report(error); }
+        }}:{}),
+      });
+      active.input=active.rich.input;
+      return;
+    }
     if (
       (typeof value === "string" || typeof value === "number") &&
       text &&
@@ -412,17 +430,6 @@ export function createCanvasEditor(container, options = {}) {
       });
       input.focus();
       input.select();
-    } else if (Array.isArray(value) && target?.hasAttribute("data-opf-rich-text")) {
-      active = {kind:"rich-text",path,base:JSON.stringify(value),valid:true};
-      active.rich = createRichTextInput(root, overlay, {
-        path, value, getTarget,
-        onInput: queueDraft, onCommit: commit, onCancel: cancel, onError: report,
-        onFormat(start,end) {
-          if (!commit()) return;
-          if(start===end)richToolbar.selectAll(path);else richToolbar.selectRange(path,start,end);
-        },
-      });
-      active.input = active.rich.input;
     } else openProperties(path, value);
   }
   function propertyPatches(edit) {

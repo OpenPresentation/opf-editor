@@ -1,34 +1,60 @@
 import {richTextContent, updateRichTextInput} from './rich-text.js';
 import {textInputMap} from './text-input.js';
 
-/** Native input owns keyboard/IME; caret and selection use the canonical SVG glyphs. */
+/** Native input owns keyboard/IME; prepared paint and editing share source geometry. */
 export function createRichTextInput(root, overlay, {path, value, getTarget, onInput, onCommit, onCancel, onFormat, onError}) {
   const doc=root.ownerDocument, win=doc.defaultView;
+  const scalar=typeof value==='string',initial=scalar?[value]:value;
   const input=doc.createElement('textarea'), marks=doc.createElement('div'), actions=doc.createElement('div');
-  input.className='opf-rich-input';input.value=richTextContent(value);
-  input.setAttribute('aria-label','Edit rich text inline');input.spellcheck=true;
+  input.className='opf-rich-input';input.value=richTextContent(initial);
+  input.setAttribute('aria-label',scalar?`Edit ${path.split('.').at(-1)} inline`:'Edit rich text inline');input.spellcheck=true;
   input.style.cssText='position:absolute;width:1px;padding:0;border:0;opacity:0;pointer-events:none;resize:none;overflow:hidden;z-index:3';
   marks.className='opf-rich-selection';marks.setAttribute('aria-hidden','true');marks.style.cssText='position:absolute;inset:0;pointer-events:none';
   actions.style.cssText='position:absolute;bottom:8px;left:8px;display:flex;gap:6px;pointer-events:auto;z-index:4';
-  for(const [label,action] of [['Format selection',()=>{const map=currentMap();onFormat(map.toSource(input.selectionStart),map.toSource(input.selectionEnd));}],['Done',onCommit]]) {
+  for(const [label,action] of [...(onFormat?[[scalar?'Format text':'Format selection',()=>{const map=currentMap();onFormat(map.toSource(input.selectionStart),map.toSource(input.selectionEnd));}]]:[]),...(scalar?[]:[['Done',onCommit]])]) {
     const button=doc.createElement('button');button.type='button';button.textContent=label;
     button.style.cssText='padding:6px 10px;background:#fff;color:#574774;border:1px solid #d5cce5;border-radius:5px';
     button.onmousedown=event=>event.preventDefault();button.onclick=action;actions.append(button);
   }
   overlay.append(marks,input,actions);
-  let current=structuredClone(value), composing=false, change=null, anchor=null, disposed=false, emptyAnchor=null;
+  let current=structuredClone(initial), composing=false, change=null, anchor=null, disposed=false, emptyAnchor=null;
   let history=[{value:structuredClone(current),start:0,end:input.value.length}], historyIndex=0, compositionBase=null;
   const currentMap=()=>textInputMap(richTextContent(current));
   function remember() {
     history.splice(historyIndex+1);history.push({value:structuredClone(current),start:input.selectionStart,end:input.selectionEnd});historyIndex++;
   }
   function fragments() { return [...(getTarget(path)?.querySelectorAll('text[data-opf-text-start],tspan[data-opf-text-start]')??[])]; }
+  const mapCache=new WeakMap();
+  function prepared() {
+    return [...(getTarget(path)?.querySelectorAll('[data-opf-caret-map]')??[])].map(node=>{
+      const text=node.getAttribute('data-opf-caret-map');let cached=mapCache.get(node);
+      if(cached?.text!==text){
+        const map=JSON.parse(text);
+        if(map.version!==1||![map.start,map.end].every(Number.isInteger)||map.start<0||map.end<map.start||
+          ![map.top,map.bottom].every(Number.isFinite)||map.bottom<=map.top||!Array.isArray(map.stops)||
+          map.stops.some(stop=>!Number.isInteger(stop.offset)||stop.offset<map.start||stop.offset>map.end||!Number.isFinite(stop.x)))
+          throw new Error('Invalid prepared text caret geometry.');
+        cached={text,map};mapCache.set(node,cached);
+      }
+      return {node,map:cached.map,matrix:node.getScreenCTM()};
+    }).filter(item=>item.matrix);
+  }
+  function nativeFragments(){return fragments().filter(node=>!node.closest('[data-opf-shaped-text]')?.querySelector('[data-opf-caret-map]'));}
+  function mappedBox(matrix,left,right,top,bottom){
+    const points=[[left,top],[right,top],[left,bottom],[right,bottom]].map(([x,y])=>new win.DOMPoint(x,y).matrixTransform(matrix));
+    const xs=points.map(point=>point.x),ys=points.map(point=>point.y);
+    return {left:Math.min(...xs),top:Math.min(...ys),width:Math.max(...xs)-Math.min(...xs),height:Math.max(...ys)-Math.min(...ys)};
+  }
   function rect(node,start,end) {
     const range=doc.createRange();range.setStart(node.firstChild,start);range.setEnd(node.firstChild,end);return range.getBoundingClientRect();
   }
   function boundaries() {
     const result=[];
-    for(const node of fragments()) {
+    for(const {node,map,matrix}of prepared())for(const stop of map.stops){
+      const box=mappedBox(matrix,stop.x,stop.x,map.top,map.bottom);
+      result.push({offset:stop.offset,x:box.left,y:box.top,height:box.height,node,basis:stop.basis});
+    }
+    for(const node of nativeFragments()) {
       if(!node.firstChild)continue;
       const start=Number(node.dataset.opfTextStart),text=node.textContent;
       for(const part of new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(text)) {
@@ -53,9 +79,19 @@ export function createRichTextInput(root, overlay, {path, value, getTarget, onIn
       mark.style.cssText=`position:absolute;left:${box.left-origin.left}px;top:${box.top-origin.top}px;width:${caret?1.5:box.width}px;height:${Math.max(12,box.height)}px;background:${caret?(box.color??'#6551ba'):'#8975d955'}`;
       marks.append(mark);
     };
-    if(start!==end)for(const node of fragments()) {
-      const a=Math.max(0,start-Number(node.dataset.opfTextStart)),b=Math.min(node.textContent.length,end-Number(node.dataset.opfTextStart));
-      if(a<b&&node.firstChild)append(rect(node,a,b));
+    if(start!==end){
+      for(const {map,matrix}of prepared()){
+        const xs=[];
+        for(let i=0;i<map.stops.length-1;i++){
+          const left=map.stops[i],right=map.stops[i+1];
+          if(left.offset<end&&right.offset>start)xs.push(left.x,right.x);
+        }
+        if(xs.length)append(mappedBox(matrix,Math.min(...xs),Math.max(...xs),map.top,map.bottom));
+      }
+      for(const node of nativeFragments()) {
+        const a=Math.max(0,start-Number(node.dataset.opfTextStart)),b=Math.min(node.textContent.length,end-Number(node.dataset.opfTextStart));
+        if(a<b&&node.firstChild)append(rect(node,a,b));
+      }
     }
     const points=boundaries();
     if(points.length)emptyAnchor=points[0];
@@ -115,5 +151,5 @@ export function createRichTextInput(root, overlay, {path, value, getTarget, onIn
   input.addEventListener('blur',()=>{if(!disposed&&!composing)onCommit();});
   root.addEventListener('pointerdown',pointerDown,true);root.addEventListener('pointermove',pointerMove);root.addEventListener('pointerup',pointerUp);root.addEventListener('pointercancel',pointerUp);
   input.focus({preventScroll:true});input.select();update();
-  return {input,update,get value(){return structuredClone(current);},get composing(){return composing;},destroy(){disposed=true;root.removeEventListener('pointerdown',pointerDown,true);root.removeEventListener('pointermove',pointerMove);root.removeEventListener('pointerup',pointerUp);root.removeEventListener('pointercancel',pointerUp);marks.remove();input.remove();actions.remove();}};
+  return {input,update,get value(){return scalar?richTextContent(current):structuredClone(current);},get composing(){return composing;},destroy(){disposed=true;root.removeEventListener('pointerdown',pointerDown,true);root.removeEventListener('pointermove',pointerMove);root.removeEventListener('pointerup',pointerUp);root.removeEventListener('pointercancel',pointerUp);marks.remove();input.remove();actions.remove();}};
 }
