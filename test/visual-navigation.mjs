@@ -10,15 +10,19 @@ export const crossRunGraphemes=[
 export async function checkCrossRunGraphemes(page,input,paint) {
   const points=await page.evaluate(()=>[1,6].map(offset=>{
     const target=document.querySelector('[data-canvas-target][data-opf-path="slides.0.text"]');
-    const painted=[...target.querySelectorAll('[data-opf-caret-map]')].find(node=>JSON.parse(node.dataset.opfCaretMap).end===offset);
+    const painted=[...target.querySelectorAll('[data-opf-caret-map]')].find(node=>{const map=JSON.parse(node.dataset.opfCaretMap);return map.start<offset&&map.end>=offset;});
     if(painted){
-      const map=JSON.parse(painted.dataset.opfCaretMap),stop=map.stops.find(stop=>stop.offset===offset);
+      const map=JSON.parse(painted.dataset.opfCaretMap),stop=map.stops.find(stop=>stop.offset===offset)??map.stops.find(stop=>stop.offset===offset+1);
+      if(!stop)throw Error('Expected the base/complete cluster endpoint from the rendered run');
       const point=new DOMPoint(stop.x,(map.top+map.bottom)/2).matrixTransform(painted.getScreenCTM());
       return {offset,x:point.x,y:point.y};
     }
-    const fragment=[...target.querySelectorAll('text[data-opf-text-start],tspan[data-opf-text-start]')].find(node=>Number(node.dataset.opfTextEnd)===offset);
+    const fragment=[...target.querySelectorAll('text[data-opf-text-start],tspan[data-opf-text-start]')].find(node=>Number(node.dataset.opfTextStart)<offset&&Number(node.dataset.opfTextEnd)>=offset);
     if(!fragment?.firstChild)throw Error('Expected the rendered base character at the run boundary');
-    const length=fragment.textContent.length,range=document.createRange();range.setStart(fragment.firstChild,length-1);range.setEnd(fragment.firstChild,length);
+    const walker=document.createTreeWalker(fragment,NodeFilter.SHOW_TEXT);let text=walker.nextNode(),length=offset-Number(fragment.dataset.opfTextStart);
+    while(text&&length>text.length){length-=text.length;text=walker.nextNode();}
+    if(!text)throw Error('Expected the original base character in the logical text');
+    const range=document.createRange();range.setStart(text,length-1);range.setEnd(text,length);
     const box=range.getBoundingClientRect();return {offset,x:box.right,y:box.top+box.height/2};
   }));
   // The source is A + accent + B + CRLF + C + accent + D. Native input

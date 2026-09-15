@@ -59,7 +59,14 @@ export function createRichTextInput(root, overlay, {path, value, getTarget, onIn
     return {left:Math.min(...xs),top:Math.min(...ys),width:Math.max(...xs)-Math.min(...xs),height:Math.max(...ys)-Math.min(...ys)};
   }
   function rect(node,start,end) {
-    const range=doc.createRange();range.setStart(node.firstChild,start);range.setEnd(node.firstChild,end);return range.getBoundingClientRect();
+    // Jointly shaped SVG text can contain styled tspans and links. DOM Range
+    // offsets belong to their text nodes, not to the outer element's children.
+    const position=offset=>{
+      const walker=doc.createTreeWalker(node,win.NodeFilter.SHOW_TEXT);let text=walker.nextNode();
+      while(text){if(offset<=text.length)return [text,offset];offset-=text.length;text=walker.nextNode();}
+      throw new RangeError('Rich text range exceeds its rendered source.');
+    };
+    const range=doc.createRange();range.setStart(...position(start));range.setEnd(...position(end));return range.getBoundingClientRect();
   }
   function boundaries() {
     const result=[],target=getTarget(path),allowed=graphemeBoundaries();
