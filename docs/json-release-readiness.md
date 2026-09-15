@@ -8,9 +8,9 @@ At the earlier September 15 checkpoint, the tested registry predecessors were ed
 
 [Earlier verification evidence](evidence/json-release-checks-20260915/README.md) retains the passing source/installed JSON checks and the complete renewed package failure. The installed report byte-matches all 39 shipped files with actual registry predecessors; it does not replace the overall command result.
 
-## Editor 0.7.0 release
+## Editor 0.7.0 release candidate
 
-Core 0.10.0, renderer/PPTX 0.8.0 and editor 0.7.0 are published. Clean installation and the complete editor 0.7.0 packed/source checks pass against those registry dependencies, including all seven offline JSON workflows and the later full-package gates. [The release checkpoint](evidence/release-0.7.0/README.md) records package acceptance; [registry and public-site verification](https://github.com/OpenPresentation/opf/tree/2eef0ada0604853897cc5f0bd1b5fbbaf6430b11/docs/evidence/registry-release-20260915) records publication and adoption. The subsequent prepared-text draft needs a new coordinated release and retains the separate [font compatibility blocker](https://github.com/OpenPresentation/opf-render/issues/24).
+Core 0.10.0 and renderer/PPTX 0.8.0 are now published. Clean installation and the complete editor 0.7.0 packed/source checks pass against those registry dependencies, including all seven offline JSON workflows and the later full-package gates. [The new release checkpoint](evidence/release-0.7.0/README.md) records this acceptance. CI and publication of editor 0.7.0 remain required before hosts adopt its new exports.
 
 ## Layout discovery
 

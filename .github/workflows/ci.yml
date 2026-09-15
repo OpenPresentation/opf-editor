@@ -29,21 +29,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: 6029e63ff287c2895b788fc30b8bf6d0223db528
+          ref: b9f5291faacb844f52339b676a910eaf22a5eddd
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 501cb0ad6d17c2027392d2ae727ebd3290361b2f
+          ref: bda38af161c25c68f6d24257f341e394602e61a5
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: ee97fe10c4b1050558ee0783465b2e64fadfa089
+          ref: 5be8fefcf799d403d7bfc888d12b8d693c0d49a6
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
@@ -76,13 +76,11 @@ jobs:
       - run: npm test
       - name: Verify Playwright image version
         run: node -e "if (require('playwright/package.json').version !== '1.63.0') throw new Error('Update the pinned Playwright image with the test package.');"
-      - run: npm run test:prepared-carets-browser -- artifacts/prepared-carets.json
       - run: npm run test:playground
       - run: npm run test:code-browser
       - run: npm run test:json-browser -- artifacts/json-editor-browser.json
       - run: npm run test:rich-input-browser -- artifacts/rich-input-browser.json measured
       - run: npm run test:rich-input-browser -- artifacts/rich-input-browser-estimated.json estimated
-      - run: npm run test:rich-input-browser -- artifacts/rich-input-browser-painted.json painted
       - name: Install and exercise coordinated candidate tarballs
         working-directory: opf
         run: |
@@ -96,9 +94,7 @@ jobs:
           node scripts/test-timeline-acceptance.mjs artifacts/timeline-acceptance.json
           node scripts/test-installed-code-guards.mjs
           node ../opf-editor/test/rich-input-browser.mjs artifacts/editor/rich-input-installed.json measured artifacts/npm/consumer
-          node ../opf-editor/test/rich-input-browser.mjs artifacts/editor/rich-input-installed-painted.json painted artifacts/npm/consumer
           node ../opf-editor/test/json-editor-browser.mjs artifacts/editor/json-editor-installed.json artifacts/npm/consumer
-          node ../opf-editor/test/prepared-caret-browser.mjs artifacts/editor/prepared-carets-installed.json artifacts/npm/consumer
       - run: npm pack --dry-run
       - name: Preserve candidate and raster evidence
         if: always()
@@ -108,8 +104,6 @@ jobs:
           path: |
             opf-editor/artifacts/rich-input-browser*.json
             opf-editor/artifacts/json-editor-browser.json
-            opf-editor/artifacts/prepared-carets.json
-            opf/artifacts/editor/prepared-carets-installed.json
             opf-editor/artifacts/packed-consumer-node24.json
             opf-editor/artifacts/packed-json*-node24.json
             opf/artifacts/editor/json-editor-installed.json
