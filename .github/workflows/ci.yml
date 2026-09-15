@@ -29,21 +29,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: 07cfa58da2c50649e7b7dc58f82418df1fc12b4e
+          ref: 6029e63ff287c2895b788fc30b8bf6d0223db528
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 89e1f3beb20a4154e7f753eff1bba34c5c233f46
+          ref: 501cb0ad6d17c2027392d2ae727ebd3290361b2f
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: 9865759d6d53a26d35e48be524676b1dce92e2ba
+          ref: ee97fe10c4b1050558ee0783465b2e64fadfa089
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
