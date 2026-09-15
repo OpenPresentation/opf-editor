@@ -30,21 +30,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: 8a322c13884f2f1634fd3a207d1e0a662e3ad460
+          ref: 4694815349170bcffd52efc4c99748c4c8079738
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: d0ff86abe6e67436a5674778605bc8562314ad1c
+          ref: 3d4fa8ce8172c2a6b38bf217d5f8d0ce5a1b62af
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: ca4e13574400f059246dc67e8abf6591dcd663da
+          ref: 1363a653c8b0e80c50d970bc30db3587bcf6f14e
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
@@ -77,6 +77,7 @@ jobs:
         run: node -e "if (require('playwright/package.json').version !== '1.63.0') throw new Error('Update the pinned Playwright image with the test package.');"
       - run: npm run test:playground
       - run: npm run test:code-browser
+      - run: npm run test:json-browser -- artifacts/json-editor-browser.json
       - run: npm run test:rich-input-browser -- artifacts/rich-input-browser.json measured
       - run: npm run test:rich-input-browser -- artifacts/rich-input-browser-estimated.json estimated
       - name: Install and exercise coordinated candidate tarballs
@@ -92,6 +93,7 @@ jobs:
           node scripts/test-timeline-acceptance.mjs artifacts/timeline-acceptance.json
           node scripts/test-installed-code-guards.mjs
           node ../opf-editor/test/rich-input-browser.mjs artifacts/editor/rich-input-installed.json measured artifacts/npm/consumer
+          node ../opf-editor/test/json-editor-browser.mjs artifacts/editor/json-editor-installed.json artifacts/npm/consumer
       - run: npm pack --dry-run
       - name: Preserve candidate and raster evidence
         if: always()
@@ -100,6 +102,8 @@ jobs:
           name: candidate-opf-editor-${{ runner.os }}-node24
           path: |
             opf-editor/artifacts/rich-input-browser*.json
+            opf-editor/artifacts/json-editor-browser.json
+            opf/artifacts/editor/json-editor-installed.json
             opf-editor/artifacts/rich-input-browser*.png
             opf/artifacts/editor/rich-input-installed*.json
             opf/artifacts/editor/rich-input-installed*.png
