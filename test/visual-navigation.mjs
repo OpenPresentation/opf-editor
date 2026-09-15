@@ -1,6 +1,41 @@
 import assert from 'node:assert/strict';
 
 export const navigationText='ABC\r\nD\rABC\r\n\rABCD';
+export const crossRunGraphemes=[
+  {text:'A',fontSize:32,color:'#AA2222',link:'https://example.org'},
+  {text:'\u0301B\r\nC',fontSize:32,color:'#2222AA',underline:true},
+  {text:'\u0301D',fontSize:32,color:'#228844',underline:false},
+];
+
+export async function checkCrossRunGraphemes(page,input,paint) {
+  const points=await page.evaluate(()=>[1,6].map(offset=>{
+    const target=document.querySelector('[data-canvas-target][data-opf-path="slides.0.text"]');
+    const painted=[...target.querySelectorAll('[data-opf-caret-map]')].find(node=>JSON.parse(node.dataset.opfCaretMap).end===offset);
+    if(painted){
+      const map=JSON.parse(painted.dataset.opfCaretMap),stop=map.stops.find(stop=>stop.offset===offset);
+      const point=new DOMPoint(stop.x,(map.top+map.bottom)/2).matrixTransform(painted.getScreenCTM());
+      return {offset,x:point.x,y:point.y};
+    }
+    const fragment=[...target.querySelectorAll('text[data-opf-text-start],tspan[data-opf-text-start]')].find(node=>Number(node.dataset.opfTextEnd)===offset);
+    if(!fragment?.firstChild)throw Error('Expected the rendered base character at the run boundary');
+    const length=fragment.textContent.length,range=document.createRange();range.setStart(fragment.firstChild,length-1);range.setEnd(fragment.firstChild,length);
+    const box=range.getBoundingClientRect();return {offset,x:box.right,y:box.top+box.height/2};
+  }));
+  // The source is A + accent + B + CRLF + C + accent + D. Native input
+  // normalizes CRLF, but neither style boundary is a legal grapheme stop.
+  for(const [index,point]of points.entries()){
+    await page.mouse.click(point.x-0.1,point.y);await paint();
+    const actual=await input.evaluate(node=>node.selectionStart);
+    assert.equal(actual,index===0?2:6,'Pointer must skip a run boundary inside a whole-source grapheme');
+    await input.press('ArrowLeft');assert.equal(await input.evaluate(node=>node.selectionStart),index===0?0:4);
+    await input.press('ArrowRight');assert.equal(await input.evaluate(node=>node.selectionStart),index===0?2:6);
+  }
+  await input.press('Shift+ArrowLeft');await paint();
+  assert.deepEqual(await input.evaluate(node=>[node.selectionStart,node.selectionEnd]),[4,6],'Shift selection includes both differently styled parts of the grapheme');
+  assert.ok(await page.locator('.opf-rich-range').count(),'The entire selected grapheme remains visibly selected');
+  await input.press('ArrowRight');await input.pressSequentially('!');await paint();
+  return points;
+}
 
 // Source-offset expectations are independent of the editor's geometry code.
 export async function checkHardLineNavigation(page,input,paint) {

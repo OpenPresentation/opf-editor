@@ -23,6 +23,13 @@ share one source offset. Native composition and modified paragraph navigation
 remain with the browser. This changes caret behavior without changing slide ink
 or authored text.
 
+Caret stops also respect grapheme boundaries in the complete source text. A
+formatting boundary between a letter and its combining accent is not an insertion
+point. Native and prepared fragments share the same whole-source filter, cached
+for the current text value. Original per-run formatting and line endings remain
+intact through pointer input, keyboard selection, typing and undo. Cross-run
+glyph shaping remains a separate font/layout requirement.
+
 This branch depends on the prepared font renderer PR and is stacked on the
 shared furniture editor branch. It is not a published npm feature yet.
 
@@ -46,8 +53,8 @@ Installed mode rejects browser bundles that load checkout sources.
 Expanded cases cover actual soft wraps across styled runs, selection across
 those runs, empty scalar/rich values, pure Hebrew runs with combining marks,
 RTL keyboard and pointer navigation, consecutive tabs and their underlines.
-The prepared suite now has nineteen workflows. The broader rich-input suite
-has twelve workflows in each of measured, estimated and painted modes, including
+The prepared suite now has twenty workflows. The broader rich-input suite
+has thirteen workflows in each of measured, estimated and painted modes, including
 source-offset navigation oracles and rendered soft-line endpoint checks.
 [Navigation evidence](evidence/visual-line-navigation-20260915/README.md) retains
 the original failure and the current passing source results.
@@ -57,3 +64,6 @@ broaden script/feature, performance and lifecycle coverage. Pure RTL cases do
 not establish paragraph bidi/itemization, real OS IME behavior, or native
 Office/font acceptance. Native tab geometry inside rich table cells remains a
 separate converter limitation.
+
+[Cross-run grapheme evidence](evidence/cross-run-graphemes-20260915/README.md)
+retains the source and installed predecessor failures and passing source suites.

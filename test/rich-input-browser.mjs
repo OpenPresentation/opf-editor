@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {navigationText,checkHardLineNavigation,checkSoftLineNavigation} from './visual-navigation.mjs';
+import {navigationText,checkHardLineNavigation,checkSoftLineNavigation,crossRunGraphemes,checkCrossRunGraphemes} from './visual-navigation.mjs';
 import {createHash} from 'node:crypto';
 import {readFile,writeFile,mkdir,realpath} from 'node:fs/promises';
 import {fileURLToPath,pathToFileURL} from 'node:url';
@@ -174,6 +174,12 @@ try{
   await mount(deckFor([{text:'office affine AABBCC '.repeat(16),fontSize:32,underline:true}]));await begin();
   const navigationLines=await checkSoftLineNavigation(page,input(),paint);
   await input().press('Escape');await passed('Visible soft-line navigation keeps caret affinity',{lines:navigationLines});
+  await mount(deckFor(crossRunGraphemes));await begin();
+  const graphemePoints=await checkCrossRunGraphemes(page,input(),paint);
+  assert.deepEqual(await document(),deckFor(crossRunGraphemes),'Cross-run typing remains a draft');
+  await commit();assert.deepEqual(await text(),[crossRunGraphemes[0],crossRunGraphemes[1],{...crossRunGraphemes[2],text:'\u0301!D'}]);
+  await page.evaluate(()=>editor.undo());assert.deepEqual(await document(),deckFor(crossRunGraphemes));
+  await passed('Whole-source grapheme boundaries preserve differently styled bases and accents',{points:graphemePoints});
   await page.evaluate(()=>{canvas.destroy();fonts.dispose();});assert.equal(await page.locator('#host > *').count(),0);
   assert.equal(await page.evaluate(()=>document.fonts.size),0);assert.deepEqual(report.errors,[]);assert.deepEqual(report.externalRequests,[]);
   for(const [file,digest] of Object.entries(inputs))assert.equal(hash(await readFile(file)),digest,'Browser verification must not rebuild runtime files');

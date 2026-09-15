@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {navigationText,checkHardLineNavigation,checkSoftLineNavigation} from './visual-navigation.mjs';
+import {navigationText,checkHardLineNavigation,checkSoftLineNavigation,crossRunGraphemes,checkCrossRunGraphemes} from './visual-navigation.mjs';
 import {createHash} from 'node:crypto';
 import {readFile,writeFile,mkdir,realpath} from 'node:fs/promises';
 import {createRequire} from 'node:module';
@@ -224,6 +224,17 @@ try{
   const lines=await checkSoftLineNavigation(page,page.locator('.opf-rich-input'),paint);
   assert.deepEqual(await page.evaluate(()=>editor.document),original);
   assert.deepEqual(await page.evaluate(()=>failures),[]);report.checks.push({name:'Visible soft-line navigation',scalar,lines});
+ }
+ {
+  const original={name:'Cross-run graphemes',design:{fontScheme:{id:'roboto',heading:{family:'Arimo'},body:{family:'Arimo'},code:{family:'Arimo'}}},slides:[{text:crossRunGraphemes,notes:'Keep notes'}]};
+  await page.evaluate(args=>mount(args),{deck:original,faces,width:640});await paint();
+  await page.evaluate(()=>canvas.beginEdit('slides.0.text'));await paint();
+  const input=page.locator('.opf-rich-input'),points=await checkCrossRunGraphemes(page,input,paint);
+  assert.deepEqual(await page.evaluate(()=>editor.document),original,'Cross-run typing remains a draft');
+  await input.press('Control+Enter');await paint();
+  assert.deepEqual(await page.evaluate(()=>editor.get('slides.0.text')),[crossRunGraphemes[0],crossRunGraphemes[1],{...crossRunGraphemes[2],text:'\u0301!D'}]);
+  await page.evaluate(()=>editor.undo());assert.deepEqual(await page.evaluate(()=>editor.document),original);
+  assert.deepEqual(await page.evaluate(()=>failures),[]);report.checks.push({name:'Whole-source grapheme boundaries across styled runs',points});
  }
  assert.deepEqual(report.errors,[]);assert.deepEqual(report.externalRequests,[]);report.status='passed';
  console.log(`Prepared caret browser: ${report.checks.length} scalar/rich, font/interpolated, responsive, selection, pointer and exact-source undo workflows pass (${report.runtime}).`);

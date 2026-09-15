@@ -1,7 +1,7 @@
 import {richTextContent, updateRichTextInput} from './rich-text.js';
 import {textInputMap} from './text-input.js';
 
-/** Native input owns keyboard/IME; prepared paint and editing share source geometry. */
+/** Native input owns text/IME; navigation uses the displayed source geometry. */
 export function createRichTextInput(root, overlay, {path, value, getTarget, onInput, onCommit, onCancel, onFormat, onError}) {
   const doc=root.ownerDocument, win=doc.defaultView;
   const scalar=typeof value==='string',initial=scalar?[value]:value;
@@ -22,6 +22,15 @@ export function createRichTextInput(root, overlay, {path, value, getTarget, onIn
   let history=[{value:structuredClone(current),start:0,end:input.value.length}], historyIndex=0, compositionBase=null;
   let navigation=null;
   const selectionKey=()=>`${input.selectionStart}:${input.selectionEnd}:${input.selectionDirection}`;
+  let boundarySource=null,sourceBoundaries;
+  function graphemeBoundaries() {
+    const source=richTextContent(current);
+    if(source!==boundarySource){
+      boundarySource=source;sourceBoundaries=new Set([source.length]);
+      for(const part of new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(source))sourceBoundaries.add(part.index);
+    }
+    return sourceBoundaries;
+  }
   const currentMap=()=>textInputMap(richTextContent(current));
   function remember() {
     history.splice(historyIndex+1);history.push({value:structuredClone(current),start:input.selectionStart,end:input.selectionEnd});historyIndex++;
@@ -53,10 +62,13 @@ export function createRichTextInput(root, overlay, {path, value, getTarget, onIn
     const range=doc.createRange();range.setStart(node.firstChild,start);range.setEnd(node.firstChild,end);return range.getBoundingClientRect();
   }
   function boundaries() {
-    const result=[],target=getTarget(path);
+    const result=[],target=getTarget(path),allowed=graphemeBoundaries();
     const lines=target?.hasAttribute('data-opf-rich-lines')?JSON.parse(target.dataset.opfRichLines):
       [...(target?.querySelectorAll('text[data-opf-source-start]')??[])].map(node=>({start:Number(node.dataset.opfSourceStart),end:Number(node.dataset.opfSourceEnd)}));
     const add=(point,start,end)=>{
+      // A run/paint fragment can split a base from its combining marks. Only
+      // whole-source grapheme boundaries are editable, regardless of styling.
+      if(!allowed.has(point.offset))return;
       // A fragment belongs to one accepted line, even when its final offset
       // is also the first offset of the next soft-wrapped line.
       const line=lines.findIndex(line=>line.start<=start&&end<=line.end);
@@ -77,7 +89,7 @@ export function createRichTextInput(root, overlay, {path, value, getTarget, onIn
     }
     const matrix=target?.getScreenCTM();
     if(matrix)for(const [index,line]of JSON.parse(target.dataset.opfRichLines??'[]').entries()) {
-      if(line.start!==line.end)continue;
+      if(line.start!==line.end||!allowed.has(line.start))continue;
       const point=new win.DOMPoint(line.x,line.y).matrixTransform(matrix);
       result.push({offset:line.start,x:point.x,y:point.y,height:line.height*Math.hypot(matrix.c,matrix.d),line:index});
     }
