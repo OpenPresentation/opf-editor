@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Draw canvas selection rectangles from accepted placeholder or internal-part boxes instead of the visible glyph footprint. Short titles and subtitles expose the full allocated width. Blank code and metric parts still use their traced part boxes.
+
 ## 0.7.0
 
 - Add reusable browser-safe JSON editor and contextual options entrypoints. Preserve exact source line endings through editing, indentation, paired quotes/brackets, array-item continuation, search, folding, formatting and undo/redo; expose catalog/schema choices from already loaded context.
