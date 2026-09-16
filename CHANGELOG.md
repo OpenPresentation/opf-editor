@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.7.1
+
+- Populate missing layout placeholders when a catalog layout is chosen, preserving existing content, including subtitles and zero values. Repeated slots use separate blocks; the whole change is one undoable edit.
+- Support metric, quote and timeline contracts from core 0.10.1. Requires renderer/PPTX `^0.8.1`. Layout choices in 0.7.0 only replaced the selected token.
+- Native PowerPoint fidelity, prepared-glyph shaping and public-site adoption remain separate.
+
 ## 0.7.0
 
 - Add reusable browser-safe JSON editor and contextual options entrypoints. Preserve exact source line endings through editing, indentation, paired quotes/brackets, array-item continuation, search, folding, formatting and undo/redo; expose catalog/schema choices from already loaded context.
