@@ -74,7 +74,7 @@ assert.ok(Array.isArray(validation.warnings));
 if (referenceLayer) {
   assert.equal(validation.valid, true);
   assert.ok(validation.warnings.length);
-  assert.match(String(validation.warnings[0]?.message ?? ""), /var:|reference|color/i);
+  assert.match(String(validation.warnings[0]?.message ?? ""), /var:|variable|reference|color/i);
 } else {
   console.log("presentation-ids: skipped var: warning probe (published opf 0.10.1 schema)");
 }
