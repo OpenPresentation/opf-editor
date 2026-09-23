@@ -1,5 +1,5 @@
 // FF-17 (font-fidelity-everywhere): gallery apply keeps every font-scheme
-// role, not only the OOXML major/minor pair, and the editor's last-resort
+// role the record schema defines (major/minor and code), and the editor's last-resort
 // font scheme stays pinned (see opf docs/design-resolution.md).
 import assert from "node:assert/strict";
 import { validatePresentation } from "@openpresentation/opf";
@@ -57,34 +57,45 @@ assert.deepEqual(attached(gallery), {
   type: "sans-serif",
   app: "Google Slides",
   languageFamily: "latin",
-  accent: { family: "Georgia" },
   code: { family: "JetBrains Mono", weight: 400 },
 });
+// accent is not part of the font-scheme record schema, so it is not attached.
 assert.equal(validatePresentation(gallery).valid, true);
 const galleryFamilies = measured(gallery);
 assert.ok(galleryFamilies.has("JetBrains Mono"), "code keeps the gallery role");
 assert.ok(!galleryFamilies.has("Roboto Mono"), "no Roboto Mono fallback");
 
-// OPF role objects for heading/body are kept as roles; the pair falls back to them.
-const roles = await apply({
-  id: "role-scheme",
-  name: "Role scheme",
-  heading: { family: "Source Serif 4", weight: 700 },
-  body: { family: "Source Sans 3" },
-  code: "Source Code Pro",
-});
+// Font-object heading/body map onto the pair only; code is kept as a role.
+const roles = await apply(
+  {
+    id: "role-scheme",
+    name: "Role scheme",
+    heading: { family: "Source Serif 4", weight: 700 },
+    body: { family: "Source Sans 3" },
+    code: "Source Code Pro",
+  },
+  [textSlide, codeSlide],
+);
 assert.deepEqual(attached(roles), {
   $schema: "https://openpresentation.org/schema/opf-font-scheme/v1",
   id: "role-scheme",
   name: "Role scheme",
   major: "Source Serif 4",
   minor: "Source Sans 3",
-  heading: { family: "Source Serif 4", weight: 700 },
-  body: { family: "Source Sans 3" },
   code: { family: "Source Code Pro" },
 });
 assert.equal(validatePresentation(roles).valid, true);
-assert.ok(measured(roles).has("Source Code Pro"));
+assert.deepEqual([...measured(roles)].sort(), ["Source Sans 3", "Source Serif 4"]);
+assert.ok(measured(roles, 1).has("Source Code Pro"));
+// A later inline major/minor override on the applied scheme still wins.
+roles.design.fontScheme = {
+  id: "role-scheme",
+  major: "Override Display",
+  minor: "Override Text",
+};
+assert.equal(validatePresentation(roles).valid, true);
+assert.deepEqual([...measured(roles)].sort(), ["Override Display", "Override Text"]);
+assert.ok(measured(roles, 1).has("Source Code Pro"));
 
 // Explicit major/minor win over string heading/body, and invalid values are dropped.
 const explicit = await apply({

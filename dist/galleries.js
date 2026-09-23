@@ -139,10 +139,11 @@ function fontRole(value) {
     role.letterSpacing = value.letterSpacing;
   return role;
 }
-// Keep every font-scheme role from a gallery source, not only the OOXML pair.
-// Gallery descriptors spell the pair as string `heading`/`body`; those stay the
-// pair (major/minor) so later `major`/`minor` overrides still apply. Role
-// objects for heading/body, and accent/code in either form, are kept as roles.
+// Keep every font-scheme role that the catalog record schema defines: the OOXML
+// pair and `code`. Gallery `heading`/`body` (string or Font object) map onto
+// major/minor only, never role objects, so a later inline design.fontScheme
+// major/minor override still wins (resolveFontFamilies checks roles before the
+// pair). `accent` is not part of the record schema and is dropped.
 function fontSchemeRecord(source, id) {
   const record = {
     $schema: "https://openpresentation.org/schema/opf-font-scheme/v1",
@@ -159,15 +160,8 @@ function fontSchemeRecord(source, id) {
   };
   for (const [field, values] of Object.entries(FONT_SCHEME_ENUMS))
     if (values.includes(source[field])) record[field] = source[field];
-  for (const role of ["heading", "body"])
-    if (source[role] && typeof source[role] === "object") {
-      const font = fontRole(source[role]);
-      if (font) record[role] = font;
-    }
-  for (const role of ["accent", "code"]) {
-    const font = fontRole(source[role]);
-    if (font) record[role] = font;
-  }
+  const code = fontRole(source.code);
+  if (code) record.code = code;
   return record;
 }
 function attachDefinition(document, descriptor) {

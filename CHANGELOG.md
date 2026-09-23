@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- FF-17: gallery apply keeps every font-scheme role. A font scheme attached from a gallery descriptor now keeps `code` and `accent` (string or Font object), role objects for `heading`/`body`, and valid `type`, `app` and `languageFamily` values, instead of only `major`/`minor`. String `heading`/`body` still map to the OOXML pair, invalid values are dropped, and legacy descriptors attach unchanged. Bundled catalog ids are still not re-attached. A new test also pins the editor's last-resort font scheme (`roboto`, used only when a theme has no font scheme).
+- FF-17: gallery apply keeps every font-scheme role that the record schema defines. A font scheme attached from a gallery descriptor now keeps its `code` role (string or Font object) and valid `type`, `app` and `languageFamily` values, instead of only `major`/`minor`. Gallery `heading`/`body` (strings or Font objects) map onto `major`/`minor` only, so a later inline `design.fontScheme` major/minor override still wins. `accent` is not part of the record schema and is not attached. Invalid values are dropped, and legacy descriptors attach unchanged. Bundled catalog ids are still not re-attached. A new test also pins the editor's last-resort font scheme (`roboto`, used only when a theme has no font scheme).
 
 ## 0.8.0
 
