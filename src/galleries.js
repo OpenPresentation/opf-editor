@@ -117,6 +117,59 @@ export async function loadOpfGallery(input, options = {}) {
     })),
   };
 }
+const FONT_SCHEME_ENUMS = {
+  type: ["sans-serif", "serif", "monospace"],
+  app: ["PowerPoint", "Google Slides"],
+  languageFamily: ["latin", "ea", "cs"],
+};
+// A Font role object ({ family, weight?, style?, letterSpacing? }), or undefined.
+function fontRole(value) {
+  if (typeof value === "string") return value ? { family: value } : undefined;
+  if (!value || typeof value !== "object" || typeof value.family !== "string")
+    return undefined;
+  const role = { family: value.family };
+  if (typeof value.weight === "number" && Number.isFinite(value.weight))
+    role.weight = value.weight;
+  if (value.style === "normal" || value.style === "italic")
+    role.style = value.style;
+  if (
+    typeof value.letterSpacing === "number" &&
+    Number.isFinite(value.letterSpacing)
+  )
+    role.letterSpacing = value.letterSpacing;
+  return role;
+}
+// Keep every font-scheme role from a gallery source, not only the OOXML pair.
+// Gallery descriptors spell the pair as string `heading`/`body`; those stay the
+// pair (major/minor) so later `major`/`minor` overrides still apply. Role
+// objects for heading/body, and accent/code in either form, are kept as roles.
+function fontSchemeRecord(source, id) {
+  const record = {
+    $schema: "https://openpresentation.org/schema/opf-font-scheme/v1",
+    id,
+    name: source.name ?? id,
+    major:
+      typeof source.major === "string"
+        ? source.major
+        : fontRole(source.heading)?.family,
+    minor:
+      typeof source.minor === "string"
+        ? source.minor
+        : fontRole(source.body)?.family,
+  };
+  for (const [field, values] of Object.entries(FONT_SCHEME_ENUMS))
+    if (values.includes(source[field])) record[field] = source[field];
+  for (const role of ["heading", "body"])
+    if (source[role] && typeof source[role] === "object") {
+      const font = fontRole(source[role]);
+      if (font) record[role] = font;
+    }
+  for (const role of ["accent", "code"]) {
+    const font = fontRole(source[role]);
+    if (font) record[role] = font;
+  }
+  return record;
+}
 function attachDefinition(document, descriptor) {
   const source = descriptor.metadata?.source,
     category = descriptor.category ?? descriptor.metadata?.category;
@@ -161,14 +214,7 @@ function attachDefinition(document, descriptor) {
           }
         : {}),
     };
-  } else if (kind === "fontSchemes")
-    record = {
-      $schema: "https://openpresentation.org/schema/opf-font-scheme/v1",
-      id,
-      name: source.name ?? id,
-      major: source.major ?? source.heading,
-      minor: source.minor ?? source.body,
-    };
+  } else if (kind === "fontSchemes") record = fontSchemeRecord(source, id);
   else {
     record = {
       ...source,
