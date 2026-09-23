@@ -1,6 +1,6 @@
 # Working with opf-editor
 
-`@openpresentation/opf-editor` provides embeddable local editor primitives for OPF documents: a headless session that turns traced `@openpresentation/opf-render` SVG output (`data-opf-path`) into JSON-path edits, validates OPF after each change and records undo/redo as JSON Patch; catalog controls that commit only known catalog IDs; a live browser canvas (`/canvas`); a reusable JSON code editor (`/json-editor`, `/json-options`); and optional React and Svelte bindings. It depends on core `@openpresentation/opf`, requires the renderer as a peer, and uses `@openpresentation/opf-pptx` in the playground for local PPTX import/export. For OPF document tasks, use the skills in the core repo's `skills/` directory (`opf-edit` covers document patches, undo and editor integration). Keep the runtime policy in `README.md`: no hosted service, telemetry, commercial SDK or required network; the host owns auth, storage, collaboration and product UI.
+`@openpresentation/opf-editor` provides embeddable local editor primitives for OPF documents: a headless session that turns traced `@openpresentation/opf-render` SVG output (`data-opf-path`) into JSON-path edits, validates OPF after each change and records undo/redo as JSON Patch; catalog controls that commit only known catalog IDs; a live browser canvas (`/canvas`); a reusable JSON code editor (`/json-editor`, `/json-options`); and optional React and Svelte bindings. It depends on core `@openpresentation/opf`, declares the renderer as an optional peer (`peerDependenciesMeta`; a dev dependency for tests), and uses `@openpresentation/opf-pptx` in the playground for local PPTX import/export. For OPF document tasks, use the skills in the core repo's `skills/` directory (`opf-edit` covers document patches, undo and editor integration). Keep the runtime policy in `README.md`: no hosted service, telemetry, commercial SDK or required network; the host owns auth, storage, collaboration and product UI.
 
 ## Toolchain
 
@@ -19,8 +19,8 @@
 The cross-repo program tracker lives in core at [docs/programs/font-fidelity-everywhere](https://github.com/OpenPresentation/opf/tree/main/docs/programs/font-fidelity-everywhere). `README.md` there holds the goal, done criteria and resume protocol; `burndown.md` holds item IDs and status. Before starting work:
 
 1. Read the tracker and pick or confirm a burndown ID (for example `FF-07`).
-2. Branch as `codex/ff-<id>-<slug>` from fresh `origin/main`.
-3. Reference the ID in the PR title and body.
+2. Branch as `codex/ff-<nn>-<slug>` (for example `codex/ff-07-script-slots`) from fresh `origin/main`.
+3. Start the PR title with the ID prefix (`FF-07: `) and reference the item in the PR body.
 4. When the item completes, update its burndown row and append to the progress log in core.
 
 ## Editor rules
