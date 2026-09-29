@@ -16,7 +16,7 @@ import { createContentBlock, prepareBlockReplace } from "./blocks.js";
 import { populateLayoutPlaceholders } from "./layout-placeholders.js";
 
 /** The 14 pptx.gallery dimensions (gallery-support.md), in the gallery's order. */
-export const switchDimensions = Object.freeze([
+export const SWITCH_DIMENSIONS = Object.freeze([
   "layouts",
   "color-schemes",
   "font-schemes",
@@ -199,8 +199,8 @@ function blockValue(value, options) {
  * document is validated; an invalid result throws unless the input was already invalid.
  */
 export function prepareDimensionSwitch(document, dimension, value, options = {}) {
-  if (!switchDimensions.includes(dimension))
-    throw fail("unknown-dimension", `Unknown dimension: ${dimension}. Use one of ${switchDimensions.join(", ")}.`, { dimension });
+  if (!SWITCH_DIMENSIONS.includes(dimension))
+    throw fail("unknown-dimension", `Unknown dimension: ${dimension}. Use one of ${SWITCH_DIMENSIONS.join(", ")}.`, { dimension });
   if (!document || typeof document !== "object") throw fail("invalid-input", "Switch requires an OPF document object.");
   if (options.record) {
     const ids = dimension === "audiences" ? [value].flat() : dimension === "socials" ? [value?.platform] : [value];
@@ -237,6 +237,8 @@ export function prepareDimensionSwitch(document, dimension, value, options = {})
     scope = "slide";
     requireCatalogId(document, dimension, value, options);
     const owner = options.path ? splitOpfPath(options.path) : findChartOwner(document, slideIndex);
+    if (options.path && (owner[0] !== "slides" || owner[1] !== String(slideIndex)))
+      throw fail("path-slide-mismatch", "options.path is not on the slide named by options.slideIndex.", { slideIndex, path: options.path });
     const chart = owner && getValueAtPath(document, [...owner, "chart"]);
     if (!chart || typeof chart !== "object") throw fail("chart-not-found", "This slide has no chart to switch. Insert a chart block first.", { slideIndex, path: options.path });
     patches = [...catalogRecordPatches(document, dimension, options), ...(chart.type === value ? [] : createValuePatch(document, [...owner, "chart", "type"], value))];
@@ -276,8 +278,11 @@ export function prepareDimensionSwitch(document, dimension, value, options = {})
       entries = { [DESIGN_KEYS[dimension][0]]: value };
       patches = catalogRecordPatches(document, dimension, options);
     } else {
-      if (!value || typeof value !== "object" || Array.isArray(value) && dimension !== "backgrounds")
-        throw fail("invalid-switch-value", `Switch ${dimension} to ${dimension === "backgrounds" ? "a background value" : "an object with " + DESIGN_KEYS[dimension].join(" and ")}.`, { value });
+      // A background is an object or a shorthand string (theme slot or hex color); the schema
+      // validates the candidate document, so a string that is neither is rejected below.
+      const valid = dimension === "backgrounds" ? typeof value === "string" || (Boolean(value) && typeof value === "object" && !Array.isArray(value)) : Boolean(value) && typeof value === "object" && !Array.isArray(value);
+      if (!valid)
+        throw fail("invalid-switch-value", `Switch ${dimension} to ${dimension === "backgrounds" ? "a background object or shorthand string" : "an object with " + DESIGN_KEYS[dimension].join(" and ")}.`, { value });
       if (dimension === "backgrounds") entries = { background: value };
       else {
         const unknown = Object.keys(value).filter((key) => !DESIGN_KEYS[dimension].includes(key));

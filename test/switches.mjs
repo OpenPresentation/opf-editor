@@ -6,11 +6,11 @@ import { validatePresentation } from "@openpresentation/opf";
 import { renderSvg } from "@openpresentation/opf-render/svg";
 import { OPFEditorError, createEditorSession, resolveSlideFonts } from "../dist/index.js";
 import { prepareBlockReplace } from "../dist/layout.js";
-import { prepareDimensionSwitch, switchDimension, switchDimensions } from "../dist/switches.js";
+import { prepareDimensionSwitch, switchDimension, SWITCH_DIMENSIONS } from "../dist/switches.js";
 import { GALLERY_DIMENSIONS, baseDeck, cases } from "./switch-fixture.mjs";
 
 // Coverage: every gallery dimension has a switch and a case, and nothing else does.
-assert.deepEqual([...switchDimensions], GALLERY_DIMENSIONS);
+assert.deepEqual([...SWITCH_DIMENSIONS], GALLERY_DIMENSIONS);
 assert.deepEqual(cases.map((entry) => entry.dimension), GALLERY_DIMENSIONS);
 
 const session = (document = baseDeck()) => createEditorSession(document, { rejectInvalid: true });
@@ -209,6 +209,23 @@ assert.deepEqual(summary, GALLERY_DIMENSIONS);
   assert.throws(() => switchDimension(editor, "charts", "area", { slideIndex: 0 }), (error) => error.code === "chart-not-found");
 }
 
+// Backgrounds accept the schema's shorthand strings as well as objects.
+{
+  const editor = session();
+  for (const shorthand of ["dark1", "light2", "#ffff00"]) {
+    const change = switchDimension(editor, "backgrounds", shorthand);
+    assert.deepEqual(change.patches, [{ op: change.patches[0].op, path: "/design/background", value: shorthand }]);
+    assert.equal(editor.get("design.background"), shorthand);
+    assert.equal(editor.validation.valid, true);
+    assert.notEqual(svg(editor.document, 0), svg(baseDeck(), 0));
+  }
+  const scoped = switchDimension(editor, "backgrounds", "#00ff00", { slideIndex: 1 });
+  assert.deepEqual(scoped.patches, [{ op: "add", path: "/slides/1/design", value: { background: "#00ff00" } }]);
+  editor.undo();
+  editor.undo();
+  assert.equal(editor.get("design.background"), "light2");
+}
+
 // Socials: the organization, arrays of speakers and replacing a handle.
 {
   const document = baseDeck();
@@ -251,6 +268,14 @@ assert.deepEqual(summary, GALLERY_DIMENSIONS);
   // A slide holding one implicit payload is replaced in place, keeping its other fields.
   switchDimension(editor, "blocks", "quote", { path: "slides.3" });
   assert.deepEqual(editor.get("slides.3"), { id: "single", title: "Single", quote: { text: "Add a quotation", attribution: "Source" } });
+  // A caller-supplied id or extensions never overwrite the slide's own when the payload is implicit.
+  switchDimension(editor, "blocks", { id: "other", extensions: { x: 1 }, table: { columns: ["A"], rows: [["1"]] } }, { path: "slides.3" });
+  assert.equal(editor.get("slides.3.id"), "single");
+  assert.equal(editor.get("slides.3.extensions"), undefined);
+  assert.deepEqual(editor.get("slides.3.table"), { columns: ["A"], rows: [["1"]] });
+  // An explicit block keeps its own id unless the new block names one.
+  switchDimension(editor, "blocks", { id: "renamed", text: "x" }, { path: "slides.2.blocks.0" });
+  assert.equal(editor.get("slides.2.blocks.0.id"), "renamed");
   // Media kinds need a source; ambiguous or partial targets are rejected.
   assert.throws(() => switchDimension(editor, "blocks", "image", { path: "slides.2.blocks.0" }), /media file/);
   switchDimension(editor, "blocks", "image", { path: "slides.2.blocks.0", source: "asset:cover" });
@@ -295,7 +320,13 @@ assert.deepEqual(summary, GALLERY_DIMENSIONS);
   reject("layouts", "text-2x", { slideIndex: 9 }, "slide-index-out-of-range");
   reject("layouts", "no-such-layout", { slideIndex: 0 }, "unknown-catalog-id");
   reject("backgrounds", { type: "nonsense" }, {}, "invalid-opf-edit");
-  reject("backgrounds", "solid", {}, "invalid-switch-value");
+  reject("backgrounds", "solid", {}, "invalid-opf-edit");
+  reject("backgrounds", "#12", {}, "invalid-opf-edit");
+  reject("backgrounds", 5, {}, "invalid-switch-value");
+  reject("backgrounds", ["#ffffff"], {}, "invalid-switch-value");
+  reject("charts", "line", { slideIndex: 0, path: "slides.1" }, "path-slide-mismatch");
+  reject("charts", "line", { slideIndex: 1, path: "slides.0" }, "path-slide-mismatch");
+  reject("charts", "line", { slideIndex: 1, path: "extensions" }, "path-slide-mismatch");
   reject("headers-footers", { header: 5 }, {}, "invalid-opf-edit");
   reject("headers-footers", { sidebar: {} }, {}, "invalid-switch-value");
   reject("image-treatments", { imageFill: "stretch" }, {}, "invalid-opf-edit");

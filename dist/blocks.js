@@ -107,7 +107,9 @@ export function prepareBlockReplace(document,path,block) {
     old=getValueAtPath(document,parts);
     next=structuredClone(old);
     for(const key of [...contentFields,'type'])delete next[key];
-    Object.assign(next,structuredClone(block));
+    // The block's own id and extensions would overwrite the slide's; they are not carried over.
+    const {id:ignoredId,extensions:ignoredExtensions,...payload}=structuredClone(block);
+    Object.assign(next,payload);
   }
   const patches=[{op:'test',path:pointer,value:structuredClone(old)},{op:'replace',path:pointer,value:next}];
   const result=applyJsonPatch(document,patches),validation=validateOpfDocument(result);

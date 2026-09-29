@@ -167,7 +167,7 @@ Invalid IDs throw before they reach the document. Existing object-form reference
 `@openpresentation/opf-editor/switches` turns "switch this pptx.gallery dimension to X" into one validated, undoable transaction. It covers the 14 gallery dimensions (FF-16, [font-fidelity-everywhere](https://github.com/OpenPresentation/opf/tree/main/docs/programs/font-fidelity-everywhere)):
 
 ```js
-import { switchDimension, prepareDimensionSwitch, switchDimensions } from "@openpresentation/opf-editor/switches";
+import { switchDimension, prepareDimensionSwitch, SWITCH_DIMENSIONS } from "@openpresentation/opf-editor/switches";
 
 switchDimension(editor, "font-schemes", "georgia");                      // /design/fontScheme
 switchDimension(editor, "charts", "line", { slideIndex: 1 });            // /slides/1/chart/type
@@ -182,11 +182,11 @@ const { patches, document } = prepareDimensionSwitch(editor.document, "themes", 
 | `color-schemes`, `font-schemes` | `/design/colorScheme`, `/design/fontScheme` | Deck by default, one slide with `slideIndex`. An inline object value is replaced by the bare id. |
 | `themes` | `/design/theme` plus the theme's color scheme, font scheme, background and dimensions | Writes the whole bundle, as the gallery's theme snippet does, so fonts follow. `bundle: false` changes only the id. |
 | `languages`, `narratives`, `tones`, `audiences` | `/language`, `/narrative`, `/tone`, `/audience` | Catalog ids; `audiences` accepts an id or an array. |
-| `backgrounds` | `/design/background` | A background value. |
+| `backgrounds` | `/design/background` | A background object or a shorthand string (theme slot such as `dark1`, or a hex color). |
 | `headers-footers` | `/design/header`, `/design/footer` | `{header?, footer?}`: an absent field stays, `null` removes it. |
 | `image-treatments` | `/design/slideImage`, `/design/imageFill` | `{slideImage?, imageFill?}`, same rule. |
 | `socials` | `/speaker/socials/<platform>` or the `organization` | `{platform, handle}` with `owner` and `index`; the owner must exist. |
-| `charts` | `<chart owner>/chart/type` | The slide's first chart, or the block named by `path`. The data is kept, so a type with a different data shape fails validation. |
+| `charts` | `<chart owner>/chart/type` | The slide's first chart, or the block named by `path`. The data is kept as it is and only the document schema is checked: the editor does not verify that the data suits the new type, so preview the result (map types, for example, expect their own data). |
 | `blocks` | replaces one block | `path` names a complete `blocks/N` block or a slide/region with one content field. The value is a block kind or a block object. |
 
 A deck-level design switch cannot reach a slide that carries its own value for that key. The result lists those slides in `shadowed`; `clearSlideOverrides: true` removes the overrides in the same transaction. `record` adds a gallery item's catalog record inline in the same transaction when neither the document nor the bundled catalog defines its id (a gallery-only layout or font scheme). Every switch is validated: an unknown catalog id, an invalid value or an invalid resulting document throws before anything changes, and switching to the current value commits nothing. The editor session emits the usual `patch`, `undo` and `redo` events with `meta.source: "dimension-switch"` and `meta.dimension`, so the canvas and any host preview recompose from the switched document. `resolveSlideFonts(document, slideIndex)` returns the heading, body and code families the preview measures and the export names.

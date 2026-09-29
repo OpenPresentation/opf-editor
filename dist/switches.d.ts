@@ -1,7 +1,7 @@
 import type { EditorChange, EditorSession, JsonPatchOperation } from "./index.js";
 
 /** The 14 pptx.gallery dimensions. */
-export declare const switchDimensions: readonly [
+export declare const SWITCH_DIMENSIONS: readonly [
   "layouts",
   "color-schemes",
   "font-schemes",
@@ -17,7 +17,7 @@ export declare const switchDimensions: readonly [
   "blocks",
   "image-treatments",
 ];
-export type SwitchDimension = (typeof switchDimensions)[number];
+export type SwitchDimension = (typeof SWITCH_DIMENSIONS)[number];
 
 export interface DimensionSwitchOptions {
   /** Required for layouts and charts; for design dimensions it scopes the switch to one slide (default: the deck). */
