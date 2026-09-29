@@ -11,7 +11,10 @@ const fontFaces = await fetch('./fonts.json').then(response => {
   if (!response.ok) throw new Error('Bundled fonts are unavailable. Rebuild the editor demo.');
   return response.json();
 });
-const fontRegistry = await loadBrowserFontRegistry(fontFaces.map(face=>({family:face.family,weight:face.weight,italic:face.italic,license:face.license,data:Uint8Array.from(atob(face.dataUrl.split(',')[1]),character=>character.charCodeAt(0))})),{substitutionPolicy:'visual',fallbackFamily:'Roboto'});
+const fontRegistry = await loadBrowserFontRegistry(fontFaces.map(face=>({family:face.family,weight:face.weight,italic:face.italic,license:face.license,data:Uint8Array.from(atob(face.dataUrl.split(',')[1]),character=>character.charCodeAt(0))})),{substitutionPolicy:'visual',fallbackFamily:'Roboto',scriptBaseUrl:'./script-fonts/'});
+// Script faces (Japanese, Arabic, Thai, ...) load lazily, once a document draws that script. Older renderers have no
+// pendingScripts/ensureScripts, and the playground then keeps its Latin fonts.
+const pendingScriptFonts = deck => fontRegistry.pendingScripts?.(deck) ?? [];
 const layoutOptions = {textMeasurement:fontRegistry.textMeasurement};
 const editor = createEditorSession({
   name: 'A presentation you can work on',
@@ -139,7 +142,7 @@ function render() {
   if (!canvas) canvas=createCanvasEditor(element('preview'),{
     editor,slideIndex,renderOptions:layoutOptions,propertiesContainer:element('canvas-properties'),
     onSelect:value=>{select(value.path);showPanel('content');},
-    onDraft:value=>{element('json').value=JSON.stringify(value.document,null,2);status('Editing on the slide · Esc to cancel');},
+    onDraft:value=>{element('json').value=JSON.stringify(value.document,null,2);status('Editing on the slide · Esc to cancel');if(pendingScriptFonts(value.document).length)fontRegistry.ensureScripts(value.document).catch(()=>{});},
     onCommit:()=>status('Changes saved in this session'),
     onCancel:()=>{element('json').value=JSON.stringify(editor.document,null,2);status('Edit cancelled');},
     onError:error=>status(error.message),
@@ -154,7 +157,21 @@ function render() {
   if (!selectedPath.startsWith(`slides.${slideIndex}.`) || editor.get(selectedPath) === undefined) selectedPath = `slides.${slideIndex}.title`;
   select(selectedPath);
 }
-editor.subscribe(() => { try { render(); } catch (error) { renderError = error.message; canvas?.destroy(); canvas=undefined; element('preview').textContent = 'Preview unavailable for this document. Use Undo or revise the JSON.'; status(renderError); } });
+function renderSafely() { try { render(); } catch (error) { renderError = error.message; canvas?.destroy(); canvas=undefined; element('preview').textContent = 'Preview unavailable for this document. Use Undo or revise the JSON.'; status(renderError); } }
+let scriptFontsLoading = false;
+// Render at once unless the document draws a script whose fonts are not loaded yet; then fetch them (once) and render.
+async function refresh() {
+  if (!pendingScriptFonts(editor.document).length) { renderSafely(); return; }
+  if (scriptFontsLoading) return;
+  scriptFontsLoading = true;
+  status('Loading fonts for this language…');
+  let failure;
+  try { await fontRegistry.ensureScripts(editor.document); } catch (error) { failure = error; }
+  scriptFontsLoading = false;
+  if (failure) { renderSafely(); status(`Fonts for this language could not be loaded: ${failure.message}`); return; }
+  refresh();
+}
+editor.subscribe(refresh);
 element('apply').onclick = () => act(() => editor.set(selectedPath, typeof selectedValue === 'string' ? element('value').value : JSON.parse(element('value').value)));
 element('undo').onclick = () => act(() => editor.undo());
 element('redo').onclick = () => act(() => editor.redo());
@@ -190,6 +207,11 @@ let sourceFrame=0;
 function previewSource() {
   try {
     const deck=JSON.parse(element('json').value);
+    if(pendingScriptFonts(deck).length){
+      element('json-error').textContent='Loading fonts for this language…';element('apply-json').disabled=true;
+      fontRegistry.ensureScripts(deck).then(previewSource,error=>{element('json-error').textContent=`Fonts for this language could not be loaded: ${error.message}`;});
+      return;
+    }
     const svg=renderSvg(deck,{...layoutOptions,slideIndex:Math.min(slideIndex,(deck.slides?.length ?? 1)-1)});
     element('source-preview').innerHTML=svg;element('json-error').textContent='';element('apply-json').disabled=false;
   } catch(error) {element('json-error').textContent=error.issues?.[0]?.message ?? error.message;element('apply-json').disabled=true;}
