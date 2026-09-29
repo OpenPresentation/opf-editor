@@ -187,7 +187,9 @@ try {
   const quoteImport=await fromPptx(quoteBytes);
   assert.equal(validatePresentation(quoteImport).valid,true);
   assert.equal(quoteImport.slides.length,1);
-  assert.deepEqual(quoteImport.slides[0].blocks.map(block=>block.text),['"Edited quote body"','Reviewer - Recorded interview']);
+  // PPTX 0.10.0 imports formatted native body text as rich runs; compare the plain characters.
+  const plainText=text=>typeof text==='string'?text:text.map(run=>run.text).join('');
+  assert.deepEqual(quoteImport.slides[0].blocks.map(block=>plainText(block.text)),['"Edited quote body"','Reviewer - Recorded interview']);
   // Current OOXML import retains editable lines, not the original OPF quote,
   // font scheme or pagination policy. Keep this boundary explicit in evidence.
   assert.equal(quoteImport.slides[0].quote,undefined);

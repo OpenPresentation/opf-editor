@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.9.0
+
+- Release 0.9.0 (minor: the optional renderer peer moves to a new 0.x line). Require `@openpresentation/opf` ^0.11.1, the optional peer `@openpresentation/opf-render` ^0.10.0 and (development/playground) `@openpresentation/opf-pptx` ^0.10.0, so composition, preview and export share the accepted font-scheme, alignment and furniture contracts. Composition and slide transfer fall back to the shared `aptos` scheme and report `unresolved-font-scheme` through `onDiagnostic`; gallery apply keeps every font-scheme role. No public export is removed.
+
 - FF-35b: an unknown font-scheme id is resolved by the shared rule (`resolveFontSchemeReference` in `src/font-defaults.js`, a local copy of core's). The default `aptos` record is the base and sibling overrides apply, so composition no longer measures such decks in Roboto. `session.composeSlide()` and `session.paginateSlide()` accept `onDiagnostic` and report one `unresolved-font-scheme` diagnostic. `test/default-font-scheme.mjs` runs the shared unknown-scheme cases. The checks against core (`DEFAULT_FONT_SCHEME`, `resolveFontSchemeReference`, `paginatePresentation`) are skipped while the installed core is published 0.11.0. They activate when this package moves to a core release that includes FF-35b, or when core ecosystem CI pins a commit that contains this test (see opf `docs/design-resolution.md`, "Sibling agreement checks"). No package version change.
 
 - FF-35: composition and slide transfer fall back to the shared engine default font scheme, `aptos` (core `DEFAULT_FONT_SCHEME`, kept locally in `src/font-defaults.js` until a published core exports it), instead of `roboto`. A custom theme without a font scheme is now composed in Aptos, and slides inserted from such a deck freeze `fontScheme: "aptos"`, matching preview and PPTX export. `test/default-font-scheme.mjs` replaces the FF-17 `roboto` pin with parity checks. No package version change.
