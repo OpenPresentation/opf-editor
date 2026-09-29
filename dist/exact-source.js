@@ -83,28 +83,55 @@ export function findDuplicateKey(source) {
   return tree ? walk(tree, []) : null;
 }
 
-// Value differences as edit operations. Arrays of different length are one structural operation
-// so that untouched siblings keep their exact tokens.
+const own = (object, name) => (Object.hasOwn(object, name) ? object[name] : undefined);
+const text = (value) => JSON.stringify(value);
+
+// Value differences as edit operations, all in the coordinates of the source being edited:
+//   replace  a leaf or subtree gets a new token
+//   copy     a slot of a same-length array takes the exact token of an equal element (a move)
+//   remove   an array element or object key is removed
+//   insert   an array element or object key is added
+// Reading goes through own properties only, so keys such as "__proto__" or "constructor" are
+// ordinary keys.
 function diff(before, after, path, ops) {
-  if (JSON.stringify(before) === JSON.stringify(after)) return;
+  if (text(before) === text(after)) return;
   if (Array.isArray(before) && Array.isArray(after)) {
-    if (before.length === after.length) after.forEach((value, index) => diff(before[index], value, [...path, index], ops));
-    else ops.push({ kind: "array", path, before, after });
+    const beforeKeys = before.map(text), afterKeys = after.map(text);
+    if (before.length === after.length) {
+      const holders = new Map();
+      beforeKeys.forEach((key, index) => { if (!holders.has(key)) holders.set(key, index); });
+      after.forEach((value, index) => {
+        if (beforeKeys[index] === afterKeys[index]) return;
+        const from = holders.get(afterKeys[index]);
+        if (from !== undefined) ops.push({ kind: "copy", path: [...path, index], from: [...path, from] });
+        else diff(before[index], value, [...path, index], ops);
+      });
+      return;
+    }
+    let head = 0;
+    while (head < before.length && head < after.length && beforeKeys[head] === afterKeys[head]) head++;
+    let tail = 0;
+    while (tail < before.length - head && tail < after.length - head && beforeKeys[before.length - 1 - tail] === afterKeys[after.length - 1 - tail]) tail++;
+    const removed = before.length - head - tail, inserted = after.length - head - tail, paired = Math.min(removed, inserted);
+    for (let offset = 0; offset < paired; offset++) diff(before[head + offset], after[head + offset], [...path, head + offset], ops);
+    for (let offset = removed - 1; offset >= paired; offset--) ops.push({ kind: "remove", path: [...path, head + offset] });
+    for (let offset = paired; offset < inserted; offset++) ops.push({ kind: "insert", path: [...path, head + offset], value: after[head + offset] });
   } else if (isObject(before) && isObject(after)) {
     for (const name of new Set([...Object.keys(before), ...Object.keys(after)])) {
-      const a = before[name], b = after[name];
+      const a = own(before, name), b = own(after, name);
       if (a !== undefined && b !== undefined) diff(a, b, [...path, name], ops);
-      else if (JSON.stringify(a) !== JSON.stringify(b)) ops.push({ kind: "key", path: [...path, name], value: b });
+      else if (a !== undefined) ops.push({ kind: "remove", path: [...path, name] });
+      else if (b !== undefined) ops.push({ kind: "insert", path: [...path, name], value: b });
     }
   } else ops.push({ kind: "replace", path, value: after });
 }
 
-// The smallest nodes that contain every edit: a changed value, the object that gains or loses a
-// key, or the array that gains or loses elements.
-const maskPaths = (ops) => ops.map((op) => (op.kind === "key" ? op.path.slice(0, -1) : op.path));
+// The smallest nodes that contain every edit: a changed value, or the object or array that gains
+// or loses a child.
+const maskPaths = (ops) => ops.map((op) => (op.kind === "remove" || op.kind === "insert" ? op.path.slice(0, -1) : op.path));
 
-function masked(text, paths) {
-  const tree = parseTree(text);
+function masked(source, paths) {
+  const tree = parseTree(source);
   if (!tree) return null;
   const ranges = [];
   for (const path of paths) {
@@ -116,10 +143,10 @@ function masked(text, paths) {
   let output = "", cursor = 0;
   for (const [start, end] of ranges) {
     if (start < cursor) { cursor = Math.max(cursor, end); continue; }
-    output += text.slice(cursor, start) + "\u0000";
+    output += source.slice(cursor, start) + "\u0000";
     cursor = end;
   }
-  return output + text.slice(cursor);
+  return output + source.slice(cursor);
 }
 
 // A remembered source may replace the current one only when both are byte-equal outside the
@@ -133,8 +160,8 @@ function rememberedToken(remembered, tree, path, value) {
   if (!tree) return undefined;
   const node = findNodeAtLocation(tree, path);
   if (!node) return undefined;
-  const text = remembered.slice(node.offset, node.offset + node.length);
-  try { if (canonical(JSON.parse(text)) === canonical(value)) return text; } catch { /* Not the same value. */ }
+  const token = remembered.slice(node.offset, node.offset + node.length);
+  try { if (canonical(JSON.parse(token)) === canonical(value)) return token; } catch { /* Not the same value. */ }
   return undefined;
 }
 
@@ -146,24 +173,55 @@ function layout(source) {
 
 // Insert a child (array element or object property) next to its siblings without reformatting
 // them: copy a representative separator, indentation included, from between two siblings.
-function insertChild(text, container, index, render, eol) {
+function insertChild(source, container, index, render) {
   const children = container.children ?? [];
   if (!children.length) return null;
   const end = (node) => node.offset + node.length;
   let separator;
   if (children.length > 1) {
     const at = Math.min(Math.max(index - 1, 0), children.length - 2);
-    separator = text.slice(end(children[at]), children[at + 1].offset);
+    separator = source.slice(end(children[at]), children[at + 1].offset);
   } else {
-    const gap = text.slice(container.offset + 1, children[0].offset);
+    const gap = source.slice(container.offset + 1, children[0].offset);
     separator = gap.includes("\n") ? "," + gap : ", ";
   }
   if (!/^[\s,]*$/.test(separator) || !separator.includes(",")) return null;
   const multiline = separator.includes("\n");
   const indent = multiline ? separator.slice(separator.lastIndexOf("\n") + 1) : "";
   const item = render(indent, multiline);
-  if (index < children.length) return text.slice(0, children[index].offset) + item + separator + text.slice(children[index].offset);
-  return text.slice(0, end(children[children.length - 1])) + separator + item + text.slice(end(children[children.length - 1]));
+  if (index < children.length) return source.slice(0, children[index].offset) + item + separator + source.slice(children[index].offset);
+  const last = end(children[children.length - 1]);
+  return source.slice(0, last) + separator + item + source.slice(last);
+}
+
+// Remove a child by its tree range, so the siblings keep their bytes: a last child goes with the
+// separator before it, any other child with the separator after it, and an only child empties the
+// container (`[]`, `{}`) instead of leaving a blank body.
+function removeChild(source, path) {
+  const node = findNodeAtLocation(parseTree(source), path);
+  if (!node) throw new Error("Missing node");
+  const child = node.parent?.type === "property" ? node.parent : node;
+  const parent = child.parent;
+  const siblings = parent.children;
+  const index = siblings.indexOf(child);
+  const end = (item) => item.offset + item.length;
+  let from, to;
+  if (siblings.length === 1) { from = parent.offset + 1; to = end(parent) - 1; }
+  else if (index < siblings.length - 1) { from = child.offset; to = siblings[index + 1].offset; }
+  else { from = end(siblings[index - 1]); to = end(child); }
+  return source.slice(0, from) + source.slice(to);
+}
+
+// Typing into one existing string value is the only edit whose intermediate states are worth
+// forgetting. Every discrete edit (add, remove, move) stays exactly restorable.
+function typingSignature(previous, ops) {
+  if (ops.length !== 1 || ops[0].kind !== "replace" || typeof ops[0].value !== "string") return null;
+  let value = previous;
+  for (const step of ops[0].path) {
+    if (value === null || typeof value !== "object" || !Object.hasOwn(value, step)) return null;
+    value = value[step];
+  }
+  return typeof value === "string" ? JSON.stringify(ops[0].path) : null;
 }
 
 /**
@@ -195,69 +253,64 @@ export function updateJsonSource(source, document, memory = sharedMemory) {
   const rememberedTree = remembered === undefined ? null : parseTree(remembered);
 
   const { indent, eol, formattingOptions } = layout(source);
-  let result = source;
   const unit = indent.includes("\t") ? "\t" : indent;
   const pretty = (value, lineIndent) => JSON.stringify(value, null, unit).split("\n").join(eol + lineIndent);
-  // Removal never reformats anything, so untouched siblings keep their bytes.
-  const remove = (path) => { result = applyEdits(result, modify(result, path, undefined, {})); };
-  // Insertion copies the neighbours' separator; an empty container is formatted as a whole.
+  let result = source;
+  // Insertion copies the neighbours' separator; an empty container is written in the document's style.
   function insert(path, value) {
     const parentPath = path.slice(0, -1), last = path[path.length - 1];
     const parent = findNodeAtLocation(parseTree(result), parentPath);
     const isArray = typeof last === "number";
-    const spliced = parent && (parent.type === "array" || parent.type === "object")
+    const container = parent && (parent.type === "array" || parent.type === "object");
+    const spliced = container
       ? insertChild(result, parent, isArray ? last : parent.children?.length ?? 0, (lineIndent, multiline) => isArray
-        ? (multiline ? pretty(value, lineIndent) : JSON.stringify(value))
-        : `${JSON.stringify(last)}${multiline ? ": " : ":"}${multiline ? pretty(value, lineIndent) : JSON.stringify(value)}`, eol)
+        ? (multiline ? pretty(value, lineIndent) : text(value))
+        : `${text(last)}${multiline ? ": " : ":"}${multiline ? pretty(value, lineIndent) : text(value)}`)
       : null;
     if (spliced !== null) result = spliced;
-    else if (parent && (parent.type === "array" || parent.type === "object") && !parent.children?.length) {
-      // An empty container has no sibling to copy: write it in the document's own style.
-      const container = isArray ? [value] : { [last]: value };
+    else if (container && !parent.children?.length) {
+      const written = isArray ? [value] : Object.defineProperty({}, last, { value, enumerable: true, writable: true, configurable: true });
       const lineIndent = result.slice(result.lastIndexOf("\n", parent.offset) + 1, parent.offset).match(/^[\t ]*/)[0];
-      const written = result.includes("\n") ? pretty(container, lineIndent) : JSON.stringify(container);
-      result = result.slice(0, parent.offset) + written + result.slice(parent.offset + parent.length);
-    }
-    else result = applyEdits(result, modify(result, path, value, { formattingOptions, isArrayInsertion: isArray }));
+      const content = result.includes("\n") ? pretty(written, lineIndent) : text(written);
+      result = result.slice(0, parent.offset) + content + result.slice(parent.offset + parent.length);
+    } else result = applyEdits(result, modify(result, path, value, { formattingOptions, isArrayInsertion: isArray }));
   }
-  function apply(operations) {
-    for (const op of operations) {
-      if (op.kind === "replace") {
-        const node = findNodeAtLocation(parseTree(result), op.path);
-        if (node) {
-          const token = rememberedToken(remembered, rememberedTree, op.path, op.value) ?? JSON.stringify(op.value);
-          result = result.slice(0, node.offset) + token + result.slice(node.offset + node.length);
-        } else insert(op.path, op.value);
-      } else if (op.kind === "key") {
-        if (op.value === undefined) remove(op.path);
-        else insert(op.path, op.value);
-      } else {
-        const { before, after } = op;
-        let head = 0;
-        while (head < before.length && head < after.length && JSON.stringify(before[head]) === JSON.stringify(after[head])) head++;
-        let tail = 0;
-        while (tail < before.length - head && tail < after.length - head && JSON.stringify(before[before.length - 1 - tail]) === JSON.stringify(after[after.length - 1 - tail])) tail++;
-        const removed = before.length - head - tail, inserted = after.length - head - tail, paired = Math.min(removed, inserted);
-        for (let offset = 0; offset < paired; offset++) {
-          const nested = [];
-          diff(before[head + offset], after[head + offset], [...op.path, head + offset], nested);
-          apply(nested);
-        }
-        for (let offset = removed - 1; offset >= paired; offset--) remove([...op.path, head + offset]);
-        for (let offset = paired; offset < inserted; offset++) insert([...op.path, head + offset], after[head + offset]);
-      }
+  try {
+    // Replacements and moves are position-independent: parse once and apply them back to front.
+    const tree = parseTree(source);
+    const edits = [];
+    for (const op of ops) {
+      if (op.kind !== "replace" && op.kind !== "copy") continue;
+      const node = findNodeAtLocation(tree, op.path);
+      if (!node) throw new Error("Missing node");
+      let token;
+      if (op.kind === "copy") {
+        const from = findNodeAtLocation(tree, op.from);
+        if (!from) throw new Error("Missing node");
+        token = source.slice(from.offset, from.offset + from.length);
+      } else token = rememberedToken(remembered, rememberedTree, op.path, op.value) ?? text(op.value);
+      edits.push({ from: node.offset, to: node.offset + node.length, token });
     }
-  }
-  try { apply(ops); } catch { result = ""; }
+    edits.sort((a, b) => b.from - a.from);
+    for (const edit of edits) result = result.slice(0, edit.from) + edit.token + result.slice(edit.to);
+    // Structural edits follow, in the order they were produced.
+    for (const op of ops) {
+      if (op.kind === "remove") result = removeChild(result, op.path);
+      else if (op.kind === "insert") insert(op.path, op.value);
+    }
+  } catch { result = ""; }
   let valid = false;
-  try { valid = canonical(JSON.parse(result)) === canonical(JSON.parse(JSON.stringify(document))); } catch { /* Fall back below. */ }
+  try {
+    const parsed = JSON.parse(result);
+    valid = JSON.stringify(parsed) === key || canonical(parsed) === canonical(JSON.parse(key));
+  } catch { /* Fall back below. */ }
   if (!valid) {
     result = JSON.stringify(document, null, indent).replaceAll("\n", eol);
     if (/\n$/.test(source)) result += eol;
   }
 
-  const signature = ops.map((op) => JSON.stringify(op.path)).join("|");
-  if (memory.last && memory.last.key === previousKey && memory.last.signature === signature) forget(memory, previousKey);
+  const signature = typingSignature(previous, ops);
+  if (signature !== null && memory.last && memory.last.key === previousKey && memory.last.signature === signature) forget(memory, previousKey);
   remember(memory, key, result);
   memory.last = { key, signature };
   return result;

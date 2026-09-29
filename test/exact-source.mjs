@@ -146,4 +146,113 @@ assert.throws(() => updateJsonSource('{', {}, createSourceMemory()));
     assert.equal(updateJsonSource(result, { a: 'z', b: 'é' }, big).includes('"a":"z"'), true);
   }
 }
+// Delta review: inline removals, moves, prototype-named keys, discrete-edit chains and performance.
+{
+  const parsed = (value) => JSON.parse(value);
+  const fresh = () => createSourceMemory();
+
+  // Removing the last child of an inline container keeps the siblings byte for byte.
+  const inline = '{"a": [1, 2, 3], "b": "\\u00e9 \\/", "c": {"x": 1, "y": [ 4 ,5 ]}}';
+  for (const [label, change] of [
+    ['last inline element', (d) => d.a.pop()],
+    ['first inline element', (d) => d.a.shift()],
+    ['middle inline element', (d) => d.a.splice(1, 1)],
+    ['last inline key', (d) => { delete d.c.y; }],
+    ['first inline key', (d) => { delete d.c.x; }],
+    ['spaced last element', (d) => d.c.y.pop()],
+  ]) {
+    const next = parsed(inline);
+    change(next);
+    const result = updateJsonSource(inline, next, fresh());
+    assert.deepEqual(parsed(result), next, `${label}: value`);
+    assert.ok(result.includes('"b": "\\u00e9 \\/"'), `${label}: untouched tokens keep their bytes`);
+    assert.ok(!result.includes('\n'), `${label}: stays inline`);
+  }
+  assert.equal(updateJsonSource('{"a": [1, 2, 3]}', { a: [1, 2] }, fresh()), '{"a": [1, 2]}');
+  assert.equal(updateJsonSource('[[1],[2],[3]]', [[1], [2]], fresh()), '[[1],[2]]');
+  assert.equal(updateJsonSource('{\n  "a": [\n    1\n  ],\n  "b": 2\n}', { a: [], b: 2 }, fresh()), '{\n  "a": [],\n  "b": 2\n}', 'the only child empties the container without a blank body');
+  assert.equal(updateJsonSource('{\n  "a": {\n    "k": 1\n  }\n}', { a: {} }, fresh()), '{\n  "a": {}\n}');
+  assert.equal(updateJsonSource('[\n  1,\n  2\n]', [1], fresh()), '[\n  1\n]');
+
+  // Reordering elements moves their exact tokens, in one pass.
+  const movable = '[\n  {"t": "Caf\\u00e9 \\/ A"},\n  {"t": "B \\/ two"},\n  {"t": "C\\u00e9"}\n]\n';
+  const items = parsed(movable);
+  for (const order of [[1, 2, 0], [2, 0, 1], [2, 1, 0], [1, 0, 2]]) {
+    const next = order.map((index) => items[index]);
+    const result = updateJsonSource(movable, next, fresh());
+    assert.deepEqual(parsed(result), next);
+    for (const token of ['{"t": "Caf\\u00e9 \\/ A"}', '{"t": "B \\/ two"}', '{"t": "C\\u00e9"}']) assert.ok(result.includes(token), `move ${order}: token ${token} survives`);
+  }
+  {
+    const memory = fresh();
+    const moved = updateJsonSource(movable, [items[1], items[2], items[0]], memory);
+    assert.equal(updateJsonSource(moved, items, memory), movable, 'moving back restores the exact bytes');
+  }
+
+  // Keys named like Object.prototype members are ordinary keys.
+  const protoSource = '{"a": 1, "z": "\\u00e9"}';
+  for (const name of ['__proto__', 'constructor', 'toString', 'hasOwnProperty', 'valueOf']) {
+    const added = { ...parsed(protoSource) };
+    Object.defineProperty(added, name, { value: { n: 1 }, enumerable: true, writable: true, configurable: true });
+    const memory = fresh();
+    const result = updateJsonSource(protoSource, added, memory);
+    assert.ok(Object.hasOwn(parsed(result), name), `${name}: added`);
+    assert.ok(result.startsWith('{"a": 1, "z": "\\u00e9"'), `${name}: in-place insert keeps the siblings`);
+    const edited = structuredClone(added);
+    edited[name] = { n: 2 };
+    const changed = updateJsonSource(result, edited, memory);
+    assert.deepEqual(parsed(changed)[name], { n: 2 }, `${name}: edited`);
+    const removed = { ...parsed(protoSource) };
+    const gone = updateJsonSource(changed, removed, memory);
+    assert.equal(Object.hasOwn(parsed(gone), name), false, `${name}: removed`);
+    assert.equal(gone, protoSource, `${name}: removal restores the exact bytes`);
+  }
+
+  // Every discrete edit stays exactly restorable: a four-step add/remove chain, undone and redone.
+  {
+    const base = '{\n  "slides": [\n    {"t": "Caf\\u00e9 \\/ A"},\n    {"t": "B \\/ two"}\n  ]\n}\n';
+    const d0 = parsed(base);
+    const d1 = structuredClone(d0); d1.slides.push({ t: 'N1' });
+    const d2 = structuredClone(d1); d2.slides.shift();
+    const d3 = structuredClone(d2); d3.slides.push({ t: 'N2' });
+    const d4 = structuredClone(d3); d4.slides.shift();
+    const docs = [d0, d1, d2, d3, d4], memory = fresh(), sources = [base];
+    for (let index = 1; index < docs.length; index += 1) sources.push(updateJsonSource(sources[index - 1], docs[index], memory));
+    let current = sources[4];
+    for (let index = 3; index >= 0; index -= 1) {
+      current = updateJsonSource(current, docs[index], memory);
+      assert.equal(current, sources[index], `undo step ${4 - index} returns the exact bytes`);
+    }
+    for (let index = 1; index <= 4; index += 1) {
+      current = updateJsonSource(current, docs[index], memory);
+      assert.equal(current, sources[index], `redo step ${index} returns the exact bytes`);
+    }
+    // Editing the same field twice as discrete edits (not typing) keeps the first state restorable too.
+    const t0 = '{"list": [1, 2, 3]}';
+    const t1 = { list: [1, 2] }, t2 = { list: [1, 2, 9] }, t3 = { list: [1] };
+    const memory2 = fresh();
+    const s1 = updateJsonSource(t0, t1, memory2), s2 = updateJsonSource(s1, t2, memory2), s3 = updateJsonSource(s2, t3, memory2);
+    assert.equal(updateJsonSource(s3, t2, memory2), s2);
+    assert.equal(updateJsonSource(s2, t1, memory2), s1);
+    assert.equal(updateJsonSource(s1, parsed(t0), memory2), t0);
+  }
+
+  // Performance: a move or reverse of a large array is one pass, not one parse per element.
+  {
+    const big = { slides: Array.from({ length: 200 }, (_value, index) => ({ id: `s${index}`, title: `Slide ${index}`, body: 'x'.repeat(20000), items: [1, 2, 3, { a: index }] })) };
+    const source = JSON.stringify(big, null, 2);
+    const moved = structuredClone(big);
+    moved.slides.push(moved.slides.shift());
+    const started = performance.now();
+    const result = updateJsonSource(source, moved, fresh());
+    const elapsed = performance.now() - started;
+    assert.deepEqual(parsed(result), moved);
+    assert.ok(elapsed < 3000, `moving a slide in a ${(source.length / 1e6).toFixed(1)} MB deck took ${Math.round(elapsed)} ms`);
+    const reversed = structuredClone(big);
+    reversed.slides.reverse();
+    const reverseStart = performance.now();
+    assert.deepEqual(parsed(updateJsonSource(source, reversed, fresh())), reversed);
+    assert.ok(performance.now() - reverseStart < 3000, 'reversing 200 slides stays fast');
+  }
+}
 console.log('Exact source: edited tokens only, Escape/Undo/Redo bytes, long drafts, chains, removals and bounds pass.');
