@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // FF-31 font rule: bundle pinned font files, never hotlink a font CDN.
 //
 // Fails when a tracked text file (or, with --built, a build output directory) references a font
