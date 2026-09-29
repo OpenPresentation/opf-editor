@@ -11,8 +11,20 @@ const fontFaces = await fetch('./fonts.json').then(response => {
   if (!response.ok) throw new Error('Bundled fonts are unavailable. Rebuild the editor demo.');
   return response.json();
 });
-const fontRegistry = await loadBrowserFontRegistry(fontFaces.map(face=>({family:face.family,weight:face.weight,italic:face.italic,license:face.license,data:Uint8Array.from(atob(face.dataUrl.split(',')[1]),character=>character.charCodeAt(0))})),{substitutionPolicy:'visual',fallbackFamily:'Roboto'});
+const fontRegistry = await loadBrowserFontRegistry(fontFaces.map(face=>({family:face.family,weight:face.weight,italic:face.italic,license:face.license,data:Uint8Array.from(atob(face.dataUrl.split(',')[1]),character=>character.charCodeAt(0))})),{substitutionPolicy:'visual',fallbackFamily:'Roboto',lazyFontsBaseUrl:new URL('./',document.baseURI).href});
 const layoutOptions = {textMeasurement:fontRegistry.textMeasurement};
+// Vendored preview fonts (Intos for the Aptos scheme, the open families) are not in fonts.json: the registry loads them from
+// separate hash-pinned files when the document's font families need them, and measures and paints with them only from then on.
+let lazyFontsBusy = false, lazyFontsFailed = '';
+function loadLazyFonts() {
+  if (lazyFontsBusy || typeof fontRegistry.pendingLazyFonts !== 'function') return;
+  const deck = editor.document, pending = fontRegistry.pendingLazyFonts(deck);
+  const key = pending.map(face => face.file).join('|');
+  if (!pending.length || key === lazyFontsFailed) return;
+  lazyFontsBusy = true; status('Loading preview fonts…');
+  fontRegistry.ensureLazyFonts(deck).then(() => { lazyFontsFailed = ''; thumbnailCache.clear(); }, error => { lazyFontsFailed = key; status(`Preview fonts unavailable: ${error.message}`); })
+    .finally(() => { lazyFontsBusy = false; try { render(); } catch (error) { status(error.message); } });
+}
 const editor = createEditorSession({
   name: 'A presentation you can work on',
   catalogs: {fontSchemes: {records: [{'$schema':'https://openpresentation.org/schema/opf-font-scheme/v1',id:'cambria',name:'Cambria',major:'Cambria',minor:'Cambria'}]}},
@@ -153,6 +165,7 @@ function render() {
   updateZoom();
   if (!selectedPath.startsWith(`slides.${slideIndex}.`) || editor.get(selectedPath) === undefined) selectedPath = `slides.${slideIndex}.title`;
   select(selectedPath);
+  loadLazyFonts();
 }
 editor.subscribe(() => { try { render(); } catch (error) { renderError = error.message; canvas?.destroy(); canvas=undefined; element('preview').textContent = 'Preview unavailable for this document. Use Undo or revise the JSON.'; status(renderError); } });
 element('apply').onclick = () => act(() => editor.set(selectedPath, typeof selectedValue === 'string' ? element('value').value : JSON.parse(element('value').value)));
