@@ -6,6 +6,7 @@ import {createCanvasEditor} from '../src/canvas.js';
 import {loadBrowserFontRegistry} from '@openpresentation/opf-render/fonts-browser';
 import { renderSvg } from '@openpresentation/opf-render/svg';
 import { installPptxExport } from './pptx-controls.js';
+import { updateJsonSource } from '../src/exact-source.js';
 
 const fontFaces = await fetch('./fonts.json').then(response => {
   if (!response.ok) throw new Error('Bundled fonts are unavailable. Rebuild the editor demo.');
@@ -58,6 +59,16 @@ function updateZoom() {
   const zoom = element('zoom').value;
   const stage = document.querySelector('.canvas-stage');
   stage.style.width = zoom === 'fit' ? '100%' : `${(Number(svg?.getAttribute('width')) || 1280) * Number(zoom) / 100 + 68}px`;
+}
+// The source view keeps the exact bytes of source the author applied (escapes, spacing, key order)
+// and rewrites only edited tokens, so Escape, Undo and Redo restore them. Without applied source
+// it shows the normalized document.
+let sourceText = null;
+const prettySource = deck => JSON.stringify(deck, null, 2);
+function viewSource(deck) {
+  if (sourceText === null) return prettySource(deck);
+  try { return sourceText = updateJsonSource(sourceText, deck); }
+  catch { sourceText = null; return prettySource(deck); }
 }
 function renderNavigator(deck) {
   element('slide-count').textContent = deck.slides.length;
@@ -134,14 +145,14 @@ function render() {
   element('group-controls').hidden = !groupSelect.options.length;
   element('group-mode').value = editor.get(`${groupSelect.value}.composition.mode`, 'auto');
   element('undo').disabled = !editor.canUndo; element('redo').disabled = !editor.canRedo;
-  element('json').value = JSON.stringify(deck, null, 2);
+  element('json').value = viewSource(deck);
   const diagnostics = [];
   if (!canvas) canvas=createCanvasEditor(element('preview'),{
     editor,slideIndex,renderOptions:layoutOptions,propertiesContainer:element('canvas-properties'),
     onSelect:value=>{select(value.path);showPanel('content');},
-    onDraft:value=>{element('json').value=JSON.stringify(value.document,null,2);status('Editing on the slide · Esc to cancel');},
+    onDraft:value=>{element('json').value=viewSource(value.document);status('Editing on the slide · Esc to cancel');},
     onCommit:()=>status('Changes saved in this session'),
-    onCancel:()=>{element('json').value=JSON.stringify(editor.document,null,2);status('Edit cancelled');},
+    onCancel:()=>{element('json').value=viewSource(editor.document);status('Edit cancelled');},
     onError:error=>status(error.message),
   });
   else canvas.setSlide(slideIndex);
@@ -178,13 +189,18 @@ element('add').onclick = () => act(() => {
   editor.applyPatch([{ op: 'add', path: '/slides/-', value: { id: `slide-${index}`, title: 'New slide', text: 'Write your next idea here.' } }]);
 });
 element('apply-json').onclick = () => {
+  const applied = element('json').value, prior = sourceText;
   try {
-    editor.applyPatch([{op:'replace',path:'',value:JSON.parse(element('json').value)}]);
+    const deck = JSON.parse(applied);
+    // Remember the spelling of the document being replaced so Undo restores it exactly, then keep the applied bytes.
+    updateJsonSource(sourceText ?? prettySource(editor.document), editor.document);
+    sourceText = applied;
+    editor.applyPatch([{op:'replace',path:'',value:deck}]);
     if (renderError) { element('json-error').textContent = renderError; return; }
     element('source-dialog').close(); status('Presentation source updated');
-  } catch(error) { element('json-error').textContent = error.issues?.[0]?.message ?? error.message; }
+  } catch(error) { sourceText = prior; element('json-error').textContent = error.issues?.[0]?.message ?? error.message; }
 };
-element('open-json').onclick = () => { if(canvas && !canvas.commit())return; element('json').value = JSON.stringify(editor.document,null,2); element('json-error').textContent = ''; element('source-dialog').showModal();previewSource(); };
+element('open-json').onclick = () => { if(canvas && !canvas.commit())return; element('json').value = viewSource(editor.document); element('json-error').textContent = ''; element('source-dialog').showModal();previewSource(); };
 element('close-json').onclick = () => element('source-dialog').close();
 let sourceFrame=0;
 function previewSource() {
