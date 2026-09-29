@@ -14,9 +14,10 @@ const DEFAULT_LIMIT = 64;
 const DEFAULT_MAX_BYTES = 8_000_000;
 
 /**
- * `last` is the last generated document and the paths that produced it. A further edit of the
- * same paths (typing into one field) replaces that transient state instead of crowding out
- * older ones, so a long draft cannot evict the authored spelling.
+ * `last` is the last generated document and, when it came from typing into one existing string
+ * value, that value's path. A further edit of the same value replaces that transient state
+ * instead of crowding out older ones, so a long draft cannot evict the authored spelling.
+ * Discrete edits (add, remove, move) never coalesce.
  */
 export function createSourceMemory(limit = DEFAULT_LIMIT, maxBytes = DEFAULT_MAX_BYTES) {
   return { entries: new Map(), bytes: 0, last: null, limit, maxBytes, limited: false };
