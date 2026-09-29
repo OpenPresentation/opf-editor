@@ -47,6 +47,12 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}/index.html`);
   await page.locator('#preview svg').waitFor();
   await page.waitForFunction(() => !!document.querySelector('#export-pptx').onclick);
+  // FF-31: the default Aptos scheme previews with Intos, fetched on demand from the page's own fonts/ directory. Preview an Aptos
+  // draft while still online so the vendored faces are loaded (and held by the document); everything after runs offline.
+  await button('Source').click();
+  await page.locator('#json').fill(JSON.stringify({ name: 'Aptos preload', slides: [{ id: 'aptos', title: 'Aptos preview', text: 'Loads Intos.' }] }));
+  await page.waitForFunction(() => [...document.fonts].some(face => face.family.replace(/"/g, '') === 'Intos' && face.status === 'loaded'), undefined, { timeout: 60000 });
+  await button('Close source editor').click();
   await page.context().setOffline(true);
   // Responsive CSS hides the button text on small screens. Keep names and actions usable.
   for (const viewport of [{ width: 1280, height: 720 }, { width: 540, height: 960 }]) {
