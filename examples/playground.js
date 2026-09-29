@@ -6,7 +6,7 @@ import {createCanvasEditor} from '../src/canvas.js';
 import {loadBrowserFontRegistry} from '@openpresentation/opf-render/fonts-browser';
 import { renderSvg } from '@openpresentation/opf-render/svg';
 import { installPptxExport } from './pptx-controls.js';
-import { updateJsonSource } from '../src/exact-source.js';
+import { MAX_EXACT_SOURCE_LENGTH, createSourceMemory, findDuplicateKey, updateJsonSource } from '../src/exact-source.js';
 
 const fontFaces = await fetch('./fonts.json').then(response => {
   if (!response.ok) throw new Error('Bundled fonts are unavailable. Rebuild the editor demo.');
@@ -64,10 +64,22 @@ function updateZoom() {
 // and rewrites only edited tokens, so Escape, Undo and Redo restore them. Without applied source
 // it shows the normalized document.
 let sourceText = null;
+const sourceMemory = createSourceMemory();
+// Repeated object keys cannot be edited faithfully (JSON.parse keeps only the last one).
+function duplicateKeyMessage(source) {
+  const duplicate = findDuplicateKey(source);
+  return duplicate ? `Duplicate key "${duplicate.key}"${duplicate.path.length ? ` in ${duplicate.path.join('.')}` : ''}. Remove the repeated key before applying.` : '';
+}
 const prettySource = deck => JSON.stringify(deck, null, 2);
 function viewSource(deck) {
   if (sourceText === null) return prettySource(deck);
-  try { return sourceText = updateJsonSource(sourceText, deck); }
+  try {
+    sourceText = updateJsonSource(sourceText, deck, sourceMemory);
+    const note = sourceMemory.limited ? `Source is over ${MAX_EXACT_SOURCE_LENGTH.toLocaleString('en-US')} characters: edits still work, but Escape and Undo restore edited values in normalized JSON spelling.` : '';
+    element('source-dialog').querySelector('.dialog-footer span').textContent = note || 'Validated before changes are applied.';
+    if (note) status(note);
+    return sourceText;
+  }
   catch { sourceText = null; return prettySource(deck); }
 }
 function renderNavigator(deck) {
@@ -193,7 +205,9 @@ element('apply-json').onclick = () => {
   try {
     const deck = JSON.parse(applied);
     // Remember the spelling of the document being replaced so Undo restores it exactly, then keep the applied bytes.
-    updateJsonSource(sourceText ?? prettySource(editor.document), editor.document);
+    const duplicate = duplicateKeyMessage(applied);
+    if (duplicate) { element('json-error').textContent = duplicate; return; }
+    updateJsonSource(sourceText ?? prettySource(editor.document), editor.document, sourceMemory);
     sourceText = applied;
     editor.applyPatch([{op:'replace',path:'',value:deck}]);
     if (renderError) { element('json-error').textContent = renderError; return; }
@@ -206,6 +220,8 @@ let sourceFrame=0;
 function previewSource() {
   try {
     const deck=JSON.parse(element('json').value);
+    const duplicate=duplicateKeyMessage(element('json').value);
+    if(duplicate)throw new Error(duplicate);
     const svg=renderSvg(deck,{...layoutOptions,slideIndex:Math.min(slideIndex,(deck.slides?.length ?? 1)-1)});
     element('source-preview').innerHTML=svg;element('json-error').textContent='';element('apply-json').disabled=false;
   } catch(error) {element('json-error').textContent=error.issues?.[0]?.message ?? error.message;element('apply-json').disabled=true;}

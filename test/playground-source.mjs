@@ -123,8 +123,31 @@ try {
   await button('Undo').click();
   await button('Undo').click();
   await expectView(original, 'chain is fully undone');
+  // Adding a slide is a structural array edit: untouched slides keep their exact tokens.
+  await page.locator('#add').click();
+  await page.waitForFunction(() => JSON.parse(document.querySelector('#json').value).slides.length === 3);
+  const withSlide = await view();
+  assert.equal(JSON.parse(withSlide).slides[2].title, 'New slide');
+  for (const token of ['{"title":   "Caf\\u00e9 \\/ Q1" ,  "text":"Line one\\nLine two \\/ \\u00e9" }', '"items": [ "Onboard caf\\u00e9s \\/ partners"  ,\n\t"Second\\u00e9 \\/ item" ] }'])
+    assert.ok(withSlide.includes(token), 'adding a slide keeps sibling tokens byte for byte');
+  assert.ok(withSlide.startsWith('{ "name"  :   "Caf\\u00e9 \\/ Deck",\n\t"slides" : [\n'), 'the rest of the document is untouched');
+  await button('Undo').click();
+  await expectView(original, 'Undo of an added slide restores the exact bytes');
+  await button('Redo').click();
+  await expectView(withSlide, 'Redo of an added slide restores the exact bytes');
+  await button('Undo').click();
+  await expectView(original, 'Undo of an added slide again');
+
   await button('Undo').click();
   assert.notEqual(await view(), original, 'undoing the source apply leaves the previous document');
+  // Repeated object keys are rejected on Apply (JSON.parse would keep only the last one).
+  await button('Source').click();
+  await page.locator('#json').fill('{"name":"first","name":"second","slides":[{"title":"T"}]}');
+  await page.waitForFunction(() => document.querySelector('#json-error').textContent.includes('Duplicate key "name"'));
+  assert.equal(await page.locator('#apply-json').isDisabled(), true, 'Apply stays disabled for duplicate keys');
+  await page.locator('#json').fill('{"name":"ok","slides":[{"title":{"a":1,"a":2}}]}');
+  await page.waitForFunction(() => document.querySelector('#json-error').textContent.includes('Duplicate key "a"'));
+  await button('Close source editor').click();
   assert.deepEqual(errors, []);
   console.log('Playground source: escaped tokens and irregular whitespace survive Escape, Undo and Redo byte for byte.');
 } finally {

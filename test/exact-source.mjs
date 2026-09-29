@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createSourceMemory, updateJsonSource } from '../src/exact-source.js';
+import { MAX_EXACT_SOURCE_LENGTH, createSourceMemory, findDuplicateKey, updateJsonSource } from '../src/exact-source.js';
 
 // Exact-source memory: only edited tokens are rewritten, and Escape/Undo/Redo restore the
 // authored bytes (escapes and irregular whitespace included), even after long typing drafts.
@@ -55,4 +55,95 @@ assert.equal(updateJsonSource(retypedEdit, doc, memory), retyped);
 assert.equal(updateJsonSource(original, doc, createSourceMemory()), original);
 assert.equal(updateJsonSource('{"title":"a"}', { title: 'b' }, createSourceMemory()), '{"title":"b"}');
 assert.throws(() => updateJsonSource('{', {}, createSourceMemory()));
+// Review fixes: duplicate keys, structural array edits, manual respellings, byte cap and limit flag.
+{
+  const parsed = (text) => JSON.parse(text);
+
+  // A repeated object key must never lose the edit (the first token would be rewritten while
+  // JSON.parse keeps the last one). Fall back to indented JSON for that edit.
+  for (const [source, next] of [
+    ['{"a":1,"a":2}', { a: 3 }],
+    ['{"x":{"a":1,"a":2},"y":1}', { x: { a: 3 }, y: 1 }],
+    ['[{"a":1,"a":2}]', [{ a: 3 }]],
+    ['{"slides":[{"title":"t","title":"u"}]}', { slides: [{ title: 'v' }] }],
+  ]) {
+    const result = updateJsonSource(source, next, createSourceMemory());
+    assert.deepEqual(parsed(result), next, `duplicate keys keep the edit: ${source}`);
+  }
+  // An edit elsewhere leaves the duplicated keys, and every other byte, alone.
+  assert.equal(updateJsonSource('{"a":1,"a":2,"b":1}', { a: 2, b: 9 }, createSourceMemory()), '{"a":1,"a":2,"b":9}');
+  assert.deepEqual(findDuplicateKey('{"a":1,"a":2}'), { key: 'a', path: [] });
+  assert.deepEqual(findDuplicateKey('{"s":[{"t":1},{"t":2,"t":3}]}'), { key: 't', path: ['s', 1] });
+  assert.equal(findDuplicateKey('{"a":{"a":1},"b":[{"a":1},{"a":2}]}'), null);
+  assert.equal(findDuplicateKey('{'), null);
+
+  // Adding or removing array elements keeps every untouched sibling token, escapes included.
+  const slides = '{\n  "slides": [\n    { "title": "Caf\\u00e9 \\/ A" },\n    { "title": "B \\/ two" },\n    { "title": "C\\u00e9" }\n  ]\n}\n';
+  const deck = parsed(slides);
+  const siblings = ['{ "title": "Caf\\u00e9 \\/ A" }', '{ "title": "B \\/ two" }', '{ "title": "C\\u00e9" }'];
+  const withSlides = (...list) => ({ slides: list.map((title) => ({ title })) });
+  for (const [label, next, kept] of [
+    ['append', withSlides('Café / A', 'B / two', 'Cé', 'New'), [0, 1, 2]],
+    ['insert in the middle', withSlides('Café / A', 'New', 'B / two', 'Cé'), [0, 1, 2]],
+    ['insert first', withSlides('New', 'Café / A', 'B / two', 'Cé'), [0, 1, 2]],
+    ['remove the middle', withSlides('Café / A', 'Cé'), [0, 2]],
+    ['remove the first', withSlides('B / two', 'Cé'), [1, 2]],
+    ['remove the last', withSlides('Café / A', 'B / two'), [0, 1]],
+    ['edit one and append', withSlides('Café / A', 'B edited', 'Cé', 'New'), [0, 2]],
+    ['replace two with one', withSlides('Café / A', 'Only'), [0]],
+  ]) {
+    const result = updateJsonSource(slides, next, createSourceMemory());
+    assert.deepEqual(parsed(result), next, `${label}: value`);
+    for (const index of kept) assert.ok(result.includes(siblings[index]), `${label}: sibling ${index} keeps its exact token`);
+    assert.ok(result.startsWith('{\n  "slides": [\n'), `${label}: the array is not minified`);
+  }
+  assert.equal(updateJsonSource(slides, withSlides('Café / A', 'Cé'), createSourceMemory()), slides.replace('    { "title": "B \\/ two" },\n', ''));
+  // Structural edits then Undo return the exact source through the memory.
+  {
+    const memory = createSourceMemory();
+    const added = updateJsonSource(slides, withSlides('Café / A', 'B / two', 'Cé', 'New'), memory);
+    assert.equal(updateJsonSource(added, deck, memory), slides);
+    assert.equal(updateJsonSource(slides, withSlides('Café / A', 'B / two', 'Cé', 'New'), memory), added);
+  }
+  // Nested arrays: only the touched array changes.
+  {
+    const source = '{"a":["x\\/y","z"],"b":["p\\u00e9","q"]}';
+    const result = updateJsonSource(source, { a: ['x/y', 'z'], b: ['pé', 'q', 'r'] }, createSourceMemory());
+    assert.ok(result.startsWith('{"a":["x\\/y","z"],"b":['), 'sibling arrays are untouched');
+    assert.deepEqual(parsed(result), { a: ['x/y', 'z'], b: ['pé', 'q', 'r'] });
+  }
+
+  // A remembered source never reverts manual respellings outside the edited node.
+  {
+    const memory = createSourceMemory();
+    const edited = updateJsonSource(original, edit((d) => { d.slides[0].title = 'Draft'; }), memory);
+    const manual = edited.replace('"Caf\\u00e9 \\/ Deck"', '"Café \\/ Deck"');
+    assert.notEqual(manual, edited);
+    const restored = updateJsonSource(manual, doc, memory);
+    assert.equal(restored, manual.replace('"Draft"', '"Caf\\u00e9 \\/ Q1"'), 'the edited token returns as authored while the respelling stays');
+    assert.ok(restored.includes('"Café \\/ Deck"') && !restored.includes('"Caf\\u00e9 \\/ Deck"'));
+    // Without a manual respelling the whole remembered source is returned.
+    const plain = updateJsonSource(original, edit((d) => { d.slides[0].title = 'Draft'; }), createSourceMemory());
+    assert.equal(plain, edited);
+  }
+
+  // The memory is bounded in total bytes as well as entries, and reports the exact-restore limit.
+  {
+    const memory = createSourceMemory(64, 5000);
+    for (let index = 0; index < 20; index += 1) {
+      const source = JSON.stringify({ id: index, filler: 'x'.repeat(900) });
+      updateJsonSource(source, { id: index + 100, filler: 'x'.repeat(900) }, memory);
+    }
+    assert.ok(memory.bytes <= 5000, 'total remembered bytes stay under the cap');
+    assert.equal(memory.bytes, [...memory.entries.values()].reduce((sum, text) => sum + text.length, 0), 'the byte count matches the entries');
+    assert.equal(memory.limited, false);
+    const huge = '{"a":"' + 'x'.repeat(MAX_EXACT_SOURCE_LENGTH) + '","b":"\\u00e9"}';
+    const big = createSourceMemory();
+    const result = updateJsonSource(huge, { a: 'y', b: 'é' }, big);
+    assert.equal(result, '{"a":"y","b":"\\u00e9"}', 'edits still work and untouched tokens stay exact');
+    assert.equal(big.limited, true, 'the limit is reported instead of failing silently');
+    assert.equal(big.entries.size, 1, 'only the small result is remembered');
+    assert.equal(updateJsonSource(result, { a: 'z', b: 'é' }, big).includes('"a":"z"'), true);
+  }
+}
 console.log('Exact source: edited tokens only, Escape/Undo/Redo bytes, long drafts, chains, removals and bounds pass.');
