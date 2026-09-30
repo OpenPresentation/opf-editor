@@ -5,6 +5,8 @@
 //   - the default Roboto deck fetches only the Roboto faces it draws (no Office face, none for the faces of other decks),
 //   - choosing Calibri fetches Carlito Regular and Bold (the faces the deck draws, not Carlito's italics) and the preview paints Carlito at
 //     the measured advance; loaded faces are not fetched again,
+//   - a host that hands a document over the moment the page is ready (the gallery does: it opens the source dialog, fills it and clicks Apply)
+//     while the starting deck's faces are still loading gets that document applied, with slow font responses too,
 //   - nothing leaves the local server, no page errors.
 // Skipped with a renderer older than 0.11.5 (no lazyFacesNeeded).
 import assert from 'node:assert/strict';
@@ -41,6 +43,7 @@ assert.ok(startupBytes < 400_000, `fonts.json is small: ${startupBytes}`);
 
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.ttf': 'font/ttf' };
 const served = [], blocked = [];
+let delayFonts = false;
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
@@ -49,6 +52,8 @@ const server = createServer(async (req, res) => {
     const relative = path.relative(root, target);
     if (relative.startsWith('..') || path.isAbsolute(relative)) { res.writeHead(403).end(); return; }
     const body = await readFile(target);
+    // Slow font files make the starting deck's faces still load when a host hands a document over.
+    if (delayFonts && url.pathname.endsWith('.ttf')) await new Promise(resolve => setTimeout(resolve, 350));
     if (/\.(ttf|json)$/.test(url.pathname) && !url.pathname.includes('script-fonts')) served.push({ file: url.pathname.slice(1), bytes: body.length });
     res.writeHead(200, { 'Content-Type': types[path.extname(target)] ?? 'application/octet-stream' }).end(body);
   } catch { res.writeHead(404).end(); }
@@ -97,6 +102,24 @@ try {
   await choose('roboto'); await page.waitForTimeout(300);
   await choose('calibri'); await page.waitForTimeout(500);
   assert.equal(baseFiles().length, count, 'loaded faces are not fetched again');
+  // The gallery's handoff (components/editor-frame.tsx): wait for Apply's handler, open the source dialog, fill it, click Apply.
+  delayFonts = true;
+  const handoff = await browser.newPage({ viewport: { width: 1500, height: 900 } });
+  handoff.on('pageerror', error => errors.push(error.message));
+  await handoff.goto(`${base}/index.html`);
+  await handoff.waitForFunction(() => !!document.querySelector('#apply-json')?.onclick);
+  await handoff.evaluate(() => {
+    const deck = { name: 'Handed over', design: { fontScheme: 'aptos' }, slides: [{ id: 'a', title: 'Handed-over deck', text: 'Applies the aptos pairing.' }] };
+    document.querySelector('#open-json').click();
+    const json = document.querySelector('#json');
+    json.value = JSON.stringify(deck);
+    json.dispatchEvent(new Event('input', { bubbles: true }));
+    document.querySelector('#apply-json').click();
+  });
+  await handoff.waitForFunction(() => /Handed-over deck/.test(document.querySelector('#preview')?.textContent ?? ''), undefined, { timeout: 30000 });
+  await handoff.waitForFunction(() => document.querySelector('#status').textContent === 'Presentation source updated', undefined, { timeout: 30000 });
+  assert.ok(served.some(item => item.file === 'fonts/intos/Intos-Regular.ttf'), 'the handed-over Aptos deck loaded Intos before it rendered');
+  delayFonts = false;
   assert.deepEqual(blocked, [], 'no request leaves the local server');
   assert.deepEqual(errors, []);
   await writeFile(path.join(output, 'report.json'), JSON.stringify({ browser: browser.version(), fontsJsonBytes: startupBytes, baseFaces: baseList.length, firstLoadFontBytes: firstLoad, firstLoadBaseFiles: first, calibriFiles: carlito }, null, 2) + '\n');

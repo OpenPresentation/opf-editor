@@ -179,9 +179,7 @@ function render() {
   element('group-controls').hidden = !groupSelect.options.length;
   element('group-mode').value = editor.get(`${groupSelect.value}.composition.mode`, 'auto');
   element('undo').disabled = !editor.canUndo; element('redo').disabled = !editor.canRedo;
-  // A render that finishes while the source dialog is open (the starting deck's faces loading when a host hands a document over) must not
-  // overwrite the source being edited or applied: Apply checks that the text is still what it parsed.
-  if (!element('source-dialog').open) element('json').value = viewSource(deck);
+  element('json').value = viewSource(deck);
   const diagnostics = [];
   if (!canvas) canvas=createCanvasEditor(element('preview'),{
     editor,slideIndex,renderOptions:layoutOptions,propertiesContainer:element('canvas-properties'),fonts:fontGate,
