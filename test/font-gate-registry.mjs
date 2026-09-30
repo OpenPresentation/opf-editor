@@ -30,7 +30,7 @@ const fetchLocal = async (url) => {
   try {
     // Script faces come from the installed @expo-google-fonts packages, vendored faces from the renderer package.
     const script = file.startsWith("scripts/") ? file.split("/") : undefined;
-    const bytes = await readFile(script ? path.join(packageRoot, "..", "..", "@expo-google-fonts", script[1], ...script.slice(2)) : path.join(packageRoot, file));
+    const bytes = await readFile(script ? path.join(path.dirname(fileURLToPath(import.meta.resolve(`@expo-google-fonts/${script[1]}/package.json`))), ...script.slice(2)) : path.join(packageRoot, file));
     return { ok: true, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
   } catch { return { ok: false, status: 404 }; }
 };
