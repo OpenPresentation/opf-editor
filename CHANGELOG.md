@@ -4,7 +4,7 @@
 
 ## 0.10.0
 
-- Release 0.10.0 (minor: new core floor and the optional renderer peer moves to the 0.11 line; no editor source change since 0.9.0, no public export removed). Require `@openpresentation/opf` ^0.11.2, the optional peer `@openpresentation/opf-render` ^0.11.0 and (development/playground) `@openpresentation/opf-pptx` ^0.11.0. Core 0.11.2 centers cover slides, so preview, export and editing agree only when all engines resolve the same core; install editor 0.10.0 with renderer 0.11.0, PPTX 0.11.0 and core 0.11.2. With renderer 0.11.0 the playground activates the automatic script fonts (#40) and lazy Intos fonts (#42) added in 0.9.0.
+- Release 0.10.0 (minor: new core floor and the optional renderer peer moves to the 0.11 line; no editor source change since 0.9.0, no public export removed). Require `@openpresentation/opf` ^0.11.2, the optional peer `@openpresentation/opf-render` ^0.11.0 and (development/playground) `@openpresentation/opf-pptx` ^0.11.0. Core 0.11.2 centers cover slides, so preview, export and editing agree only when all engines resolve the same core; install editor 0.10.0 with renderer 0.11.0, PPTX 0.11.0 and core 0.11.2. With renderer 0.11.0 the playground activates the automatic script fonts (#40) and lazy Intos fonts (#42) added in 0.9.0. Tooling fix (#45): `check:font-hotlinks` works in the release container (read-only `safe.directory` for `git ls-files`, regular files only).
 
 ## 0.9.0
 
