@@ -103,6 +103,12 @@ export interface CanvasEditor {
   cancel(): void;
   render(document?: unknown): void;
   setSlide(index: number): boolean;
+  /**
+   * Select the content at `path`, or the closest enclosing content the canvas can select (a list item selects its list),
+   * after showing the slide the path is on. Returns the selected path, or null when nothing is selectable there (speaker
+   * notes, deck fields) or the slide is not drawn yet (fonts loading). Moves keyboard focus only with `focus: true`.
+   */
+  reveal(path: string, options?: { focus?: boolean }): string | null;
   setRenderOptions(options: RenderSvgOptions): boolean;
   destroy(): void;
 }

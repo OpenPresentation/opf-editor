@@ -113,6 +113,14 @@
     "./backgrounds": {
       "types": "./dist/background-options.d.ts",
       "default": "./dist/background-options.js"
+    },
+    "./find": {
+      "types": "./dist/find-replace.d.ts",
+      "default": "./dist/find-replace.js"
+    },
+    "./find-panel": {
+      "types": "./dist/find-panel.d.ts",
+      "default": "./dist/find-panel.js"
     }
   },
   "types": "./dist/index.d.ts",

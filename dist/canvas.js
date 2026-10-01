@@ -905,6 +905,41 @@ export function createCanvasEditor(container, options = {}) {
     getTarget(path)?.focus();
     options.onCancel?.({ path });
   }
+  function setSlide(index) {
+    if (!Number.isInteger(index) || !editor.document.slides?.[index])
+      throw new RangeError("Slide index is out of range.");
+    if (index === slideIndex) {
+      if (!active) renderFor();
+      return true;
+    }
+    if (!commit()) return false;
+    richToolbar.hide();
+    slideIndex = index;
+    selectedPath = null;
+    renderFor();
+    return true;
+  }
+  // RR-25: select the content at `path`, or the closest enclosing content that is a canvas target (a list item, a table
+  // cell or a quote part selects the list, table or quote it belongs to), after showing the slide the path is on. Returns
+  // the path that was selected, or null when the path is not on a slide that is drawn yet (fonts still loading) or no
+  // enclosing content is selectable (speaker notes, deck fields). It never moves keyboard focus unless `focus` is true.
+  function reveal(path, { focus = false } = {}) {
+    if (disposed || typeof path !== "string") return null;
+    const slide = /^slides.(d+)(?:.|$)/.exec(path);
+    if (slide && Number(slide[1]) !== slideIndex && !setSlide(Number(slide[1]))) return null;
+    if (active && !commit()) return null;
+    const segments = path.split(".");
+    for (let length = segments.length; length >= 3; length--) {
+      const candidate = segments.slice(0, length).join(".");
+      const node = getTarget(candidate);
+      if (!node) continue;
+      choose(candidate);
+      node.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+      if (focus) node.focus?.({ preventScroll: true });
+      return candidate;
+    }
+    return null;
+  }
   const unsubscribe = editor.subscribe(() => {
     if (committing || layoutHandles.editingPath) return;
     if (active) {
@@ -983,20 +1018,8 @@ export function createCanvasEditor(container, options = {}) {
     commit,
     cancel,
     render,
-    setSlide(index) {
-      if (!Number.isInteger(index) || !editor.document.slides?.[index])
-        throw new RangeError("Slide index is out of range.");
-      if (index === slideIndex) {
-        if (!active) renderFor();
-        return true;
-      }
-      if (!commit()) return false;
-      richToolbar.hide();
-      slideIndex = index;
-      selectedPath = null;
-      renderFor();
-      return true;
-    },
+    setSlide,
+    reveal,
     setRenderOptions(next) {
       if (!commit()) return false;
       richToolbar.hide();
