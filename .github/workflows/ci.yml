@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: 021c2fe4486856b3d3c3d3f95dbfffb7a2823dcc # RR-29: core PR opf#267 (core main plus the audit); repin to its merge commit once merged
+          ref: ecfe0cd09f1be04cea3e8c7021e9933d2eee79ba # RR-29: core PR opf#267 (core main plus the audit); repin to its merge commit once merged
           path: opf
           fetch-depth: 0
           persist-credentials: false
