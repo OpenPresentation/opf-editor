@@ -85,7 +85,9 @@ for (const [dimension, kind] of [
   assert.deepEqual(at("backgrounds", { slideIndex: 1 }), { value: "light1", scope: "slide" });
   assert.deepEqual(at("charts", { slideIndex: 1 }), { value: "column", scope: "slide" });
   assert.deepEqual(at("socials"), { value: { linkedin: "alice" }, scope: "deck" });
-  assert.deepEqual(at("headers-footers", { slideIndex: 1 }).value, { header: { left: { text: "H" } }, footer: undefined });
+  assert.deepEqual(at("headers-footers", { slideIndex: 1 }), { value: { header: { left: { text: "H" } }, footer: undefined }, scope: "slide" });
+  assert.equal(at("headers-footers", { slideIndex: 0 }).scope, "deck", "a slide with no value of its own reads the deck's");
+  assert.equal(at("image-treatments", { slideIndex: 1 }).scope, "deck");
   assert.deepEqual(at("image-treatments").value, { slideImage: undefined, imageFill: undefined });
   assert.equal(at("blocks").scope, "block");
   for (const dimension of SWITCH_DIMENSIONS) assert.ok(at(dimension, { slideIndex: 1 }), `${dimension} has a reader`);

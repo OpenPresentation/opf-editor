@@ -172,6 +172,22 @@ try {
   await field(design, 'Applies to').selectOption('slide');
   await step('slide-scope font scheme', () => field(design, 'Font scheme').selectOption('georgia'), current => current.slides[1].design?.fontScheme === 'georgia' && current.design.fontScheme === 'roboto', { preview: true });
   await step('slide-scope title alignment', () => field(design, 'Title alignment').selectOption('center'), current => current.slides[1].design?.titleAlignment === 'center' && current.design.titleAlignment === undefined);
+  // A slide's own footer replaces the deck's whole footer, so the first slide edit starts from a copy of it.
+  await field(design, 'Applies to').selectOption('deck');
+  const footerCenter = design.getByLabel(label('Center text')).nth(1);
+  await footerCenter.fill('Confidential');
+  await footerCenter.press('Enter');
+  await waitDoc(current => current.design.footer?.center?.text === 'Confidential', 'deck footer for the slide-scope checks');
+  await settle();
+  assert.equal(await design.getByLabel('Hide the footer').isVisible(), false, 'hiding is not offered at the deck while the footer shows');
+  await field(design, 'Applies to').selectOption('slide');
+  await step('slide-scope footer keeps the deck zones', () => design.getByLabel('Right: show the slide number').nth(1).check(), current => current.slides[1].design?.footer?.center?.text === 'Confidential' && current.slides[1].design.footer.right?.slideNumber === true && current.design.footer.right === undefined);
+  await step('hide the footer on one slide', () => design.getByLabel('Hide the footer').check(), current => current.slides[1].design?.footer === false && current.design.footer.center.text === 'Confidential');
+  await field(design, 'Applies to').selectOption('deck');
+  await button('Undo').click();
+  await waitDoc(current => current.design.footer === undefined, 'deck footer removed again');
+  await settle();
+  await field(design, 'Applies to').selectOption('slide');
   assert.match(await field(design, 'Applies to').evaluate(node => node.selectedOptions[0].textContent), /slide 2/);
   await field(design, 'Applies to').selectOption('deck');
   await slide(0);
@@ -183,10 +199,32 @@ try {
   await step('primary chart position', () => field(design, 'Primary chart position').selectOption('left'), current => current.design.chartPrimary === 'left');
   await step('content box', () => field(design, 'Content box').selectOption('yes'), current => current.design.contentBox === true);
   await step('accent font', async () => { const input = field(design, 'Accent font'); await input.fill('Georgia'); await input.press('Enter'); }, current => current.design.fontScheme?.accent?.family === 'Georgia');
+  {
+    const before = await doc();
+    const accent = field(design, 'Accent font');
+    await accent.fill('Georgia');
+    await accent.press('Enter');
+    await waitDoc(current => current.design.fontScheme?.accent?.family === 'Georgia', 'accent font for the Typography check');
+    await settle();
+    assert.equal(await page.locator('#font').inputValue(), 'roboto', 'the Typography select shows the scheme id');
+    await page.locator('#font').selectOption('calibri');
+    await waitDoc(current => current.design.fontScheme?.id === 'calibri' && current.design.fontScheme.accent?.family === 'Georgia', 'the Typography select keeps the accent font');
+    await settle();
+    await field(design, 'Font scheme').selectOption('georgia');
+    await waitDoc(current => current.design.fontScheme?.id === 'georgia' && current.design.fontScheme.accent?.family === 'Georgia', 'a font scheme switch keeps the accent font');
+    await settle();
+    await button('Undo').click();
+    await button('Undo').click();
+    await button('Undo').click();
+    await waitDoc(current => JSON.stringify(current) === JSON.stringify(before), 'accent checks undone');
+    await settle();
+    mark('an accent font survives font scheme changes');
+  }
   await step('logo', async () => { const input = field(design, 'Logo source'); await input.fill('asset:logo'); await input.press('Enter'); }, current => current.design.logo === 'asset:logo');
   await step('logo variant', async () => { await field(design, 'Logo variant').selectOption('light'); const input = field(design, 'Logo source'); await input.fill('asset:mark'); await input.press('Enter'); }, current => current.design.logo?.light === 'asset:mark');
   await field(design, 'Logo variant').selectOption('default');
   await step('organization logo', async () => { const input = field(design, 'Organization logo \(whole presentation\)'); await input.fill('asset:logo'); await input.press('Enter'); }, current => current.organization.logo === 'asset:logo');
+  assert.equal(await field(design, 'Watermark opacity (0 to 1)').isDisabled(), true, 'the opacity waits for a watermark image');
   await step('watermark', async () => { const input = field(design, 'Watermark image'); await input.fill('asset:mark'); await input.press('Enter'); }, current => current.design.watermark === 'asset:mark', { preview: true });
   await field(design, 'Watermark image').fill('asset:mark');
   await field(design, 'Watermark image').press('Enter');
@@ -203,7 +241,6 @@ try {
   // Header and footer zones, with the logo warning.
   await step('footer logo zone', async () => { await design.getByLabel('Left: show the logo').first().check(); }, current => JSON.stringify(current.design.header ?? {}).includes('"logo":true') || JSON.stringify(current.design.footer ?? {}).includes('"logo":true'));
   await step('footer slide number', async () => { await design.getByLabel('Right: show the slide number').nth(1).check(); }, current => current.design.footer?.right?.slideNumber === true);
-  await step('hide footer', async () => { await design.getByLabel('Hide the footer').check(); }, current => current.design.footer === false);
 
   // Slide image fields appear once a position is set and write the same object.
   await field(design, 'Position').selectOption('left');

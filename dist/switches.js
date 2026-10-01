@@ -254,6 +254,12 @@ export function prepareDimensionSwitch(document, dimension, value, options = {})
     } else if (dimension === "color-schemes" || dimension === "font-schemes") {
       requireCatalogId(document, dimension, value, options);
       entries = { [DESIGN_KEYS[dimension][0]]: value };
+      if (dimension === "font-schemes") {
+        // An accent font is its own choice, not part of the scheme being left: it stays (in the object form).
+        const scopeBase = scopeIndex !== undefined && document.slides?.[scopeIndex] ? ["slides", String(scopeIndex)] : [];
+        const own = getValueAtPath(document, [...scopeBase, "design", "fontScheme"]);
+        if (own && typeof own === "object" && own.accent !== undefined) entries.fontScheme = { id: value, accent: structuredClone(own.accent) };
+      }
       patches = catalogRecordPatches(document, dimension, options);
     } else {
       // A background is an object or a shorthand string (theme slot or hex color); the schema
@@ -411,7 +417,10 @@ export function currentSwitchValue(document, dimension, options = {}) {
   if (dimension === "themes") return { ...design("theme"), value: idOf(design("theme").value) };
   if (dimension === "backgrounds") return design("background");
   const keys = DESIGN_KEYS[dimension];
-  if (keys) return { value: Object.fromEntries(keys.map((key) => [key, design(key).value])), scope: options.slideIndex !== undefined ? "slide" : "deck" };
+  if (keys) {
+    const found = keys.map((key) => design(key));
+    return { value: Object.fromEntries(keys.map((key, index) => [key, found[index].value])), scope: found.some((entry) => entry.scope === "slide") ? "slide" : "deck" };
+  }
   return { scope: "deck" };
 }
 

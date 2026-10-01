@@ -6,12 +6,14 @@ import { schemas, validatePresentation } from "@openpresentation/opf";
 import { renderSvg } from "@openpresentation/opf-render/svg";
 import * as pptx from "@openpresentation/opf-pptx";
 import { createEditorSession, resolveSlideFonts } from "../dist/index.js";
+import { switchDimension } from "../dist/switches.js";
 import {
   DESIGN_OPTIONS,
   HEADER_FOOTER_ZONES,
   LOGO_VARIANTS,
   designWarnings,
   getDesignOption,
+  headerFooterState,
   prepareDesignOption,
   readHeaderFooterZone,
   readLogoVariants,
@@ -281,6 +283,50 @@ for (const entry of cases) {
   // Picture bullets without a logo are reported too.
   const bare = session();
   assert.deepEqual(setDesignOption(bare, "listBullet", "image").warnings.map((warning) => warning.path), ["design.listBullet"]);
+}
+
+// A slide's own header replaces the deck's whole one: the first slide edit copies the deck's zones, so nothing else disappears.
+{
+  const editor = session();
+  setHeaderFooterZone(editor, "footer", "left", { text: "Acme" });
+  setHeaderFooterZone(editor, "footer", "right", { slideNumber: true });
+  assert.deepEqual(headerFooterState(editor.document, "footer", { slideIndex: 1 }), { own: false, inherited: true, hidden: false });
+  assert.deepEqual(readHeaderFooterZone(editor.document, "footer", "left", { slideIndex: 1 }), { text: "Acme" }, "a slide reads the deck's zone it inherits");
+  const edit = setHeaderFooterZone(editor, "footer", "center", { text: "Draft" }, { slideIndex: 1 });
+  assert.deepEqual(edit.patches, [{ op: "add", path: "/slides/1/design", value: { footer: { left: { text: "Acme" }, right: { slideNumber: true }, center: { text: "Draft" } } } }]);
+  assert.deepEqual(headerFooterState(editor.document, "footer", { slideIndex: 1 }), { own: true, inherited: false, hidden: false });
+  assert.equal(editor.get("design.footer.center"), undefined, "the deck is untouched");
+  // Clearing a zone the slide only inherited overrides it for this slide, and the other zones stay.
+  setHeaderFooterZone(editor, "footer", "left", { text: null }, { slideIndex: 2 });
+  assert.deepEqual(editor.get("slides.2.design.footer"), { right: { slideNumber: true } });
+  // A slide emptied entirely hides the furniture instead of inheriting it again.
+  setHeaderFooterZone(editor, "footer", "left", { text: null }, { slideIndex: 0 });
+  setHeaderFooterZone(editor, "footer", "right", { slideNumber: null }, { slideIndex: 0 });
+  assert.equal(editor.get("slides.0.design.footer"), false);
+  assert.deepEqual(headerFooterState(editor.document, "footer", { slideIndex: 0 }), { own: true, inherited: false, hidden: true });
+  // The deck without any header or footer stays simple: no copy, no false.
+  const bare = session();
+  setHeaderFooterZone(bare, "header", "left", { text: "Only" }, { slideIndex: 0 });
+  assert.deepEqual(bare.get("slides.0.design.header"), { left: { text: "Only" } });
+  setHeaderFooterZone(bare, "header", "left", { text: null }, { slideIndex: 0 });
+  assert.equal(bare.get("slides.0.design.header"), undefined);
+}
+
+// A watermark opacity needs a watermark image first; the font scheme keeps an accent font when it changes.
+{
+  const editor = session();
+  assert.throws(() => setDesignOption(editor, "watermark", { opacity: 0.2 }), (error) => error.code === "invalid-design-value" && /image before setting its opacity/.test(error.message));
+  assert.equal(editor.snapshot().undoDepth, 0);
+  setDesignOption(editor, "accentFont", "Georgia");
+  const switched = switchDimension(editor, "font-schemes", "georgia");
+  assert.deepEqual(editor.get("design.fontScheme"), { id: "georgia", accent: { family: "Georgia" } }, "the accent font survives a font scheme switch");
+  assert.equal(switched.changed, true);
+  setDesignOption(editor, "accentFont", null);
+  assert.equal(editor.get("design.fontScheme"), "georgia");
+  // A slide switch keeps the slide's own accent too.
+  setDesignOption(editor, "accentFont", "Lora", { slideIndex: 1 });
+  switchDimension(editor, "font-schemes", "tahoma", { slideIndex: 1 });
+  assert.deepEqual(editor.get("slides.1.design.fontScheme"), { id: "tahoma", accent: { family: "Lora" } });
 }
 
 // Undo and redo through a sequence keep every step separate.

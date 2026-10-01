@@ -130,6 +130,7 @@ function mergedWatermark(existing, value) {
   }
   if (merged.opacity !== undefined && (typeof merged.opacity !== "number" || merged.opacity < 0 || merged.opacity > 1))
     throw fail("invalid-design-value", "Watermark opacity is a number from 0 to 1.", { value });
+  if (merged.src === undefined && Object.keys(merged).length) throw fail("invalid-design-value", "Choose the watermark image before setting its opacity.", { value });
   if (Object.keys(merged).length === 1 && typeof merged.src === "string") return merged.src;
   if (!Object.keys(merged).length) return null;
   if (merged.opacity === undefined) throw fail("invalid-design-value", "Set an opacity from 0 to 1 for the watermark.", { value });
@@ -328,8 +329,11 @@ export function readLogoVariants(document, options = {}) {
  * Compute the patch that edits one header or footer zone. `fields` merges into the zone (logo, text,
  * image, slideNumber, slideNumberFormat, date, dateFormat, organization, socials, section); `null`,
  * `false` for a flag, or an empty string removes a field. A zone left empty is removed, then an empty
- * header or footer, so a slide never carries `{}`. Setting a field on a suppressed (`false`) header
- * replaces the suppression. `logo: true` reports a warning when no logo resolves.
+ * header or footer, so a slide never carries `{}`. A slide's own header or footer replaces the deck's
+ * whole one, so the first edit on a slide that has none of its own starts from a copy of the deck's
+ * (the other zones stay); a slide emptied that way hides the furniture (`false`) instead of
+ * inheriting it again. Setting a field on a suppressed (`false`) header replaces the suppression.
+ * `logo: true` reports a warning when no logo resolves.
  */
 export function prepareHeaderFooterZone(document, which, zone, fields, options = {}) {
   if (!["header", "footer"].includes(which)) throw fail("invalid-design-value", "Choose header or footer.", { which });
@@ -338,7 +342,9 @@ export function prepareHeaderFooterZone(document, which, zone, fields, options =
   const unknown = Object.keys(fields).filter((key) => !ZONE_FIELDS.includes(key));
   if (unknown.length) throw fail("invalid-design-value", `Unknown header/footer field: ${unknown[0]}.`, { fields });
   const { scope, base, slideIndex } = scopeOf(document, "logo", options);
-  const current = ownDesign(document, base)[which];
+  const own = ownDesign(document, base)[which];
+  const inherited = base.length ? document.design?.[which] : undefined;
+  const current = own !== undefined ? own : inherited;
   const container = isObject(current) ? structuredClone(current) : {};
   const item = isObject(container[zone]) ? container[zone] : {};
   for (const [key, entry] of Object.entries(fields)) {
@@ -349,7 +355,8 @@ export function prepareHeaderFooterZone(document, which, zone, fields, options =
   if (Object.keys(item).length) container[zone] = item;
   else delete container[zone];
   let next = Object.keys(container).length ? container : null;
-  if (next === null && current === false) next = false;
+  // Emptied: a deck value that would show through again is hidden explicitly; a suppressed header stays suppressed.
+  if (next === null && (own === false || isObject(inherited))) next = false;
   const patches = designPatches(document, base, { [which]: next });
   return finish(document, patches, { option: which, zone, scope, ...(slideIndex !== undefined ? { slideIndex } : {}), shadowed: [] });
 }
@@ -359,8 +366,18 @@ export function setHeaderFooterZone(editor, which, zone, fields, options = {}) {
   const { meta, ...rest } = options;
   return apply(editor, prepareHeaderFooterZone(editor.document, which, zone, fields, rest), meta);
 }
-/** One header or footer zone's fields at a scope (`{}` when absent or suppressed). */
+/**
+ * One header or footer zone's fields as they apply at a scope: the slide's own header (or footer) when it
+ * has one, else the deck's (`{}` when absent or suppressed). `headerFooterState` says which.
+ */
 export function readHeaderFooterZone(document, which, zone, options = {}) {
+  const own = options.slideIndex === undefined ? undefined : document.slides?.[options.slideIndex]?.design?.[which];
+  const effective = own !== undefined ? own : document.design?.[which];
+  return isObject(effective) && isObject(effective[zone]) ? structuredClone(effective[zone]) : {};
+}
+/** `{ own, inherited, hidden }` for a header or footer at a scope: whether the scope sets it itself, shows the deck's, or hides it with `false`. */
+export function headerFooterState(document, which, options = {}) {
   const own = options.slideIndex === undefined ? document.design?.[which] : document.slides?.[options.slideIndex]?.design?.[which];
-  return isObject(own) && isObject(own[zone]) ? structuredClone(own[zone]) : {};
+  const inherited = options.slideIndex !== undefined && own === undefined && document.design?.[which] !== undefined;
+  return { own: own !== undefined, inherited, hidden: (own !== undefined ? own : options.slideIndex !== undefined ? document.design?.[which] : undefined) === false };
 }

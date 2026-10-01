@@ -92,9 +92,12 @@ export interface HeaderFooterZoneFields {
   section?: unknown;
 }
 export declare function prepareHeaderFooterZone(document: unknown, which: "header" | "footer", zone: HeaderFooterZone, fields: HeaderFooterZoneFields, options?: DesignOptionOptions): PreparedDesignOption;
-/** Merge fields into one header or footer zone; null, false (flags) or "" remove a field, an empty zone and header are removed. */
+/** Merge fields into one header or footer zone; null, false (flags) or "" remove a field, an empty zone and header are removed. A slide's own header replaces the deck's whole one, so the first edit on a slide starts from a copy of the deck's and keeps its other zones. */
 export declare function setHeaderFooterZone(editor: EditorSession, which: "header" | "footer", zone: HeaderFooterZone, fields: HeaderFooterZoneFields, options?: DesignOptionOptions): DesignOptionChange;
+/** One zone's fields as they apply at a scope: the slide's own header or footer when it has one, else the deck's. */
 export declare function readHeaderFooterZone(document: unknown, which: "header" | "footer", zone: HeaderFooterZone, options?: Pick<DesignOptionOptions, "slideIndex">): HeaderFooterZoneFields;
+/** Whether the scope sets the header or footer itself (`own`), shows the deck's (`inherited`) or hides it with `false` (`hidden`). */
+export declare function headerFooterState(document: unknown, which: "header" | "footer", options?: Pick<DesignOptionOptions, "slideIndex">): { own: boolean; inherited: boolean; hidden: boolean };
 /** Whether a logo resolves for the slide: slide design, deck design, then the primary organization. */
 export declare function hasResolvableLogo(document: unknown, slideIndex: number): boolean;
 /** Settings that need a logo the document does not have (zones with `logo: true`, picture bullets). */

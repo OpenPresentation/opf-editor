@@ -173,7 +173,9 @@ function render() {
   element('document-name').value = deck.name ?? 'Untitled presentation';
   element('notes').value = deck.slides[slideIndex].notes ?? '';
   element('undo').disabled = !editor.canUndo; element('redo').disabled = !editor.canRedo;
-  element('font').value = deck.design?.fontScheme ?? 'roboto';
+  // The accent font makes the font scheme an object ({id, accent}); the select shows its id.
+  const scheme = deck.design?.fontScheme;
+  element('font').value = (scheme && typeof scheme === 'object' ? scheme.id : scheme) ?? 'roboto';
   element('mode').value = deck.slides[slideIndex].composition?.mode ?? 'auto';
   const groupSelect = element('group');
   const previousGroup = groupSelect.value;
@@ -234,7 +236,8 @@ editor.subscribe(refresh);
 element('apply').onclick = () => act(() => editor.set(selectedPath, typeof selectedValue === 'string' ? element('value').value : JSON.parse(element('value').value)));
 element('undo').onclick = () => act(() => editor.undo());
 element('redo').onclick = () => act(() => editor.redo());
-element('font').onchange = () => act(() => editor.set('design.fontScheme', element('font').value));
+// Keep an object-form font scheme's overrides (the accent font) when only the base scheme changes.
+element('font').onchange = () => act(() => editor.set(editor.get('design.fontScheme') && typeof editor.get('design.fontScheme') === 'object' ? 'design.fontScheme.id' : 'design.fontScheme', element('font').value));
 element('insert-content').onclick = () => canvas?.openInsertMenu();
 element('arrange').onclick = () => {
   if (canvas?.setLayoutEditing(!canvas.layoutEditing)) {

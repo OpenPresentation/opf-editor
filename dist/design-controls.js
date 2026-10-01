@@ -12,6 +12,7 @@ import {
   LOGO_VARIANTS,
   designWarnings,
   getDesignOption,
+  headerFooterState,
   readHeaderFooterZone,
   readLogoVariants,
   setDesignOption,
@@ -408,8 +409,10 @@ export function createDesignControls(container, options = {}) {
     const parts = [];
     for (const which of ["header", "footer"]) {
       const fieldset = h("fieldset", { class: "opf-dc-fieldset" }, h("legend", {}, titleCase(which)));
-      const hide = checkField(`${which}-hide`, `Hide the ${which}`, {
-        onChange: (checked) => run(() => switchDimension(editor, "headers-footers", { [which]: checked ? false : null }, scoped()), checked ? `${titleCase(which)} hidden.` : `${titleCase(which)} shown.`),
+      // Hiding is for a slide that would otherwise show the deck's furniture; at the deck, clear the zones instead.
+      const hide = checkField(`${which}-hide`, `Hide the ${which} on this slide`, {
+        help: "On a slide: shows nothing instead of the presentation's. Uncheck to inherit it again.",
+        onChange: (checked) => run(() => switchDimension(editor, "headers-footers", { [which]: checked ? false : null }, scoped()), checked ? `${titleCase(which)} hidden on this slide.` : `${titleCase(which)} shown again.`),
       });
       fieldset.append(hide.wrap);
       const zones = {};
@@ -427,8 +430,11 @@ export function createDesignControls(container, options = {}) {
     body.append(warnings);
     syncs.push(() => {
       for (const { which, hide, zones } of parts) {
-        const own = scopeIndex() === undefined ? editor.document.design?.[which] : editor.document.slides?.[scopeIndex()]?.design?.[which];
-        hide.set(own === false);
+        const state = headerFooterState(editor.document, which, scoped());
+        const own = state.hidden ? false : state.own ? {} : undefined;
+        // Offered on a slide that inherits the deck's furniture or already hides it, never over zones the slide set itself; at the deck only to undo a hidden state.
+        hide.wrap.hidden = scopeIndex() === undefined ? !state.hidden : state.own && !state.hidden;
+        hide.set(state.hidden, state.inherited && !state.hidden ? "from the presentation" : "");
         for (const zone of HEADER_FOOTER_ZONES) {
           const fields = readHeaderFooterZone(editor.document, which, zone, scoped());
           zones[zone].text.set(typeof fields.text === "string" ? fields.text : "");
@@ -515,6 +521,8 @@ export function createDesignControls(container, options = {}) {
       accent.set(accentOption.value ?? "", sourceNote(accentOption.scope, accentOption.value !== undefined));
       const watermark = getDesignOption(editor.document, "watermark", scoped());
       const mark = watermark.value;
+      // The opacity belongs to a watermark image; without one there is nothing to fade.
+      for (const input of watermarkOpacity.wrap.querySelectorAll("input")) input.disabled = !(typeof mark === "string" || (mark && typeof mark === "object" && typeof mark.src === "string"));
       watermarkSource.set(typeof mark === "string" ? mark : mark && typeof mark === "object" ? stringOf(mark) : "", sourceNote(watermark.scope, mark !== undefined));
       watermarkOpacity.set(mark && typeof mark === "object" && typeof mark.opacity === "number" ? String(mark.opacity) : "");
       const own = scopeIndex() === undefined ? editor.document.design?.watermark : editor.document.slides?.[scopeIndex()]?.design?.watermark;
