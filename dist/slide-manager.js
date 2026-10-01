@@ -112,6 +112,7 @@ export function createSlideManager(container, options) {
     const slideCount = document.slides.length;
     selection = new Set([...selection].filter((index) => index < slideCount));
     selection.add(current());
+    if (selection.size === 1) anchor = current();
     const hadFocus = pendingFocus || container.contains(doc.activeElement);
     pendingFocus = false;
     if (!container.contains(doc.activeElement) && !hadFocus) focusIndex = current();
@@ -208,7 +209,7 @@ export function createSlideManager(container, options) {
   function columns() {
     if (variant !== "sorter") return 1;
     const tracks = doc.defaultView.getComputedStyle(container).gridTemplateColumns;
-    const count = typeof tracks === "string" && tracks !== "none" ? tracks.trim().split(/s+/).length : 1;
+    const count = typeof tracks === "string" && tracks !== "none" ? tracks.trim().split(/\s+/).length : 1;
     return Math.max(1, count);
   }
   function keydown(event, index) {

@@ -303,7 +303,9 @@ try {
   await page.keyboard.press('ArrowRight');
   assert.equal(await sorterCard(1).getAttribute('aria-current'), 'true', 'arrow keys move through the grid');
   await page.keyboard.press('ArrowDown');
-  assert.ok(Number(await page.evaluate(() => document.activeElement.dataset.index)) > 1, 'Down moves to the next row');
+  const gridColumns = await page.locator('#sorter-list').evaluate(node => getComputedStyle(node).gridTemplateColumns.split(' ').length);
+  assert.ok(gridColumns > 1, 'the sorter lays slides out in a grid');
+  assert.equal(Number(await page.evaluate(() => document.activeElement.dataset.index)), Math.min(5, 1 + gridColumns), 'Down moves to the slide in the next row');
   await sorterCard(0).click();
   await oneStep('Alt+Right moves a slide in the sorter', async () => { await page.keyboard.press('Alt+ArrowRight'); },
     current => current.slides.map(slide => slide.id).join() === 'b,a,c,d,e,f');
