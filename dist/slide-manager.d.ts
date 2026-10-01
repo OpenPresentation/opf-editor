@@ -35,6 +35,8 @@ export interface SlideManager {
   setSelection(indices: number[]): void;
   focus(index: number): void;
   openLayoutPicker(): void;
+  /** Collapse or expand a section (an index from `listSections`): view state only, nothing is written to the document. Returns false for an unknown section. */
+  setSectionCollapsed(sectionIndex: number, collapsed?: boolean): boolean;
   /** Run an action on the selection: duplicate, delete, hide, move-up, move-down, move-start, move-end, split, merge, select-all. */
   run(action: "duplicate" | "delete" | "hide" | "move-up" | "move-down" | "move-start" | "move-end" | "split" | "merge" | "select-all"): void;
   destroy(): void;

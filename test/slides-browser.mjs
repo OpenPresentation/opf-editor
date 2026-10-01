@@ -382,6 +382,9 @@ try {
   await outlineInput('slide:slides.4').focus();
   await oneStep('Enter on a title adds a slide after it', async () => { await page.keyboard.press('Enter'); },
     current => current.slides.length === 8 && current.slides[5].title === '');
+  await outlineInput('slide:slides.5').focus();
+  await oneStep('Backspace on an empty slide title removes the slide', async () => { await page.keyboard.press('Backspace'); },
+    current => current.slides.length === 7 && current.slides.every(slide => slide.title !== ''));
   await settle();
   mark('the outline edits titles and text, moves, promotes and demotes, one undo step each');
 

@@ -663,6 +663,16 @@ export function createSlideManager(container, options) {
     /** Move focus to a slide's card. */
     focus: focusCard,
     openLayoutPicker,
+    /** Collapse or expand a section (an index from `listSections`). Collapsing is view state: nothing is written to the document, and the section that holds the current slide cannot stay collapsed. */
+    setSectionCollapsed(sectionIndex, isCollapsed = true) {
+      const sections = listSections(deck());
+      const section = sections[sectionIndex];
+      if (!section) return false;
+      const key = sectionKey(sections, section);
+      if (isCollapsed) collapsed.add(key); else collapsed.delete(key);
+      render();
+      return true;
+    },
     /** Run a named action on the selection: duplicate, delete, hide, move-up, move-down, move-start, move-end, split, merge, select-all. */
     run: act,
     destroy() {
