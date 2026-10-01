@@ -73,6 +73,7 @@ const deckFor = (family) => ({
 });
 const key = (face) => `${face.family.toLowerCase()}|${face.weight}|${face.italic ? "i" : ""}`;
 const lazyFiles = new Map(manifest.filter(lazyPackage).flatMap((pkg) => pkg.faces.map((face) => [`${pkg.vendored}/${face.file}`, key(face)])));
+const fileOfKey = new Map([...lazyFiles].map(([file, faceKey]) => [faceKey, file]));
 const size = async (file) => (await stat(path.join(packageRoot, file))).size;
 
 const report = [];
@@ -105,12 +106,14 @@ for (const entry of families) {
   // Strict render with the registry's measurement: a style gap never refuses the deck.
   const svg = renderSvg(deck, { textMeasurement: registry.textMeasurement });
   assert.ok(svg.includes("Regular") && svg.includes("BoldItalic"), `${entry.family}: the deck renders`);
-  report.push({ family: entry.family, route: entry.route, files: fetched, lazyBytes: (await Promise.all(fetched.map(size))).reduce((a, b) => a + b, 0), faces: drawn.length });
+  // What a deck of this family needs (face level), independent of what earlier families already loaded in this session.
+  const needed = [...new Set(drawn.map((face) => fileOfKey.get(key(face))).filter(Boolean))].sort();
+  report.push({ family: entry.family, route: entry.route, files: needed, lazyBytes: (await Promise.all(needed.map(size))).reduce((a, b) => a + b, 0), fetchedAfterEarlierFamilies: fetched.length, faces: drawn.length });
 }
 assert.deepEqual(document.fonts.size, registry.describeFaces().length, "the document holds the registry's faces");
 registry.dispose();
 assert.equal(fonts.size, 0, "dispose removes every face");
-const total = new Set(report.flatMap((entry) => entry.files));
+const total = new Set(served);
 await mkdir(outDirectory, { recursive: true });
 await writeFile(path.join(outDirectory, "editor.json"), `${JSON.stringify({ node: process.version, renderer: JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8")).version, families: report.length, styleChecks, filesFetchedInTotal: total.size, report }, null, 1)}\n`);
 console.log(`Font gate Latin families: ${report.length} families through the editor's gate, ${styleChecks} family-styles resolved to their route, ${total.size} vendored files fetched in total, each only when a family needed it.`);
