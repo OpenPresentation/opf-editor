@@ -145,14 +145,16 @@ export function createSlideManager(container, options) {
     });
     button.dataset.selected = String(selected);
     button.dataset.hidden = String(hidden);
-    const number = el("span", { class: "thumbnail-number", text: String(index + 1).padStart(2, "0") });
+    // Some browsers (Firefox) do not start a drag from a <button> itself, only from what is inside it: the contents are draggable too, and
+    // their dragstart and dragend bubble to the card.
+    const number = el("span", { class: "thumbnail-number", draggable: "true", text: String(index + 1).padStart(2, "0") });
     const thumbnail = el("span", { class: "thumbnail", "aria-hidden": "true" });
     let html = "";
     try { html = options.renderThumbnail?.(document, index) ?? ""; } catch { html = "Preview unavailable"; }
     thumbnail.innerHTML = html;
     thumbnail.querySelectorAll("[tabindex]").forEach((node) => node.removeAttribute("tabindex"));
     const label = el("span", { class: "thumbnail-title", text: slideTitle(slide) || "Untitled slide" });
-    const content = el("span", { class: "thumbnail-content" }, thumbnail, label);
+    const content = el("span", { class: "thumbnail-content", draggable: "true" }, thumbnail, label);
     if (hidden) content.append(el("span", { class: "slide-badge", text: "Hidden" }));
     button.append(number, content);
     button.addEventListener("click", (event) => choose(index, event));
