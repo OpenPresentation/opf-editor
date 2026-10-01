@@ -266,6 +266,7 @@ export function createDataGrid(container, options = {}) {
   const addr = (u, c) => (grid.hasHeader && u === 0 ? { section: "header", row: 0, column: c } : { section: "body", row: u - off(), column: c });
   const clampCell = (u, c) => ({ u: Math.max(0, Math.min(grid.lines.length - 1, u)), c: Math.max(0, Math.min(grid.columnCount - 1, c)) });
   function setSelection(anchor, focus, { scroll: scrollIt = true } = {}) {
+    if (!grid) return;
     const a = anchorOf(anchor.u, anchor.c);
     const f = anchorOf(focus.u, focus.c);
     selection.anchor = { u: a.line, c: a.column };
@@ -587,6 +588,8 @@ export function createDataGrid(container, options = {}) {
 
   function editorKeydown(event, area, u, c) {
     event.stopPropagation();
+    // Enter or Tab that confirms an input method's composition is not a command.
+    if (event.isComposing) return;
     if (event.key === "Enter" && event.altKey) {
       event.preventDefault();
       const { selectionStart: start, selectionEnd: end } = area;
