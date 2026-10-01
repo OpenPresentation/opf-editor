@@ -31,21 +31,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: cd8686db6c34565d71777b7c8904b02f86146c21 # opf#234 (core main f627e35 with the design fields plus the renderer 0.11.9 lazy face count); repin to its merge commit
+          ref: 07cd9d4fc400725293e4e697640662333a2eb356 # core main (published 0.11.4 plus opf#234 renderer 0.11.9 lazy font count and opf#235 ecosystem repin)
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: fa1949a07a8a1ecdcc3940b0dae324bf8683df1c # opf-render main (design fields, picture bullets; 0.11.9 release prep is opf-render#86)
+          ref: 2fbc0abf3c327b6e9e9525a52c8ea9e56e84646e # opf-render 0.11.9 release commit
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: 9b9b0e4b8c7cd946a29b2caeed8ac1739f68d7c8 # opf-pptx main (repinned to the merge of opf-pptx#124)
+          ref: a9bcbd75886bd1ac195b4206cefae83525b1fea4 # opf-pptx 0.11.7 release commit
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
