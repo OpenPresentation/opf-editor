@@ -202,6 +202,7 @@
     "@expo-google-fonts/noto-serif-tibetan": "0.4.2",
     "@openpresentation/opf-pptx": "^0.11.7",
     "@openpresentation/opf-render": "^0.11.9",
+    "axe-core": "4.13.0",
     "esbuild": "0.28.2",
     "playwright": "1.63.0"
   }

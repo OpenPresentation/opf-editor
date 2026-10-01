@@ -127,7 +127,7 @@ export function createOutlineView(container, options) {
       renderedKeys = joined;
       keys = nextKeys;
       list.replaceChildren(...entries.map((entry) => {
-        if (entry.kind === "section") return el(doc, "li", { class: "outline-section", "data-key": entry.key, role: "presentation" }, el(doc, "span", { class: "outline-section-name", text: entry.text }));
+        if (entry.kind === "section") return el(doc, "li", { class: "outline-section", "data-key": entry.key }, el(doc, "span", { class: "outline-section-name", text: entry.text }));
         return build(entry);
       }));
     }

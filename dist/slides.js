@@ -31,7 +31,7 @@ function selectionOf(document, indices, what = "Choose at least one slide.") {
   for (const index of list) if (!isIndex(index) || index >= slides.length) throw fail("slide-index-out-of-range", `Slide ${index} does not exist.`, { slideIndex: index });
   return list.sort((a, b) => a - b);
 }
-const sectionOf = (slide) => (typeof slide?.section === "string" && slide.section !== "" ? slide.section : undefined);
+const sectionOf = (slide) => (typeof slide?.section === "string" && slide.section.trim() !== "" ? slide.section : undefined);
 
 function unchanged(document, extra = {}) {
   return { document: clone(document), patches: [], changed: false, selection: [], ...extra };

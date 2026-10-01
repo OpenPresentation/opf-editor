@@ -61,6 +61,8 @@ function oneStep(editor, run) {
   // A run without a label is its own, unnamed section; the same name in two places is two sections.
   const split = listSections({ slides: [{ section: "X" }, {}, { section: "X" }, {}] });
   assert.deepEqual(split.map((row) => [row.name, row.unnamed, row.count]), [["X", false, 1], [undefined, true, 1], ["X", false, 1], [undefined, true, 1]]);
+  // A blank label names no section, as in the PowerPoint export.
+  assert.deepEqual(listSections({ slides: [{ section: "  " }, { section: "" }, {}] }).map((row) => [row.name, row.count]), [[undefined, 3]]);
   assert.deepEqual(Object.keys(SLIDE_OPERATIONS).sort(), ["add", "addSection", "duplicate", "move", "moveBy", "remove", "removeSection", "renameSection", "setHidden", "setSection", "moveSection"].sort());
 }
 

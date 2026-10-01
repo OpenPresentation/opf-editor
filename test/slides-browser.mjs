@@ -4,6 +4,10 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+const axeSource = readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8');
 
 // RR-21 in a real browser, on the built playground (npm run build:playground): slide management in the navigator, the slide sorter and
 // the outline view. Drag and drop and Alt+arrow reorder, hide, duplicate, delete, sections, layouts, outline editing with promote and
@@ -78,6 +82,14 @@ try {
     await page.waitForFunction(() => !document.querySelector('#source-dialog').open);
     await settle();
   };
+  // axe-core on one part of the page: no WCAG 2.x A/AA or best-practice violation (contrast included).
+  const axe = async (include, name) => {
+    await page.addScriptTag({ content: axeSource }).catch(() => {});
+    const result = await page.evaluate(selectors => window.axe.run({ include: selectors.map(selector => [selector]) }, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'] } }), include);
+    const found = result.violations.map(violation => `${violation.id} (${violation.nodes.length}): ${violation.nodes.slice(0, 3).map(node => node.target.join(' ')).join(' | ')}`);
+    assert.deepEqual(found, [], `${name}: axe violations`);
+    mark(`axe: ${name}`);
+  };
   const cards = () => page.locator('#slide-list .slide-card');
   const card = index => page.locator(`#slide-list .slide-card[data-index="${index}"]`);
   const titles = () => page.locator('#slide-list .slide-card .thumbnail-title').allTextContents();
@@ -118,6 +130,7 @@ try {
   assert.equal(await card(0).getAttribute('aria-current'), 'true');
   assert.ok(await page.locator('#slide-list .section-more').first().getAttribute('aria-label'), 'section menus are labelled');
   mark('the navigator lists slides and sections with accessible names');
+  await axe(['#slide-list', '#slide-toolbar'], 'navigator and toolbar');
 
   // Keyboard reorder: Alt+Down moves the slide, focus follows it, and the change is announced.
   await card(1).click();
@@ -234,6 +247,7 @@ try {
   await card(3).click({ button: 'right' });
   assert.equal(await page.getByRole('menu').count(), 1, 'the context menu opens');
   assert.ok(await page.getByRole('menuitem').count() >= 8, 'with its actions');
+  await axe(['.opf-menu'], 'slide menu');
   await page.keyboard.press('Escape');
   assert.equal(await page.getByRole('menu').count(), 0, 'Escape closes it');
   assert.equal(await page.evaluate(() => document.activeElement.classList.contains('slide-card')), true, 'and focus returns to the slide');
@@ -241,6 +255,7 @@ try {
   await oneStep('Add section starts a section at the slide', async () => {
     await page.getByRole('menuitem', { name: /^Add section here/ }).click();
     const dialog = page.locator('dialog.opf-sm-dialog[open]');
+    await axe(['dialog.opf-sm-dialog'], 'name dialog');
     await dialog.getByLabel('Section name').fill('Details');
     await dialog.getByRole('button', { name: 'OK' }).click();
   }, current => current.slides.map(slide => slide.section).join() === 'Intro,Intro,Body,Details,End,End',
@@ -283,6 +298,7 @@ try {
   await card(1).click();
   await page.locator('#add-layout').click();
   const picker = page.locator('dialog.opf-layout-dialog[open]');
+  await axe(['dialog.opf-layout-dialog'], 'layout dialog');
   await picker.getByPlaceholder('Filter layouts').fill('list-2x');
   await oneStep('Add slide with layout inserts after the current slide', async () => { await picker.getByRole('button', { name: 'Add slide' }).click(); },
     current => current.slides.length === 7 && current.slides[2].layout === 'list-2x' && current.slides[2].section === 'Intro',
@@ -298,6 +314,7 @@ try {
   assert.equal(await page.locator('.canvas-scroll').isHidden(), true);
   assert.equal(await page.locator('#sorter-list .slide-card').count(), 6);
   assert.equal(await page.locator('#sorter-list').getAttribute('aria-label'), 'Slide sorter');
+  await axe(['#sorter-view', '#view-switch'], 'slide sorter');
   const sorterCard = index => page.locator(`#sorter-list .slide-card[data-index="${index}"]`);
   await sorterCard(0).focus();
   await page.keyboard.press('ArrowRight');
@@ -326,6 +343,7 @@ try {
   const outlineInput = key => page.locator(`#outline-view [data-key="${key}"] .outline-input`);
   assert.equal(await page.locator('#outline-view .outline-input').count(), 15, 'a row per title, text and bullet');
   assert.deepEqual(await page.locator('#outline-view .outline-section').allTextContents(), ['Intro', 'Body', 'End']);
+  await axe(['#outline-view'], 'outline');
   assert.equal(await outlineInput('slide:slides.2').getAttribute('aria-label'), 'Slide 3 title');
   assert.equal(await outlineInput('item:slides.2.items.2').getAttribute('aria-label'), 'Slide 3, level 2 bullet');
   // Editing a title commits one change when the row loses focus.
