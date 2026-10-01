@@ -4,6 +4,10 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+const axeSource = readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8');
 
 // RR-22 in a real browser, on the built playground (npm run build:playground): autosave to IndexedDB, the restore prompt after a reload
 // (with the undo history), discard, an ignored prompt followed by edits, the unsaved-changes warning, a host that loads a document, the
@@ -74,6 +78,14 @@ try {
   }));
   const unload = async page => page.evaluate(() => { const event = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(event); return event.defaultPrevented; });
   const banner = page => page.locator('#restore-banner');
+  // axe-core on one part of the page: no WCAG 2.x A/AA or best-practice violation (contrast included).
+  const axe = async (page, include, name) => {
+    await page.addScriptTag({ content: axeSource }).catch(() => {});
+    const result = await page.evaluate(selectors => window.axe.run({ include: selectors.map(selector => [selector]) }, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'] } }), include);
+    const found = result.violations.map(violation => `${violation.id} (${violation.nodes.length}): ${violation.nodes.slice(0, 3).map(node => node.target.join(' ')).join(' | ')}`);
+    assert.deepEqual(found, [], `${name}: axe violations`);
+    mark(`axe: ${name}`);
+  };
 
   // --- autosave and restore across a reload ------------------------------------------------------------------------
   const context = await browser.newContext();
@@ -285,6 +297,7 @@ try {
   assert.match(snapshot, /region "Restore your work"/);
   assert.match(snapshot, /button "Restore"/);
   assert.match(snapshot, /button "Discard copy"/);
+  await axe(page, ['#restore-banner', '#autosave-status'], 'restore prompt and autosave status');
   assert.equal(await page.locator('#restore-banner ~ .sr-only[role="status"], .restore-banner + .sr-only[role="status"]').count() >= 1, true, 'the offer is announced in a polite live region');
   mark('the restore prompt is a labelled region with named buttons and a live announcement');
   await page.close();

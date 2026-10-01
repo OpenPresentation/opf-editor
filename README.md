@@ -380,6 +380,26 @@ await persistence.markSaved();        // after the host saved the document somew
 - **Unsaved changes.** `dirty` is true when the document differs from the last `markSaved()` (or from how the session started); `beforeunload` warns while it is true (`warnOnUnload: false` to opt out) and a final write is started on unload, `pagehide` and when the tab is hidden. A host that loads a document into the editor (the gallery hands a snippet over) calls `rebase()` so that document is neither autosaved nor warned about until the person changes it. The playground marks the document saved on Save OPF, not on a PowerPoint export (a PPTX is not the OPF document).
 - **Degradation.** Private browsing, blocked site data, a failing read or a full store never throw: `status` says `unavailable` or `error` with a sentence the host shows ("... download it to keep it", "browser storage is full ..."), a full store first drops the undo history and then reports, and the next change tries again. Dirty tracking and the unload warning keep working without storage.
 - The playground enables it with the key `opf-editor-playground`. A host page sets `globalThis.OPF_EDITOR_HOST = { persistence: { key, storage, onRestorePrompt } }` (or `persistence: false`) before the script runs; a frame can pass `?persist=<key>` or `?persist=0`. The footer text of the inspector is the autosave indicator and a prompt appears under the document bar.
+## Fill template panel (RR-32)
+
+A template is an OPF file with variables (`{{id}}` tokens and `var:id` references, root `"template": true`; see [templates and variables](https://github.com/OpenPresentation/opf/blob/main/docs/templates-and-variables.md)). `/templates` is the headless model and `/template-panel` the DOM panel over it. Both need the core release that ships `resolveVariables` (older cores load them and throw `templates-unavailable`).
+
+```js
+import { createTemplatePanel } from '@openpresentation/opf-editor/template-panel';
+import { renderSvg } from '@openpresentation/opf-render/svg';
+
+const panel = createTemplatePanel(container, {
+  editor,
+  // The live preview: the template drawn with the values typed so far (unfilled variables show their example).
+  renderPreview: ({ document, variables, slideIndex }) => renderSvg(document, { ...layoutOptions, variables, slideIndex }),
+  getTarget: () => ({ path: selectedPath, start, end }), // the text field a token is inserted into; omit to hide that section
+  onApply: () => redraw(),
+});
+```
+
+The panel lists every variable with the input its kind needs (text, number, date, color, link, one-entry-per-line list, and an image source with an asset pick or an uploaded file, 5 MB at most), marks which are filled, defaulted, optional or still needed, says where each is used, rejects a bad value in place, and previews the result as values change. **Fill the presentation** resolves the variables and replaces the document with the concrete deck as one validated, undoable edit (one Undo restores the template); **Fill what is ready** keeps the unfilled variables declared. **Insert a variable into text** inserts `{{id}}` into the selected text, optionally declaring a new variable in the same edit. A checkbox marks the document as a template.
+
+The headless pieces are usable on their own: `listTemplateFields(document, values)`, `templateStatus`, `previewTemplate`, `createTemplateFill(editor)` (`set`, `setText`, `clear`, `reset`, `preview`, `apply({partial})`), `declareVariable`, `setTemplate`, `insertVariableToken(editor, path, id, {start, end, runIndex, format, declare})`, `variableToken`, `suggestVariableId`. Every write goes through the session. The canvas draws a template as authored (`renderOptions.variables` defaults to `false`), so its tokens stay visible and an inline edit never overwrites one with resolved text; the panel's preview draws the resolved deck. The playground adds a **Fill template** button.
 
 ## Optional React Bindings
 
