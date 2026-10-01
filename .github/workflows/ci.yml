@@ -31,14 +31,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: df5d193f67efbdb8c74ccd684b104e59c4398ae2 # RR-33: integration head of core PR opf#264 (numbered lists) merged with opf#256 (RR-32), branch codex/rr-33-ci-pin-with-rr-32; repin to core main once both merge
+          ref: 524525f97b019c12c70bb1ec5eb610a2f21faae6 # RR-33: core PR opf#264 (core main with the RR-32 template variables plus numbered lists); repin to its merge commit once merged
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 275fd21f6b179c117083356222421421a7ab5d54 # RR-33: the pinned 0.11.9 release commit 2fbc0ab plus opf-render PR #99's marker commit (branch codex/rr-33-ci-pin-render); repin to render main once the SVG-image preview is adopted
+          ref: ec09591baec692666419f61f308c2f43d853eb44 # RR-33: opf-render PR #99 (render main plus the numbered-list markers); repin to its merge commit once merged
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
