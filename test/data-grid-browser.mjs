@@ -84,8 +84,12 @@ try {
   const alert = () => dock.locator('.opf-grid-error').textContent();
   const active = () => dock.evaluate(node => { const td = node.querySelector('td.opf-grid-active'); return td ? [Number(td.dataset.line), Number(td.dataset.column)] : null; });
   const texts = () => dock.locator('tbody tr').evaluateAll(rows => rows.map(row => [...row.querySelectorAll('td')].map(td => td.textContent)));
-  const selectChart = async () => { await page.locator('#preview [data-canvas-target][data-opf-path="slides.1.blocks.0.chart"]').click(); await grid.waitFor(); };
-  const selectTable = async () => { await page.locator('#preview [data-canvas-target][data-opf-path^="slides.1.blocks.1.table"]').first().click(); await grid.waitFor(); };
+  // "Edit data" opens the grid over the bottom of the canvas; it is closed again before the slide is clicked so it never covers a target.
+  const edit = page.locator('#edit-data');
+  const closeGrid = async () => { if (!(await dock.isHidden())) await page.getByRole('button', { name: 'Close data grid', exact: true }).click(); };
+  const openGrid = async () => { if ((await edit.getAttribute('aria-expanded')) !== 'true') await edit.click(); await grid.waitFor(); };
+  const selectChart = async () => { await closeGrid(); await page.locator('#preview [data-canvas-target][data-opf-path="slides.1.blocks.0.chart"]').click(); await openGrid(); };
+  const selectTable = async () => { await closeGrid(); await page.locator('#preview [data-canvas-target][data-opf-path^="slides.1.blocks.1.table"]').first().click(); await openGrid(); };
   const paste = (text, selector = '#data-grid-dock table') => page.evaluate(({ text, selector }) => {
     const data = new DataTransfer();
     data.setData('text/plain', text);
@@ -127,9 +131,17 @@ try {
 
   // --- the grid follows the selection ------------------------------------------------------------------
   assert.equal(await dock.isHidden(), true, 'no chart or table is selected, so no grid shows');
+  assert.equal(await edit.isHidden(), true, 'and no Edit data button');
   await slide(1);
-  await selectChart();
-  assert.equal(await dock.getAttribute('hidden'), null, 'selecting a chart shows its data');
+  await page.locator('#preview [data-canvas-target][data-opf-path="slides.1.blocks.0.chart"]').click();
+  assert.equal(await edit.isVisible(), true, 'selecting a chart offers Edit data');
+  assert.equal(await edit.getAttribute('aria-expanded'), 'false');
+  assert.equal(await dock.isHidden(), true, 'the grid opens when asked, so a click on the slide never moves it');
+  await edit.click();
+  await grid.waitFor();
+  assert.equal(await edit.getAttribute('aria-expanded'), 'true');
+  assert.equal(await edit.textContent(), 'Hide data');
+  assert.equal(await dock.getAttribute('hidden'), null, 'Edit data shows the chart data');
   assert.equal(await dock.locator('.opf-grid-title strong').textContent(), 'Chart data');
   assert.deepEqual(await texts(), [['Quarter', 'Revenue', 'Costs'], ['Q1', '12', '5'], ['Q2', '18', ''], ['Q3', '24', '9']], 'the grid shows the chart data, a gap as empty');
   assert.equal(await cell(2, 2).evaluate(node => node.classList.contains('opf-grid-gap')), true, 'a gap is marked as a gap, never as 0');
@@ -442,8 +454,9 @@ try {
 
   // --- merged cells ----------------------------------------------------------------------------------------------------------
   await slide(2);
+  await closeGrid();
   await page.locator('#preview [data-canvas-target][data-opf-path^="slides.2.blocks.0.table"]').first().click();
-  await grid.waitFor();
+  await openGrid();
   assert.equal(await dock.locator('td[rowspan="2"]').count(), 2, 'vertical merges draw with a row span');
   assert.equal(await dock.locator('td[colspan="2"]').count(), 2, 'column merges draw with a column span');
   assert.equal(await dock.locator('td[aria-rowspan="2"]').count(), 2, 'and expose aria-rowspan');
@@ -479,12 +492,16 @@ try {
 
   // --- a chart with no inline data -----------------------------------------------------------------------------------------------
   await slide(3);
+  await closeGrid();
   await page.locator('#preview [data-canvas-target][data-opf-path^="slides.3.blocks.0.chart"]').first().click();
+  // Once opened, the grid stays open as the selection moves between charts and tables.
+  if ((await edit.getAttribute('aria-expanded')) !== 'true') await edit.click();
   await dock.locator('.opf-grid-help[role="note"]').waitFor();
   assert.match(await dock.locator('.opf-grid-help[role="note"]').textContent(), /reads its data from a source/);
   assert.equal(await dock.getByRole('grid').count(), 0, 'no grid for a chart that reads its data from a source');
   await slide(0);
   assert.equal(await dock.isHidden(), true, 'selecting something else hides the grid');
+  assert.equal(await edit.isHidden(), true, 'and the Edit data button');
   mark('a sourced chart explains why there is no grid, and the grid hides when the selection leaves');
 
   // --- accessibility -------------------------------------------------------------------------------------------------------------------

@@ -24,7 +24,7 @@ const grid = createDataGrid(container, {
 // grid.refresh() when the selection changes; grid.paste(text); grid.destroy()
 ```
 
-The playground mounts it in a dock under the slide whenever a chart or table is selected.
+The playground offers an **Edit data** button in the Content tab when a chart or table is selected; it opens the grid over the bottom of the canvas (the slide never moves, so clicks on it keep their targets) and it stays open as the selection moves between charts and tables. A host that deletes or moves rows should keep a vanished cell selection on its chart or table, as the playground does, so the grid does not close under the person using it.
 
 ## How chart data maps to the grid
 

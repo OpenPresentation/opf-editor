@@ -1,5 +1,6 @@
 import {installDataControls} from './data-controls.js';
 import {createSchemaInspector} from '../src/schema-inspector.js';
+import {installTemplateControls} from './template-controls.js';
 import {installTransferControls} from './transfer-controls.js';
 import { createEditorSession } from '../src/index.js';
 import {createCanvasEditor,createFontGate} from '../src/canvas.js';
@@ -69,8 +70,20 @@ let slideIndex = 0, selectedPath = 'slides.0.title', selectedValue, canvas, rend
 // undoable session change, so the editor.subscribe(refresh) below redraws the preview (and loads fonts first) exactly as for an edit.
 const designControls = createDesignControls(element('design-controls'), {editor, getSlideIndex: () => slideIndex, getSelectedPath: () => selectedPath, sections: ['look', 'background', 'slide-image', 'header-footer', 'brand', 'layout-options', 'info']});
 const selectionControls = createDesignControls(element('selection-controls'), {editor, getSlideIndex: () => slideIndex, getSelectedPath: () => selectedPath, sections: ['selection', 'table'], onSelectPath: path => select(path)});
-// RR-24: the data grid follows the selection into a chart or table and docks under the slide, so edits show in the preview at once.
-const dataGrid = createDataGrid(element('data-grid-dock'), {editor, getSelectedPath: () => selectedPath, onTargetChange: target => { element('data-grid-dock').hidden = !target; }});
+// RR-24: "Edit data" opens the data grid for the selected chart or table over the bottom of the canvas (it never moves the slide), so edits show in the preview at once.
+let dataGridOpen = false, dataGrid;
+const syncDataGrid = () => {
+  const target = dataGrid?.target;
+  const open = dataGridOpen && Boolean(target);
+  element('edit-data').hidden = !target;
+  element('edit-data').setAttribute('aria-expanded', String(open));
+  element('edit-data').textContent = open ? 'Hide data' : 'Edit data';
+  element('data-grid-dock').hidden = !open;
+};
+dataGrid = createDataGrid(element('data-grid-host'), {editor, getSelectedPath: () => selectedPath, onTargetChange: () => syncDataGrid()});
+syncDataGrid();
+element('edit-data').onclick = () => { dataGridOpen = !dataGridOpen; syncDataGrid(); if (dataGridOpen) dataGrid.focus(); };
+element('close-data-grid').onclick = () => { dataGridOpen = false; syncDataGrid(); element('edit-data').focus(); };
 function status(message) { element('status').textContent = message; }
 let activePanel = 'content';
 const thumbnailCache = new Map();
@@ -225,6 +238,8 @@ function render() {
   element('diagnostics-section').hidden = diagnostics.length === 0;
   element('diagnostic-count').textContent = diagnostics.length;
   updateZoom();
+  // A cell of a chart or table that an insert, delete, move or sort made vanish keeps its chart or table selected (RR-24), so the data grid stays open.
+  if (selectedPath.startsWith(`slides.${slideIndex}.`) && editor.get(selectedPath) === undefined) { const owner = /^(.*[.](?:table|chart))[.]/.exec(selectedPath)?.[1]; if (owner && editor.get(owner) !== undefined) selectedPath = owner; }
   if (!selectedPath.startsWith(`slides.${slideIndex}.`) || editor.get(selectedPath) === undefined) selectedPath = `slides.${slideIndex}.title`;
   select(selectedPath);
 }
@@ -375,3 +390,4 @@ for(const [id,path]of [['deck',''],['slide',()=>`/slides/${slideIndex}`],['selec
 element('properties-preview').onclick=event=>{const target=event.target.closest('[data-opf-path]');if(target)propertiesInspector?.navigate(target.getAttribute('data-opf-path'));};
 
 installDataControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,renderOptions:layoutOptions,fonts:fontGate});
+installTemplateControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,renderOptions:layoutOptions,fonts:fontGate});
