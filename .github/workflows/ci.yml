@@ -31,14 +31,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: 07cd9d4fc400725293e4e697640662333a2eb356 # core main (published 0.11.4 plus opf#234 renderer 0.11.9 lazy font count and opf#235 ecosystem repin)
+          ref: df5d193f67efbdb8c74ccd684b104e59c4398ae2 # RR-33: integration head of core PR opf#264 (numbered lists) merged with opf#256 (RR-32), branch codex/rr-33-ci-pin-with-rr-32; repin to core main once both merge
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 2fbc0abf3c327b6e9e9525a52c8ea9e56e84646e # opf-render 0.11.9 release commit
+          ref: 5f8481567ccdb47ea1853bd36e0366466891dead # RR-33: opf-render PR #99 (draws numbered list markers); repin to its merge commit once merged
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
