@@ -355,6 +355,26 @@ Run `npm run test:design-controls-browser` (after `npm run build:playground`) fo
 
 A switch changes the document; it does not change what the engines support. Language changes recompose fonts only as far as the installed core, renderer and PPTX packages implement the language and script model (FF-18, FF-19); the editor's own composition measures the Latin families. `image-treatments` previews only where the installed renderer draws `design.slideImage`. `test/switches.mjs` checks the patch, one undo step, undo/redo, and preview refresh for all 14 dimensions. `test/switches-export.mjs` exports after each switch, undo and redo and applies opf-pptx's FF-08 typeface check (`checkPptxTypefaces`) when the installed package has it; set `OPF_REQUIRE_FF08=1` to fail instead of skip when it does not. Published opf-pptx 0.9.1 does not include it.
 
+## Review panel (RR-29)
+
+`@openpresentation/opf-editor/review-panel` mounts the audit's findings next to the document: contrast, text that does not fit, missing alt text, reading order, fonts, links and more, from core's `auditPresentation` (the same rules as `opf audit`; see the [audit guide](https://github.com/OpenPresentation/opf/blob/main/docs/audit.md)). It needs a core release after 0.11.4 and reports `audit-unavailable` on an older one.
+
+```js
+import { createReviewPanel } from "@openpresentation/opf-editor/review-panel";
+
+const panel = createReviewPanel(container, {
+  editor,
+  getSlideIndex: () => slideIndex,
+  // the host's measured fonts, per slide, so overflow is judged like the preview
+  getAuditOptions: (deck) => ({ textMeasurement: (index) => measurementFor(deck, index) }),
+  onGoTo: ({ finding, target }) => select(target.slide, target.path), // target.path: the nearest existing field
+  onFocusField: ({ finding, fix, target }) => focusTextField(target.path), // a title, text, link, language or size
+});
+panel.refresh(); // after the host has redrawn (set autoRefresh: false) or after anything the session did not see
+```
+
+Findings show a severity word, the slide and the rule id. **Go to** selects the content. A fix is a single undoable session edit and is refused when the document has changed since the finding (the list is refreshed instead): switching a failing colour to the readable one is a one-click safe fix; **Write alt text** opens a field in the panel (an `asset:` reference stores the text on the asset so every use has it); **Mark as decorative** (an empty alt) is an explicit choice flagged as one that changes meaning. A check can be hidden in the panel and shown again, and the list can be limited to errors and warnings or to the current slide. The list re-audits after every session change and follows Undo and Redo; arrow keys, Home and End move between findings, Escape cancels the alt-text field and focus stays on a finding after a fix. The headless `/review` entry (`runAudit`, `reviewFindings`, `applyReviewFix`, `setReviewAltText`, `markDecorative`) needs no DOM.
+
 ## Optional React Bindings
 
 React bindings are isolated under `@openpresentation/opf-editor/react` and require the host app to pass its React runtime. The core package does not add React to the critical path.
