@@ -20,6 +20,7 @@ import { createLayoutHandles } from "./layout-handles.js";
 import { createRichTextInput } from "./rich-text-input.js";
 import { textInputOffsetAtPoint } from "./text-pointer.js";
 import { createRichTextToolbar } from "./rich-text-toolbar.js";
+import { createImageCropper } from "./image-cropper.js";
 import { FONTS_PENDING, fontsPendingError, whenFontsReady } from "./font-gate.js";
 export { getEditableFields } from "./canvas-fields.js";
 export { createFontGate, whenFontsReady, FONTS_PENDING, FONTS_UNAVAILABLE } from "./font-gate.js";
@@ -123,6 +124,15 @@ export function createCanvasEditor(container, options = {}) {
     },
     onChange(path) { clearNotice(); options.onCommit?.({path, editor}); }
   });
+  // RR-25: picture tools. A selected picture shows a "Crop picture" button; `cropImage(path)` opens the same layer.
+  const imageCropper = options.imageTools === false ? null : createImageCropper(root, overlay, {
+    editor,
+    beforeOpen: () => commit(),
+    getImageElement: (path) => [...preview.querySelectorAll("image[data-opf-path]")].find((node) => node.getAttribute("data-opf-path") === path) ?? null,
+    report,
+    onCommit: (value) => { clearNotice(); options.onCommit?.({ ...value, editor }); },
+    onCancel: () => options.onCancel?.({}),
+  });
   const layoutHandles = createLayoutHandles(root, {
     editor, enabled: options.layoutEditing, render: renderFor, beforeEdit: commit,
     isTextEditing: () => !!active,
@@ -149,6 +159,7 @@ export function createCanvasEditor(container, options = {}) {
   }
   function choose(path) {
     selectedPath = path;
+    imageCropper?.sync(path);
     for (const node of targets())
       node.toggleAttribute(
         "data-canvas-selected",
@@ -328,6 +339,7 @@ export function createCanvasEditor(container, options = {}) {
     }
     layoutHandles.update(document, geometry);
     blockControls.update(document, geometry);
+    imageCropper?.update();
     if (active?.kind === "text") positionInput();
     if (active?.kind === "rich-text") active.rich?.update();
     if (fontsShown) {
@@ -914,8 +926,10 @@ export function createCanvasEditor(container, options = {}) {
     }
     if (!commit()) return false;
     richToolbar.hide();
+    imageCropper?.cancel();
     slideIndex = index;
     selectedPath = null;
+    imageCropper?.sync(null);
     renderFor();
     return true;
   }
@@ -998,6 +1012,13 @@ export function createCanvasEditor(container, options = {}) {
       return active?.path ?? layoutHandles.editingPath ?? blockControls.editingPath ?? null;
     },
     get layoutEditing() { return layoutHandles.enabled; },
+    /** True while the crop layer is open. */
+    get cropping() { return !!imageCropper?.isOpen; },
+    /** Open the crop layer for the picture at `path` (an image block, a slide's `image`, a slide image). `tool: "focus"` starts with the focal point. */
+    cropImage(path, cropOptions) {
+      if (!imageCropper) return Promise.resolve(false);
+      return imageCropper.open(path, cropOptions);
+    },
     setLayoutEditing(enabled) {
       if (!commit()) return false;
       return layoutHandles.setEnabled(enabled);
@@ -1031,6 +1052,7 @@ export function createCanvasEditor(container, options = {}) {
       disposed = true;
       stopDrag?.();
       active?.rich?.destroy();
+      imageCropper?.destroy();
       richToolbar.destroy();
       layoutHandles.destroy();
       blockControls.destroy();

@@ -215,6 +215,9 @@ try {
 
   assert.deepEqual(errors, []);
   console.log(`Find and replace (browser): ${checks.length} checks. ${checks.join('; ')}.`);
+} catch (error) {
+  console.error('Page errors:', errors, 'status:', await page.locator('#status').textContent().catch(() => '?'));
+  throw error;
 } finally {
   await app.close();
 }

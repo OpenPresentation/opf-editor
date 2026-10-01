@@ -114,6 +114,14 @@
       "types": "./dist/background-options.d.ts",
       "default": "./dist/background-options.js"
     },
+    "./image-crop": {
+      "types": "./dist/image-crop.d.ts",
+      "default": "./dist/image-crop.js"
+    },
+    "./image-cropper": {
+      "types": "./dist/image-cropper.d.ts",
+      "default": "./dist/image-cropper.js"
+    },
     "./find": {
       "types": "./dist/find-replace.d.ts",
       "default": "./dist/find-replace.js"
