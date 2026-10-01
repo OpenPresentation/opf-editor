@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 497403824bdf8f764e6a9712440ae0520c68a034 # RR-17 opf-render PR #92 (per-family fixtures, weight-named roles, single-style italics); repin to the merge commit once merged
+          ref: f3d7a717635f7fcbeda996ccef08b1b3b027c574 # RR-17 opf-render PR #92 (per-family fixtures, weight-named roles, single-style italics); repin to the merge commit once merged
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
