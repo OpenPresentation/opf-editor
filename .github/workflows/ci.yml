@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: d2c6402f8e0f1c555bad0de5c0a6d6e2c410a752 # RR-34: opf-pptx RR-34 PR head (main plus the native footnote areas, captions and markers); repin once merged
+          ref: 6001eae7701cea02a100c4791271362d2fa7cf64 # RR-34: opf-pptx#145 head (main plus the native footnote areas, captions and markers); repin once merged
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
