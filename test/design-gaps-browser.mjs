@@ -168,6 +168,29 @@ try {
     mark('alt text: typed before an upload, edited after, each one undo step');
   }
 
+  // Alt text and a background draft belong to one target: another variant or slide never inherits them.
+  {
+    await typeInto(design, 'Logo alt text', 'Only for the default logo');
+    await field(design, 'Logo variant').selectOption('light');
+    assert.equal(await field(design, 'Logo alt text').inputValue(), '', 'a different variant starts with no alt text');
+    await field(design, 'Logo variant').selectOption('default');
+    // A deck-wide draft survives moving between slides; a slide's draft belongs to that slide.
+    await field(design, 'Background type').selectOption('gradient');
+    await field(design, 'Angle in degrees').fill('77');
+    await slide(1);
+    assert.equal(await field(design, 'Angle in degrees').inputValue(), '77', 'a draft for the whole presentation stays while you move between slides');
+    await field(design, 'Applies to').selectOption('slide');
+    assert.equal(await field(design, 'Angle in degrees').inputValue(), '', 'changing what the form applies to drops the draft');
+    await field(design, 'Background type').selectOption('gradient');
+    await field(design, 'Angle in degrees').fill('78');
+    await slide(0);
+    assert.equal(await field(design, 'Angle in degrees').inputValue(), '', 'moving to another slide drops the draft of the slide you left');
+    await field(design, 'Applies to').selectOption('deck');
+    await slide(0);
+    assert.deepEqual(await doc(), source);
+    mark('alt text and background drafts do not leak across targets');
+  }
+
   // Refusals: a clear message, no change, no leftover asset.
   {
     const refuse = async (name, buffer, mimeType, pattern) => {

@@ -292,6 +292,7 @@ export function createDesignControls(container, options = {}) {
       h("p", { class: "opf-dc-help", id: `${fileId}-help` }, `PNG, JPEG, GIF, WebP or SVG, up to ${sizeLabel}. It is added to the presentation's assets (or handed to your app) and used here in one undoable step.`),
     );
     let lastRef = "";
+    let lastKey = "";
     const alt = textField(`${name}-alt`, `${label} alt text`, {
       help: "Describes the image for screen readers. Saved with the image's asset; typed before an upload, it is used for that upload. Press Enter to apply.",
       onCommit: (value) => {
@@ -322,13 +323,19 @@ export function createDesignControls(container, options = {}) {
       source,
       alt,
       refreshAssets: () => source.setList(assetList()),
-      set(ref, note = "") {
+      // `key` names what the image is for (variant, zone, slide, scope): alt text typed for one target is not offered to another.
+      set(ref, note = "", key = "") {
+        const targetChanged = (ref ?? "") !== lastRef || key !== lastKey;
+        lastKey = key;
         lastRef = ref ?? "";
         source.setList(assetList());
         source.set(lastRef, note);
         const id = assetIdOf(lastRef);
         const entry = id ? editor.document.assets?.[id] : undefined;
-        alt.set(entry && typeof entry === "object" && typeof entry.alt === "string" ? entry.alt : id && entry !== undefined ? "" : alt.input.value);
+        // Alt text belongs to one image: another target (variant, zone, slide) never inherits what was typed for the last one.
+        alt.set(entry && typeof entry === "object" && typeof entry.alt === "string" ? entry.alt : "");
+        // The field keeps what is being typed, except when the image it describes has changed.
+        if (targetChanged) alt.input.value = entry && typeof entry === "object" && typeof entry.alt === "string" ? entry.alt : "";
       },
     };
   }
@@ -341,6 +348,7 @@ export function createDesignControls(container, options = {}) {
 
   // --- scope --------------------------------------------------------------------------------------
 
+  const target = () => `${state.scope}:${state.scope === "slide" ? getSlide() : ""}`;
   const scopeIndex = () => (state.scope === "slide" ? getSlide() : undefined);
   const scoped = (extra = {}) => (state.scope === "slide" ? { slideIndex: getSlide(), ...extra } : extra);
   const sourceNote = (scope, inherited) => (state.scope === "slide" ? (scope === "slide" ? "set on this slide" : inherited ? "from the presentation" : "default") : "");
@@ -516,14 +524,21 @@ export function createDesignControls(container, options = {}) {
       }
       renderStops();
       fit.set(current.type === "image" ? (current.fit ?? "cover") : "cover");
-      bgImage.set(current.type === "image" ? (current.src ?? "") : "");
+      bgImage.set(current.type === "image" ? (current.src ?? "") : "", "", target());
       preset.set(current.type === "pattern" ? current.preset : "pct5");
       patternFg.set(current.type === "pattern" ? (current.foregroundColor ?? "") : "");
       patternBg.set(current.type === "pattern" ? (current.backgroundColor ?? "") : "");
       opacity.set(current.opacity === undefined ? "" : String(current.opacity));
       showType();
     };
+    let draftTarget = "";
     syncs.push(() => {
+      // A draft belongs to the scope and slide it was started on; moving to another discards it.
+      const target = `${state.scope}:${state.scope === "slide" ? getSlide() : ""}`;
+      if (target !== draftTarget) {
+        draftTarget = target;
+        backgroundDirty = false;
+      }
       // A draft being edited is kept; Undo, Redo and every other change reload it from the document.
       if (backgroundDirty) {
         bgImage.refreshAssets();
@@ -578,7 +593,7 @@ export function createDesignControls(container, options = {}) {
       const object = value && typeof value === "object" && !Array.isArray(value) && value.position ? value : undefined;
       const note = sourceNote(option.scope, option.value !== undefined);
       position.set(object?.position ?? (value === undefined ? "" : "(source only)"), note);
-      source.set(stringOf(value));
+      source.set(stringOf(value), "", target());
       fill.set(object?.fill ?? "");
       shape.set(object?.shape && object.shape !== "rectangle" ? object.shape : "");
       size.set(object?.size === undefined ? "" : String(object.size));
@@ -666,7 +681,7 @@ export function createDesignControls(container, options = {}) {
       const fields = readHeaderFooterZone(editor.document, which(), zone(), scoped());
       text.set(typeof fields.text === "string" ? fields.text : "");
       logo.set(fields.logo === true);
-      image.set(stringOf(fields.image));
+      image.set(stringOf(fields.image), "", `${target()}:${which()}:${zone()}`);
       number.set(fields.slideNumber === true);
       numberFormat.set(typeof fields.slideNumberFormat === "string" ? fields.slideNumberFormat : "");
       dateNow.set(fields.date === true);
@@ -736,10 +751,10 @@ export function createDesignControls(container, options = {}) {
     body.append(warningList);
     syncs.push(() => {
       const variants = readLogoVariants(editor.document, scoped());
-      logoSource.set(stringOf(variants[variant.select.value]));
+      logoSource.set(stringOf(variants[variant.select.value]), "", `${target()}:${variant.select.value}`);
       const organization = editor.document.organization;
       const owner = Array.isArray(organization) ? organization[0] : organization;
-      orgLogo.set(stringOf(owner?.logo));
+      orgLogo.set(stringOf(owner?.logo), "", "org");
       for (const input of orgLogo.wrap.querySelectorAll("input")) input.disabled = !owner;
       const bulletOption = getDesignOption(editor.document, "listBullet", scoped());
       bullet.set(bulletOption.value ?? "", sourceNote(bulletOption.scope, bulletOption.value !== undefined));
@@ -749,7 +764,7 @@ export function createDesignControls(container, options = {}) {
       const mark = watermark.value;
       // The opacity belongs to a watermark image; without one there is nothing to fade.
       for (const input of watermarkOpacity.wrap.querySelectorAll("input")) input.disabled = !(typeof mark === "string" || (mark && typeof mark === "object" && typeof mark.src === "string"));
-      watermarkSource.set(typeof mark === "string" ? mark : mark && typeof mark === "object" ? stringOf(mark) : "", sourceNote(watermark.scope, mark !== undefined));
+      watermarkSource.set(typeof mark === "string" ? mark : mark && typeof mark === "object" ? stringOf(mark) : "", sourceNote(watermark.scope, mark !== undefined), target());
       watermarkOpacity.set(mark && typeof mark === "object" && typeof mark.opacity === "number" ? String(mark.opacity) : "");
       const own = scopeIndex() === undefined ? editor.document.design?.watermark : editor.document.slides?.[scopeIndex()]?.design?.watermark;
       watermarkOff.set(own === false);
