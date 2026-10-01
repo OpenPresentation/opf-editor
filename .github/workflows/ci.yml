@@ -38,14 +38,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 2e58d5610ccd68596e73669a0be4275c562b541f # RR-34: opf-render PR opf-render#104 head (main plus the marker, footnote area and caption drawing); repin once merged
+          ref: 7984a861c31575d7063a8d2857f16945e4ce44ab # RR-34: opf-render PR opf-render#104 head (main plus the marker, footnote area and caption drawing); repin once merged
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: 13ac9c5c6f0f6964a8d00cea56a5765223bf6e10 # RR-34: opf-pptx#145 head (main plus the native footnote areas, captions and markers); repin once merged
+          ref: d2baf35a50becd68683d94ad16303be7c1049b62 # RR-34: opf-pptx#145 head (main plus the native footnote areas, captions and markers); repin once merged
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
