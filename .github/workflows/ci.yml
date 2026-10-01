@@ -31,21 +31,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: e44f37261f2a0c3bd4ac003254e0dc3e322982a0 # RR-32: core main with template variables (opf#256 merged)
+          ref: 0a1c1553e884b42fa9519d36e471cd61a0a27fa0 # RR-34: core PR opf#269 head (main with RR-32 merged plus footnotes, citations and captions); repin to its merge commit once merged
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 2d5c5684f4378291ef54f9b8595480bae95dec1f # RR-32: opf-render main with the variables option (#96 merged)
+          ref: ab1cdc1805dc20337565e7af591965a009711374 # RR-34: opf-render PR opf-render#104 head (main plus the marker, footnote area and caption drawing); repin once merged
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: a9bcbd75886bd1ac195b4206cefae83525b1fea4 # opf-pptx 0.11.7 release commit
+          ref: d2c6402f8e0f1c555bad0de5c0a6d6e2c410a752 # RR-34: opf-pptx RR-34 PR head (main plus the native footnote areas, captions and markers); repin once merged
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
