@@ -1,6 +1,7 @@
 import {installDataControls} from './data-controls.js';
 import {installReviewControls} from './review-controls.js';
 import {createSchemaInspector} from '../src/schema-inspector.js';
+import {installTemplateControls} from './template-controls.js';
 import {installTransferControls} from './transfer-controls.js';
 import { createEditorSession } from '../src/index.js';
 import {createCanvasEditor,createFontGate} from '../src/canvas.js';
@@ -376,7 +377,7 @@ for(const [id,path]of [['deck',''],['slide',()=>`/slides/${slideIndex}`],['selec
 element('properties-preview').onclick=event=>{const target=event.target.closest('[data-opf-path]');if(target)propertiesInspector?.navigate(target.getAttribute('data-opf-path'));};
 
 installDataControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,renderOptions:layoutOptions,fonts:fontGate});
-
+installTemplateControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,renderOptions:layoutOptions,fonts:fontGate});
 // RR-29: the Review tab. A finding's go-to selects the slide and the content; the panel re-audits after every redraw (render()).
 const openPropertiesAt = pointer => { element('open-properties').click(); propertiesInspector?.navigate(pointer); };
 review = installReviewControls({editor,getSlideIndex:()=>slideIndex,goTo:(index,path)=>{slideIndex=index;selectedPath=path;refresh();},openProperties:openPropertiesAt,focusContentField:()=>{pendingContentFocus=true;refresh();},status,measurementFor:(deck,index)=>layoutFor(deck,index).textMeasurement});
