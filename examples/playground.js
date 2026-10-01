@@ -8,6 +8,7 @@ import { renderSvg } from '@openpresentation/opf-render/svg';
 import * as renderFontCore from '@openpresentation/opf-render/fonts';
 import { resolveScriptFonts } from '@openpresentation/opf';
 import { installPptxExport } from './pptx-controls.js';
+import { createDesignControls } from '../src/design-controls.js';
 import { MAX_EXACT_SOURCE_LENGTH, createSourceMemory, findDuplicateKey, updateJsonSource } from '../src/exact-source.js';
 
 // fonts.json holds the faces the page starts with. A build that splits the eager faces (the gallery editor) adds base-fonts.json: the
@@ -63,6 +64,10 @@ const editor = createEditorSession({
 }, { rejectInvalid: true });
 const element = id => document.getElementById(id);
 let slideIndex = 0, selectedPath = 'slides.0.title', selectedValue, canvas, renderError, fontsFailure;
+// RR-06: every dimension switch, design option, content conversion, chart type and table style/merge is a control here. Each commits one
+// undoable session change, so the editor.subscribe(refresh) below redraws the preview (and loads fonts first) exactly as for an edit.
+const designControls = createDesignControls(element('design-controls'), {editor, getSlideIndex: () => slideIndex, getSelectedPath: () => selectedPath, sections: ['look', 'slide-image', 'header-footer', 'brand', 'layout-options', 'info']});
+const selectionControls = createDesignControls(element('selection-controls'), {editor, getSlideIndex: () => slideIndex, getSelectedPath: () => selectedPath, sections: ['selection', 'table'], onSelectPath: path => select(path)});
 function status(message) { element('status').textContent = message; }
 let activePanel = 'content';
 const thumbnailCache = new Map();
@@ -153,6 +158,7 @@ function select(path) {
   element('value-label').textContent = typeof selectedValue === 'string' ? 'Text content' : 'Content JSON';
   element('preview').querySelectorAll('g[data-opf-path]').forEach(node => node.classList.toggle('is-selected', node.getAttribute('data-opf-path') === path));
   element('value').value = typeof selectedValue === 'string' ? selectedValue : JSON.stringify(selectedValue, null, 2) ?? '';
+  designControls.refresh(); selectionControls.refresh();
 }
 function render() {
   fontRegistry.clearSubstitutions();
@@ -220,7 +226,7 @@ function refresh() {
   return fontGate.run(editor.document, {
     isCurrent: () => token === refreshToken,
     loading: () => { loaded = true; status('Loading fonts…'); if (!canvas) element('preview').textContent = 'Loading fonts…'; element('undo').disabled = !editor.canUndo; element('redo').disabled = !editor.canRedo; },
-    ready: () => { fontsFailure = undefined; if (loaded) thumbnailCache.clear(); renderSafely(); },
+    ready: () => { fontsFailure = undefined; if (loaded) { thumbnailCache.clear(); if (/Loading fonts/.test(element('status').textContent)) status('Ready to edit'); } renderSafely(); },
     failed: error => { fontsFailure = error; status(error.message); element('undo').disabled = !editor.canUndo; element('redo').disabled = !editor.canRedo; if (!canvas) element('preview').textContent = error.message; },
   });
 }
