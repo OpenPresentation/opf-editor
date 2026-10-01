@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: 0a1c1553e884b42fa9519d36e471cd61a0a27fa0 # RR-34: core PR opf#269 head (main with RR-32 merged plus footnotes, citations and captions); repin to its merge commit once merged
+          ref: a661a59990111b269edcbec69ec0f5f44d6945b7 # RR-34: core PR opf#269 head (main with RR-32 merged plus footnotes, citations and captions); repin to its merge commit once merged
           path: opf
           fetch-depth: 0
           persist-credentials: false
@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: c856031ebe11f82c8f715851674412592f68e6a4 # RR-34: opf-pptx#145 head (main plus the native footnote areas, captions and markers); repin once merged
+          ref: d4be3c582d2aaf3715be08edccf454404b0cd574 # RR-34: opf-pptx#145 head (main plus the native footnote areas, captions and markers); repin once merged
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
