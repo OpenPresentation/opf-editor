@@ -31,21 +31,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: 07cd9d4fc400725293e4e697640662333a2eb356 # core main (published 0.11.4 plus opf#234 renderer 0.11.9 lazy font count and opf#235 ecosystem repin)
+          ref: bf985786bf8b3fba09f65843db56909928cf0d3f # RR-35: core PR opf#266 (core main plus the chart options); repin to its merge commit once merged
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 2fbc0abf3c327b6e9e9525a52c8ea9e56e84646e # opf-render 0.11.9 release commit
+          ref: 00346c2fc75aa5982089bbd69d434e95fb692dbc # RR-35: opf-render PR #100 (the preview draws the chart options); repin to its merge commit once merged
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: a9bcbd75886bd1ac195b4206cefae83525b1fea4 # opf-pptx 0.11.7 release commit
+          ref: 081adfba8d3d0a4be2ca9a24b6bd0ddca0bd3db9 # RR-35: opf-pptx PR #144 (native chart options export and import); repin to its merge commit once merged
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
