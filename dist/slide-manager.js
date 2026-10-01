@@ -652,6 +652,9 @@ export function createSlideManager(container, options) {
     toolbarButtons.hide.replaceChildren(icon(everyHidden ? "show" : "hide"));
   }
 
+  // A change that did not come from this manager (Undo, a canvas edit, Apply in the source dialog, the outline) leaves a multi-selection
+  // meaningless, so the selection falls back to the current slide; the manager's own operations set it themselves afterwards.
+  const unsubscribe = editor.subscribe((event) => { if (event.meta?.source !== "slides") selection = new Set(); });
   // A host that draws only after its fonts are loaded passes `autoRender: false` and calls `render()` itself.
   if (options.autoRender !== false) render();
   return {
@@ -679,6 +682,7 @@ export function createSlideManager(container, options) {
     run: act,
     destroy() {
       closeMenu(false);
+      unsubscribe();
       container.removeEventListener("dragover", onDragOver);
       container.removeEventListener("drop", onDrop);
       container.removeEventListener("dragleave", onDragLeave);

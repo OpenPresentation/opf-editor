@@ -233,6 +233,12 @@ try {
   await page.keyboard.press('Escape');
   assert.equal(await cards().evaluateAll(nodes => nodes.filter(node => node.dataset.selected === 'true').length), 1, 'Escape returns to one slide');
   mark('multi-select: Shift range, Ctrl toggle, Ctrl+A, Escape');
+  // A change that did not come from the slide list (Undo, Apply in the source dialog) collapses the selection to the current slide.
+  await card(0).click();
+  await card(2).click({ modifiers: ['Shift'] });
+  assert.equal(await cards().evaluateAll(nodes => nodes.filter(node => node.dataset.selected === 'true').length), 3);
+  await load(source);
+  assert.equal(await cards().evaluateAll(nodes => nodes.filter(node => node.dataset.selected === 'true').length), 1, 'a replaced document leaves one slide selected');
   // Dragging one of several selected slides moves the whole selection.
   await load(source);
   await card(0).click();
