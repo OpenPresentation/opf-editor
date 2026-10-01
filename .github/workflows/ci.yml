@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 5f8481567ccdb47ea1853bd36e0366466891dead # RR-33: opf-render PR #99 (draws numbered list markers); repin to its merge commit once merged
+          ref: 275fd21f6b179c117083356222421421a7ab5d54 # RR-33: the pinned 0.11.9 release commit 2fbc0ab plus opf-render PR #99's marker commit (branch codex/rr-33-ci-pin-render); repin to render main once the SVG-image preview is adopted
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
