@@ -9,6 +9,7 @@ import * as renderFontCore from '@openpresentation/opf-render/fonts';
 import { resolveScriptFonts } from '@openpresentation/opf';
 import { installPptxExport } from './pptx-controls.js';
 import { createDesignControls } from '../src/design-controls.js';
+import { createDataGrid } from '../src/data-grid.js';
 import { MAX_EXACT_SOURCE_LENGTH, createSourceMemory, findDuplicateKey, updateJsonSource } from '../src/exact-source.js';
 
 // fonts.json holds the faces the page starts with. A build that splits the eager faces (the gallery editor) adds base-fonts.json: the
@@ -68,6 +69,8 @@ let slideIndex = 0, selectedPath = 'slides.0.title', selectedValue, canvas, rend
 // undoable session change, so the editor.subscribe(refresh) below redraws the preview (and loads fonts first) exactly as for an edit.
 const designControls = createDesignControls(element('design-controls'), {editor, getSlideIndex: () => slideIndex, getSelectedPath: () => selectedPath, sections: ['look', 'background', 'slide-image', 'header-footer', 'brand', 'layout-options', 'info']});
 const selectionControls = createDesignControls(element('selection-controls'), {editor, getSlideIndex: () => slideIndex, getSelectedPath: () => selectedPath, sections: ['selection', 'table'], onSelectPath: path => select(path)});
+// RR-24: the data grid follows the selection into a chart or table and docks under the slide, so edits show in the preview at once.
+const dataGrid = createDataGrid(element('data-grid-dock'), {editor, getSelectedPath: () => selectedPath, onTargetChange: target => { element('data-grid-dock').hidden = !target; }});
 function status(message) { element('status').textContent = message; }
 let activePanel = 'content';
 const thumbnailCache = new Map();
@@ -158,7 +161,7 @@ function select(path) {
   element('value-label').textContent = typeof selectedValue === 'string' ? 'Text content' : 'Content JSON';
   element('preview').querySelectorAll('g[data-opf-path]').forEach(node => node.classList.toggle('is-selected', node.getAttribute('data-opf-path') === path));
   element('value').value = typeof selectedValue === 'string' ? selectedValue : JSON.stringify(selectedValue, null, 2) ?? '';
-  designControls.refresh(); selectionControls.refresh();
+  designControls.refresh(); selectionControls.refresh(); dataGrid.refresh();
 }
 // Review text for one font resolution the registry recorded. A change inside one family is a style fallback (the weight or italic asked
 // for is not held, so the nearest face of the same family is drawn), not a replacement font: name the styles, never "Roboto → Roboto".
