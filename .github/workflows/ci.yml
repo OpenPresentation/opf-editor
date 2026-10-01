@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: 081adfba8d3d0a4be2ca9a24b6bd0ddca0bd3db9 # RR-35: opf-pptx PR #144 (native chart options export and import); repin to its merge commit once merged
+          ref: 081adfb603328dd7bd40ea31ac4bd3493925ce0f # RR-35: opf-pptx PR #144 (native chart options export and import); repin to its merge commit once merged
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
