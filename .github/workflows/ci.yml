@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: a661a59990111b269edcbec69ec0f5f44d6945b7 # RR-34: core PR opf#269 head (main with RR-32 merged plus footnotes, citations and captions); repin to its merge commit once merged
+          ref: ccf0b3c8361b76010f9f543d8c0dbbaf70c579f2 # RR-34: core PR opf#269 head (main with RR-32 merged plus footnotes, citations and captions); repin to its merge commit once merged
           path: opf
           fetch-depth: 0
           persist-credentials: false
