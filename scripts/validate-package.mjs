@@ -45,6 +45,10 @@ for (const [entry, file] of [["./templates", "templates"], ["./template-panel", 
   assert.equal(pkg.exports[entry].types, `./dist/${file}.d.ts`);
 }
 
+assert.ok(pkg.exports?.["./export"], "Must expose the RR-23 PDF, PNG and SVG export as a separate entry point.");
+assert.equal(pkg.exports["./export"].default, "./dist/export.js");
+assert.equal(pkg.exports["./export"].types, "./dist/export.d.ts");
+
 for (const forbidden of forbiddenDependencyNames) {
   assert.ok(!deps[forbidden], `Forbidden critical-path dependency: ${forbidden}`);
 }

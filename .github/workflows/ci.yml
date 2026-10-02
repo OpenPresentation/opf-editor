@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 2d5c5684f4378291ef54f9b8595480bae95dec1f # RR-32: opf-render main with the variables option (#96 merged)
+          ref: 117c42eac811c96cb53c23ebb56f72e277967c69 # RR-23: opf-render#105 (export-browser); repin to its merge commit before merging this PR
           path: opf-render
           fetch-depth: 0
           persist-credentials: false

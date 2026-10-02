@@ -393,6 +393,30 @@ The panel lists every variable with the input its kind needs (text, number, date
 
 The headless pieces are usable on their own: `listTemplateFields(document, values)`, `templateStatus`, `previewTemplate`, `createTemplateFill(editor)` (`set`, `setText`, `clear`, `reset`, `preview`, `apply({partial})`), `declareVariable`, `setTemplate`, `insertVariableToken(editor, path, id, {start, end, runIndex, format, declare})`, `variableToken`, `suggestVariableId`. Every write goes through the session. The canvas draws a template as authored (`renderOptions.variables` defaults to `false`), so its tokens stay visible and an inline edit never overwrites one with resolved text; the panel's preview draws the resolved deck. The playground adds a **Fill template** button.
 
+## PDF, PNG and SVG downloads (RR-23)
+
+`@openpresentation/opf-editor/export` turns the deck into a download in the page, next to the PowerPoint export; the playground's "PDF · PNG · SVG" button is a thin dialog over it.
+
+```js
+import { exportDeck } from "@openpresentation/opf-editor/export";
+const result = await exportDeck(editor.document, {
+  format: "pdf",              // "pdf" | "png" | "svg"
+  slides: "all",              // or "current" with slideIndex, or [slide numbers]; hidden slides only with includeHidden
+  pdfMode: "vector",          // or "raster" (an image per slide); PNG and raster density: scale 1 to 4
+  renderOptions, fonts: fontGate, registry: fontRegistry,
+  signal, onProgress, onDiagnostic,
+});
+// result.download = { name, type, bytes }: one file, or a ZIP of the slides; result.diagnostics lists what to review.
+```
+
+- **Same drawing as the preview.** The slides are drawn by `renderSvgDeck` with the host's `renderOptions` (the same `textMeasurement`), so a PNG or SVG is the preview, and the PDF is converted from those SVGs rather than laid out again.
+- **Fonts.** The font gate loads the faces the deck needs before anything is drawn (a failure rejects with `fonts-unavailable`). Only faces the registry holds are embedded (bundled or hash-pinned, never a system font), only where a slide draws them, as `@font-face` data in each SVG and as subsets in the PDF. A face whose own license text is not OFL, Apache, MIT or UFL is left out and reported (`export-font-license`).
+- **PDF** is the renderer's vector PDF (selectable text, vector shapes, embedded subsets, tagged structure), `mode: "raster"` is the image-only form. **PNG** is drawn on a canvas from the same SVG (within anti-aliasing of the renderer's resvg PNG) and is limited to 40 megapixels. **SVG** files are standalone (XML header, fonts embedded, no external references). Several files are packed in a ZIP (`createZip`, no dependency).
+- **Names.** `exportFileName(deck, ext, suffix)` uses the deck's `filename` (a trailing .pptx/.pdf/.png/.svg dropped), else the slugified `name`, else `presentation`; slides are `name-01.png`, archives `name-png.zip`.
+- **Progress and cancel.** `onProgress({ stage, done, total, message })` reports fonts, drawing, per-page conversion and packing; an aborted `signal` rejects with `export-aborted` between pages and slides.
+- **Diagnostics.** `describeDiagnostic` normalises renderer and converter notes into `{ code, severity, message, slide? }`: `pdf-font-substituted`, `pdf-glyph-missing`, `pdf-raster-fallback` and the renderer's own are `warning`; `pdf-font-embedded` is `info`.
+- PDF and PNG need `@openpresentation/opf-render` with its `export-browser` entry (RR-23, opf-render#105); without it they reject with `export-unavailable` and SVG still works. Verified in Chromium; Safari and Firefox are not exercised in CI. The playground bundle grows by the PDF writer, fontkit shaping and the bidi algorithm.
+
 ## Optional React Bindings
 
 React bindings are isolated under `@openpresentation/opf-editor/react` and require the host app to pass its React runtime. The core package does not add React to the critical path.

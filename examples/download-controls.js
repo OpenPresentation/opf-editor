@@ -32,8 +32,8 @@ export function installDownloadControls({ editor, getCanvas, getSlideIndex, rend
 <label class="download-choice"><input type="radio" name="download-format" value="svg"> <span>SVG</span></label>
 <p class="field-help" id="download-format-help"></p></fieldset>
 <fieldset class="download-group" id="download-slides"><legend>Slides</legend>
-<label class="download-choice"><input type="radio" name="download-slides" value="current" checked> <span id="download-current-label">Current slide</span></label>
-<label class="download-choice"><input type="radio" name="download-slides" value="all"> <span id="download-all-label">All slides</span></label>
+<label class="download-choice"><input type="radio" name="download-slides" value="current"> <span id="download-current-label">Current slide</span></label>
+<label class="download-choice"><input type="radio" name="download-slides" value="all" checked> <span id="download-all-label">All slides</span></label>
 <label class="download-choice" id="download-hidden-row" hidden><input type="checkbox" id="download-hidden"> <span>Include hidden slides</span></label></fieldset>
 <fieldset class="download-group" id="download-pdf-options"><legend>PDF type</legend>
 <label class="download-choice"><input type="radio" name="download-pdf-mode" value="vector" checked> <span>Selectable text and vector shapes</span></label>
@@ -163,7 +163,7 @@ export function installDownloadControls({ editor, getCanvas, getSlideIndex, rend
   }
   button.addEventListener('click', () => {
     if (getCanvas() && !getCanvas().commit()) return;
-    dialog.querySelector('input[name="download-slides"][value="current"]').checked = true;
+    dialog.querySelector('input[name="download-slides"][value="all"]').checked = true;
     reset();
     running(false);
     dialog.showModal();
