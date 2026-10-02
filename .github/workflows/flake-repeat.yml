@@ -39,7 +39,7 @@ jobs:
         working-directory: .
         run: |
           for repo in opf opf-render opf-pptx; do
-            ref=$(awk -v key="repository: OpenPresentation/$repo" 'index($0, key) { found = 1 } found && $1 == "ref:" { print $2; exit }' opf-editor/.github/workflows/ci.yml)
+            ref=$(awk -v name="OpenPresentation/$repo" '$1 == "repository:" && $2 == name { found = 1 } found && $1 == "ref:" { print $2; exit }' opf-editor/.github/workflows/ci.yml)
             case "$ref" in [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*) ;; *) echo "No pin for $repo in ci.yml" >&2; exit 1;; esac
             echo "PIN_$(echo "$repo" | tr 'a-z-' 'A-Z_')=$ref" | tee -a "$GITHUB_ENV"
           done
