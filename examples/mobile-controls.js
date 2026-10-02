@@ -5,6 +5,7 @@
 // 16px, and the field mirrors the slide text), and gives the zoom back when typing ends.
 const CSS = `
 .mobile-only{display:none}
+.slide-actions{display:contents}
 @media (max-width:900px){
 :root{--bar-h:56px}
 html,body{overscroll-behavior:none}
@@ -16,6 +17,9 @@ html,body{overscroll-behavior:none}
 .sidebar .add-slide{order:1;margin:0 4px 0 0;padding:4px 8px;font-size:12px;gap:4px;min-height:36px}
 .slide-list{order:2;flex:1 1 100%;display:flex;flex-direction:row;gap:8px;overflow-x:auto;overflow-y:hidden;padding:2px 10px 8px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
 .slide-card{flex:0 0 96px;width:96px;margin:0}
+.slide-toolbar{order:0;margin:0 6px 0 0}
+.slide-actions{order:1;flex:1 1 100%;display:flex;gap:4px;overflow-x:auto;padding:0 8px 4px;scrollbar-width:none}
+.slide-actions .add-slide{flex:0 0 auto;margin:0;order:0}
 .main-shell{flex:1 1 0;min-height:0}
 .document-bar{flex-wrap:wrap;height:auto;min-height:44px;padding:4px 12px;gap:6px}
 .breadcrumb{flex:1 1 0;min-width:0}
@@ -35,6 +39,7 @@ body[data-sheet] .sidebar,body[data-sheet] .document-bar{display:none}
 body[data-sheet] .canvas-scroll{padding-bottom:min(46dvh,420px)}
 .inspector{position:fixed;left:0;right:0;bottom:calc(var(--bar-h) + env(safe-area-inset-bottom));width:auto;max-height:min(46dvh,420px);border:0;border-top:1px solid var(--border);border-radius:14px 14px 0 0;box-shadow:0 -10px 40px #1c183033;z-index:40;overscroll-behavior:contain;transform:translateY(calc(100% + var(--bar-h)));visibility:hidden;transition:transform .2s ease,visibility 0s linear .2s}
 body[data-sheet] .inspector{transform:none;visibility:visible;transition:transform .2s ease}
+@media (max-height:720px){.workspace-brand{height:36px}.canvas-toolbar .slide-heading{display:none}.canvas-toolbar{min-height:40px;padding:2px 10px}}
 @media (prefers-reduced-motion:reduce){.inspector{transition:none}}
 .inspector-tabs{position:sticky;top:0;z-index:2;background:#fff;align-items:center;padding-right:6px}
 .sheet-close{margin-left:auto;min-height:44px}
@@ -85,6 +90,12 @@ export function installMobileControls() {
     if (open) document.body.dataset.menu = 'open'; else delete document.body.dataset.menu;
     more.setAttribute('aria-expanded', String(open));
   });
+
+  // The slide buttons share one row that scrolls sideways when it must (they wrapped onto three rows on a 320px screen).
+  const slideActions = document.createElement('div');
+  slideActions.className = 'slide-actions';
+  document.getElementById('slide-list').after(slideActions);
+  for (const id of ['add', 'add-layout', 'browse-gallery']) { const node = document.getElementById(id); if (node) slideActions.append(node); }
 
   // The bottom bar.
   const bar = document.createElement('nav');

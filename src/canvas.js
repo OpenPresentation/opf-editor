@@ -949,7 +949,7 @@ export function createCanvasEditor(container, options = {}) {
   // enclosing content is selectable (speaker notes, deck fields). It never moves keyboard focus unless `focus` is true.
   function reveal(path, { focus = false } = {}) {
     if (disposed || typeof path !== "string") return null;
-    const slide = /^slides.(d+)(?:.|$)/.exec(path);
+    const slide = /^slides\.(\d+)(?:\.|$)/.exec(path);
     if (slide && Number(slide[1]) !== slideIndex && !setSlide(Number(slide[1]))) return null;
     if (active && !commit()) return null;
     const segments = path.split(".");

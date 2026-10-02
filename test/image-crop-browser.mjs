@@ -53,7 +53,9 @@ try {
   };
   const slide = async (index) => { await page.locator('#slide-list button').nth(index).click(); await page.waitForFunction((i) => document.querySelector('#slide-list').children[i].getAttribute('aria-current') === 'true', index); await app.settle(); };
   // Source pixel to screen point inside the crop box (the box shows the whole picture).
-  const at = async (x, y) => { const b = await box.boundingBox(); return { x: b.x + (x / 400) * b.width, y: b.y + (y / 200) * b.height }; };
+  // The box is resized by a ResizeObserver when the toolbar changes height (switching tools), so wait until it holds still.
+  const settled = async () => { let last = JSON.stringify(await box.boundingBox()); for (let i = 0; i < 40; i += 1) { await page.waitForTimeout(30); const now = JSON.stringify(await box.boundingBox()); if (now === last) return; last = now; } };
+  const at = async (x, y) => { await settled(); const b = await box.boundingBox(); return { x: b.x + (x / 400) * b.width, y: b.y + (y / 200) * b.height }; };
   const drag = async (from, to) => {
     const a = await at(from.x, from.y);
     const b = await at(to.x, to.y);

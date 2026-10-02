@@ -32,7 +32,7 @@ const overflow = (page) => page.evaluate(() => {
   const width = document.documentElement.clientWidth;
   const out = [];
   for (const node of document.querySelectorAll('body *')) {
-    if (node.closest('svg, #slide-list, dialog:not([open]), [hidden]')) continue;
+    if (node.closest('svg, #slide-list, .slide-actions, dialog:not([open]), [hidden]')) continue;
     const style = getComputedStyle(node);
     if (style.display === 'none' || style.visibility === 'hidden' || style.position === 'fixed' && node.closest('.inspector')) continue;
     const box = node.getBoundingClientRect();
@@ -106,7 +106,7 @@ for (const device of devices.filter((entry) => !process.argv[2] || entry.name.in
     await page.keyboard.press('End');
     await page.keyboard.insertText(' Done.');
     // A tap outside commits.
-    await page.touchscreen.tap(device.viewport.width / 2, previewBox.y + previewBox.height + 10);
+    await page.touchscreen.tap(...(await centre(page.locator('#page-position'))));
     await app.waitDoc((deck) => deck.slides[0].text === 'Tap this text to edit it on a phone. Done.', 'the text was typed with the touch keyboard');
     await page.waitForFunction(() => !document.querySelector('meta[name=viewport]').content.includes('maximum-scale'));
     mark(`${device.name}: tap enters text editing, typing commits, the page does not zoom while typing`);
