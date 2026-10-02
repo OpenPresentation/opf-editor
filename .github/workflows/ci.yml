@@ -31,21 +31,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: 524525f97b019c12c70bb1ec5eb610a2f21faae6 # RR-33: core PR opf#264 (core main with the RR-32 template variables plus numbered lists); repin to its merge commit once merged
+          ref: c6a7b3840de9f9bdf66a4a38f07951764a953c57 # RR-33: core main at the opf#264 merge commit; repin to its merge commit once merged
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: ec09591baec692666419f61f308c2f43d853eb44 # RR-33: opf-render PR #99 (render main plus the numbered-list markers); repin to its merge commit once merged
+          ref: 7a85eb897e07bd36ae8ea91d3e0f93971bbd5386 # RR-33: opf-render PR #99 head (main plus numbered-list markers); repin to its merge commit once merged
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: a9bcbd75886bd1ac195b4206cefae83525b1fea4 # opf-pptx 0.11.7 release commit
+          ref: 346291d871ad74c00a15f9d0a6aba43ebbd6189d # RR-33: opf-pptx PR #143 head; repin to its merge commit once merged
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
