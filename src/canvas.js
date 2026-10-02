@@ -94,7 +94,7 @@ export function createCanvasEditor(container, options = {}) {
     overlay = doc.createElement("div"),
     notice = doc.createElement("div");
   root.className = "opf-canvas";
-  root.style.cssText = "position:relative;width:100%;isolation:isolate";
+  root.style.cssText = "position:relative;width:100%;isolation:isolate;touch-action:manipulation";
   preview.className = "opf-canvas-preview";
   overlay.className = "opf-canvas-overlay";
   overlay.style.cssText = "position:absolute;inset:0;pointer-events:none";
@@ -292,11 +292,14 @@ export function createCanvasEditor(container, options = {}) {
       if (node.matches("g")) {
         const bounds = allocatedSelectionBox(node, item);
         const rect = doc.createElementNS("http://www.w3.org/2000/svg", "rect");
+        // RR-25: on a touch screen a text block of a few slide units is a few pixels tall, so the target grows (up to 24 slide units
+        // each way) until it is about 44 CSS pixels in each direction.
+        const padX = touchPad(svg, bounds.width), padY = touchPad(svg, bounds.height);
         for (const [key, value] of Object.entries({
-          x: bounds.x - 4,
-          y: bounds.y - 4,
-          width: Math.max(8, bounds.width + 8),
-          height: Math.max(8, bounds.height + 8),
+          x: bounds.x - padX,
+          y: bounds.y - padY,
+          width: Math.max(2 * padX, bounds.width + 2 * padX),
+          height: Math.max(2 * padY, bounds.height + 2 * padY),
           fill: "transparent",
           stroke: "transparent",
           "stroke-width": 1.5,
@@ -353,6 +356,13 @@ export function createCanvasEditor(container, options = {}) {
       geometry,
       draft: !!active || !!layoutHandles.editingPath,
     });
+  }
+  const coarse = win.matchMedia?.("(pointer: coarse)");
+  function touchPad(svg, size) {
+    if (!coarse?.matches) return 4;
+    const box = svg.getBoundingClientRect(), view = svg.viewBox?.baseVal;
+    const scale = box.width && view?.width ? box.width / view.width : 0;
+    return scale ? Math.max(4, Math.min(24, (44 / scale - size) / 2)) : 4;
   }
   // An in-progress edit whose text needs faces that are not loaded yet waits for them, then draws again.
   function deferDraft(draft) {
@@ -976,6 +986,9 @@ export function createCanvasEditor(container, options = {}) {
     active?.rich?.update();
   });
   resize.observe(root);
+  // The on-screen keyboard shrinks the visual viewport; keep the field being typed in visible above it.
+  const keepEditVisible = () => { if (active?.input && coarse?.matches) active.input.scrollIntoView?.({ block: "center", inline: "nearest" }); };
+  win.visualViewport?.addEventListener("resize", keepEditVisible);
   root.addEventListener("pointerdown", () => { pointerTaken = null; }, true);
   root.addEventListener("keydown", (event) => {
     if (
@@ -1058,6 +1071,7 @@ export function createCanvasEditor(container, options = {}) {
       blockControls.destroy();
       unsubscribe();
       resize.disconnect();
+      win.visualViewport?.removeEventListener("resize", keepEditVisible);
       if (frame) win.cancelAnimationFrame(frame);
       root.remove();
       options.propertiesContainer?.replaceChildren();

@@ -34,7 +34,7 @@ const CSS = `
 .opf-crop{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;background:rgba(22,20,31,.94);color:#f4f2fa;font:13px/1.45 system-ui,sans-serif;pointer-events:auto;touch-action:none;overflow:hidden}
 .opf-crop[data-fullscreen]{position:fixed;z-index:2147483000}
 .opf-crop *{box-sizing:border-box}
-.opf-crop-stage{position:relative;flex:1 1 auto;min-height:120px;display:flex;align-items:center;justify-content:center;padding:12px}
+.opf-crop-stage{position:relative;overflow:hidden;flex:1 1 auto;min-height:120px;display:flex;align-items:center;justify-content:center;padding:12px}
 .opf-crop-box{position:relative;flex:none;touch-action:none;user-select:none;-webkit-user-select:none;overflow:visible}
 .opf-crop-box>img{position:absolute;inset:0;width:100%;height:100%;display:block;user-select:none;-webkit-user-drag:none;pointer-events:none}
 .opf-crop-rect{position:absolute;box-shadow:0 0 0 9999px rgba(8,6,16,.62);outline:2px solid #fff;cursor:move;touch-action:none;background-image:linear-gradient(to right,transparent calc(33.33% - .5px),#fff6 calc(33.33% - .5px),#fff6 calc(33.33% + .5px),transparent calc(33.33% + .5px),transparent calc(66.66% - .5px),#fff6 calc(66.66% - .5px),#fff6 calc(66.66% + .5px),transparent calc(66.66% + .5px)),linear-gradient(to bottom,transparent calc(33.33% - .5px),#fff6 calc(33.33% - .5px),#fff6 calc(33.33% + .5px),transparent calc(33.33% + .5px),transparent calc(66.66% - .5px),#fff6 calc(66.66% - .5px),#fff6 calc(66.66% + .5px),transparent calc(66.66% + .5px))}
@@ -50,7 +50,7 @@ const CSS = `
 .opf-crop-focus::before,.opf-crop-focus::after{content:"";position:absolute;background:#ffd45a;left:50%;top:50%}
 .opf-crop-focus::before{width:2px;height:40px;margin:-20px 0 0 -1px}.opf-crop-focus::after{height:2px;width:40px;margin:-1px 0 0 -20px}
 .opf-crop-focus[hidden]{display:none}
-.opf-crop-bar{flex:none;display:flex;flex-direction:column;gap:8px;padding:10px 12px 12px;background:#26233a;border-top:1px solid #3d3957;max-height:48%;overflow:auto;touch-action:pan-y}
+.opf-crop-bar{position:relative;z-index:1;flex:none;display:flex;flex-direction:column;gap:8px;padding:10px 12px 12px;background:#26233a;border-top:1px solid #3d3957;max-height:48%;overflow:auto;touch-action:pan-y}
 .opf-crop-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
 .opf-crop-row[hidden]{display:none}
 .opf-crop label{display:inline-flex;align-items:center;gap:6px;font-size:12px}
@@ -104,7 +104,8 @@ export function createImageCropper(root, overlay, options) {
   ensureStyle(doc);
 
   const pill = h(doc, "button", { type: "button", class: "opf-crop-pill", "aria-label": "Crop picture or set its focal point", title: "Crop picture or set focal point", text: "Crop picture", hidden: true });
-  overlay.append(pill);
+  // The pill lives on the root: the canvas clears its overlay layer after every edit.
+  root.append(pill);
 
   let selected = null;
   let session = null;
@@ -200,7 +201,8 @@ export function createImageCropper(root, overlay, options) {
     const actions = h(doc, "div", { class: "opf-crop-actions" }, resetButton, restoreButton, cancelButton, applyButton);
     const bar = h(doc, "div", { class: "opf-crop-bar" }, optionsRow, exact, readout, announce, errorLine, h(doc, "div", { class: "opf-crop-row" }, actions));
     layer.append(stage, bar);
-    root.append(layer);
+    // Full screen: a layer inside the canvas could not rise above the host page's own fixed bars, so it goes on the body.
+    (fullscreen ? doc.body : root).append(layer);
     s.layer = layer;
     s.box = box;
     s.rectEl = rectEl;
@@ -316,7 +318,8 @@ export function createImageCropper(root, overlay, options) {
       else return;
       event.preventDefault();
       rectEl.focus({ preventScroll: true });
-      box.setPointerCapture?.(event.pointerId);
+      // A touch pointer is captured by its target already; capturing it again made Chromium drop the next tap's click.
+      if (event.pointerType !== "touch") box.setPointerCapture?.(event.pointerId);
       draw();
     });
     box.addEventListener("pointermove", (event) => {
@@ -336,7 +339,7 @@ export function createImageCropper(root, overlay, options) {
     const endDrag = (event) => {
       if (!drag || event.pointerId !== drag.id) return;
       drag = null;
-      box.releasePointerCapture?.(event.pointerId);
+      if (event.pointerType !== "touch") box.releasePointerCapture?.(event.pointerId);
       draw({ announceNow: true });
     };
     box.addEventListener("pointerup", endDrag);

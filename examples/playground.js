@@ -3,6 +3,7 @@ import {createSchemaInspector} from '../src/schema-inspector.js';
 import {installTemplateControls} from './template-controls.js';
 import {installFindControls} from './find-controls.js';
 import {installCropControls} from './crop-controls.js';
+import {installMobileControls} from './mobile-controls.js';
 import {installTransferControls} from './transfer-controls.js';
 import { createEditorSession } from '../src/index.js';
 import {createCanvasEditor,createFontGate} from '../src/canvas.js';
@@ -377,4 +378,5 @@ element('properties-preview').onclick=event=>{const target=event.target.closest(
 installDataControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,renderOptions:layoutOptions,fonts:fontGate});
 pictureTools=installCropControls({editor,getCanvas:()=>canvas,getSelectedPath:()=>selectedPath,getSlideIndex:()=>slideIndex,status});
 installFindControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,goToSlide:index=>{if(index===slideIndex)return;slideIndex=index;return refresh();},status,showPanel});
+installMobileControls();
 installTemplateControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,renderOptions:layoutOptions,fonts:fontGate});
