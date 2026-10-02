@@ -31,21 +31,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: 7244af75cf3d262b515aa97fdfc84f824afb6593 # RR-35: core main with #266 / opf-render PR #100 head / opf-pptx PR #144 head: core
+          ref: 7244af75cf3d262b515aa97fdfc84f824afb6593 # RR-35 core main / PR heads: core
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 4c324cfac14593b7c5bdd42ceafdaf992df8e8fa # RR-35: core main with #266 / opf-render PR #100 head / opf-pptx PR #144 head: opf-render
+          ref: 4c324cfac14593b7c5bdd42ceafdaf992df8e8fa # RR-35 core main / PR heads: opf-render
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: 79ea3b4c54c6b8a34274bb7bd58319196287942d # RR-35: core main with #266 / opf-render PR #100 head / opf-pptx PR #144 head: opf-pptx
+          ref: d7a73f50e17f7075e50c0e9836e995a81feebca8 # RR-35 core main / PR heads: opf-pptx
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
