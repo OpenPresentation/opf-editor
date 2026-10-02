@@ -17,6 +17,9 @@ import { checkedDocument, designPatches, fail, same } from "./edit-helpers.js";
 import { populateLayoutPlaceholders } from "./layout-placeholders.js";
 import { blockConversionTargets, prepareBlockConversion } from "./block-convert.js";
 
+/** Slide-size presets of the schema's DimensionPreset (RR-41). */
+export const SLIDE_SIZE_PRESETS = Object.freeze(["16:9", "4:3", "16:10", "letter", "a4", "widescreen", "standard"]);
+
 /** The 14 pptx.gallery dimensions (gallery-support.md), in the gallery's order. */
 export const SWITCH_DIMENSIONS = Object.freeze([
   "layouts",
@@ -34,6 +37,9 @@ export const SWITCH_DIMENSIONS = Object.freeze([
   "blocks",
   "image-treatments",
 ]);
+
+/** RR-41 (WIP): switchable the same way, but not gallery dimensions (so not in SWITCH_DIMENSIONS). */
+export const EXTRA_SWITCH_DIMENSIONS = Object.freeze(["slide-sizes", "purposes"]);
 
 // Catalog kind behind each catalog-backed dimension.
 const CATALOG_KIND = Object.freeze({
@@ -168,8 +174,8 @@ function blockValue(value, options) {
  * document is validated; an invalid result throws unless the input was already invalid.
  */
 export function prepareDimensionSwitch(document, dimension, value, options = {}) {
-  if (!SWITCH_DIMENSIONS.includes(dimension))
-    throw fail("unknown-dimension", `Unknown dimension: ${dimension}. Use one of ${SWITCH_DIMENSIONS.join(", ")}.`, { dimension });
+  if (!SWITCH_DIMENSIONS.includes(dimension) && !EXTRA_SWITCH_DIMENSIONS.includes(dimension))
+    throw fail("unknown-dimension", `Unknown dimension: ${dimension}. Use one of ${[...SWITCH_DIMENSIONS, ...EXTRA_SWITCH_DIMENSIONS].join(", ")}.`, { dimension });
   if (!document || typeof document !== "object") throw fail("invalid-input", "Switch requires an OPF document object.");
   if (options.record) {
     const ids = dimension === "audiences" ? [value].flat() : dimension === "socials" ? [value?.platform] : [value];
@@ -184,7 +190,15 @@ export function prepareDimensionSwitch(document, dimension, value, options = {})
   let slideIndex;
   let conversionLoss;
 
-  if (dimension === "layouts") {
+  if (dimension === "slide-sizes") {
+    if (!SLIDE_SIZE_PRESETS.includes(value)) throw fail("invalid-switch-value", `Switch slide-sizes to one of ${SLIDE_SIZE_PRESETS.join(", ")}.`, { value });
+    patches = designPatches(document, [], { dimensions: value });
+  } else if (dimension === "purposes") {
+    // Catalog id, free-form goal text or an inline Purpose object; the schema validates the candidate.
+    if (typeof value !== "string" && !(value && typeof value === "object" && !Array.isArray(value)))
+      throw fail("invalid-switch-value", "Switch purposes to a catalog id, a goal string or a purpose object.", { value });
+    patches = rootPatch(document, "purpose", value);
+  } else if (dimension === "layouts") {
     slideIndex = scopeIndex;
     slideAt(document, slideIndex, "a layout switch");
     scope = "slide";
