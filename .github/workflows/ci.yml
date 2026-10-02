@@ -31,21 +31,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: 4db3f00371aae5ed69cc6db04a6bd0c07f49330d # RR-34: opf#269 head / opf-render PR #104 head / opf-pptx PR #145 head: core
+          ref: 4db3f00371aae5ed69cc6db04a6bd0c07f49330d # RR-34 PR heads: core
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 4534cbe92768265ba0938ed1775cd66cdd7330c9 # RR-34: opf#269 head / opf-render PR #104 head / opf-pptx PR #145 head: opf-render
+          ref: 4534cbe92768265ba0938ed1775cd66cdd7330c9 # RR-34 PR heads: opf-render
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: a94925ae1f5e3c13890929aa824a185663ce4a9b # RR-34: opf#269 head / opf-render PR #104 head / opf-pptx PR #145 head: opf-pptx
+          ref: a94925ae1f5e3c13890929aa824a185663ce4a9b # RR-34 PR heads: opf-pptx
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
