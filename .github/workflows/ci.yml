@@ -31,14 +31,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: 0cd418a8fcb5b9f722e7a1057006079b0254ad3f # RR-17 core branch codex/rr-17-latin-tracker (policy: Liberation aliases and four measurements); repin to the merge commit once merged
+          ref: 464a1294164314498053836293e5e0f2796f4d31 # core main: contains RR-17 (Liberation aliases and the Latin measurements) and RR-32 template variables
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: e4c6ea4ca16ff12ba3cbd9d86c38976a040c77bd # RR-17 opf-render PR #92 (per-family fixtures, weight-named roles, single-style italics); repin to the merge commit once merged
+          ref: 7ca1e44747d9e6448f8afa7831d1d0888b493df7 # opf-render main (FF-44; RR-32 variables option); RR-17's PR #92 is not on main yet
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
@@ -83,6 +83,7 @@ jobs:
       - name: Verify Playwright image version
         run: node -e "if (require('playwright/package.json').version !== '1.63.0') throw new Error('Update the pinned Playwright image with the test package.');"
       - run: npm run test:playground
+      - run: npm run test:data-grid-browser
       - run: npm run test:code-browser
       - run: npm run test:selection-browser
       - run: npm run test:click-entry-browser
