@@ -31,14 +31,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: 464a1294164314498053836293e5e0f2796f4d31 # core main: contains RR-17 (Liberation aliases and the Latin measurements) and RR-32 template variables
+          ref: 395e4c11aee82e3a3ebac1a70e2e112ec7e5143c # core main: RR-17 (Liberation aliases, Latin measurements), RR-16 (0.01 pt font sizes), RR-31, RR-32
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 7ca1e44747d9e6448f8afa7831d1d0888b493df7 # opf-render main (FF-44; RR-32 variables option); RR-17's PR #92 is not on main yet
+          ref: d817af4da12bdbb3585c7584d639e2d36c8e5f34 # RR-17: opf-render PR #92 (contains render main cf27e4e; per-family fixtures, weight-named roles, single-style italics that test/font-gate-latin-families.mjs needs); repin to its merge commit once merged
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
