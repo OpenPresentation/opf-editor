@@ -31,21 +31,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: c6a7b3840de9f9bdf66a4a38f07951764a953c57 # RR-33: core main at the opf#264 merge commit; repin to its merge commit once merged
+          ref: 7244af75cf3d262b515aa97fdfc84f824afb6593 # RR-33: main after the RR-33 merge: core
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 7a85eb897e07bd36ae8ea91d3e0f93971bbd5386 # RR-33: opf-render PR #99 head (main plus numbered-list markers); repin to its merge commit once merged
+          ref: be9cc47564b0636949056ccd79522d547afdf56d # RR-33: main after the RR-33 merge: opf-render
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: 346291d871ad74c00a15f9d0a6aba43ebbd6189d # RR-33: opf-pptx PR #143 head; repin to its merge commit once merged
+          ref: d0e1b7df328ebf43da7c6d981a35b11e85617744 # RR-33: main after the RR-33 merge: opf-pptx
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
@@ -65,8 +65,14 @@ jobs:
           for repo in opf-render opf-pptx opf-editor; do
             npm ci --prefix "$repo"
           done
+      # RR-26: /block-convert and /content-actions import @openpresentation/opf/convert, which published core 0.11.4 does not export. The packed check against registry dependencies therefore waits for the core release that lists it (the release-prep PR raises the core floor and removes this condition); every other gate below runs against the pinned source graph.
       - name: Verify editor with published dependencies
-        run: npm run test:packed
+        run: |
+          if node -e "process.exit(require('@openpresentation/opf/package.json').exports['./convert'] ? 0 : 1)"; then
+            npm run test:packed
+          else
+            echo "::notice::RR-26: the published @openpresentation/opf has no ./convert export yet, so test:packed is skipped until the core release."
+          fi
       - name: Build and link coordinated sources
         working-directory: opf
         run: |
