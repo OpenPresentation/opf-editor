@@ -2,6 +2,9 @@ import {installDataControls} from './data-controls.js';
 import {installReviewControls} from './review-controls.js';
 import {createSchemaInspector} from '../src/schema-inspector.js';
 import {installTemplateControls} from './template-controls.js';
+import {installFindControls} from './find-controls.js';
+import {installCropControls} from './crop-controls.js';
+import {installMobileControls} from './mobile-controls.js';
 import {installTransferControls} from './transfer-controls.js';
 import { createEditorSession } from '../src/index.js';
 import {createCanvasEditor,createFontGate} from '../src/canvas.js';
@@ -11,6 +14,8 @@ import * as renderFontCore from '@openpresentation/opf-render/fonts';
 import { resolveScriptFonts } from '@openpresentation/opf';
 import { installPptxExport } from './pptx-controls.js';
 import { createDesignControls } from '../src/design-controls.js';
+import { createPersistence } from '../src/persistence.js';
+import { createPersistenceUi } from '../src/persistence-ui.js';
 import { createSlideManager } from '../src/slide-manager.js';
 import { createOutlineView } from '../src/outline-view.js';
 import { createDataGrid } from '../src/data-grid.js';
@@ -68,7 +73,7 @@ const editor = createEditorSession({
   ],
 }, { rejectInvalid: true });
 const element = id => document.getElementById(id);
-let slideIndex = 0, selectedPath = 'slides.0.title', selectedValue, canvas, renderError, fontsFailure, review, pendingContentFocus = false;
+let slideIndex = 0, selectedPath = 'slides.0.title', selectedValue, canvas, renderError, fontsFailure, review, pendingContentFocus = false, pictureTools;
 // RR-06: every dimension switch, design option, content conversion, chart type and table style/merge is a control here. Each commits one
 // undoable session change, so the editor.subscribe(refresh) below redraws the preview (and loads fonts first) exactly as for an edit.
 const designControls = createDesignControls(element('design-controls'), {editor, getSlideIndex: () => slideIndex, getSelectedPath: () => selectedPath, sections: ['look', 'background', 'slide-image', 'header-footer', 'brand', 'layout-options', 'info']});
@@ -186,7 +191,7 @@ function select(path) {
   element('value-label').textContent = typeof selectedValue === 'string' ? 'Text content' : 'Content JSON';
   element('preview').querySelectorAll('g[data-opf-path]').forEach(node => node.classList.toggle('is-selected', node.getAttribute('data-opf-path') === path));
   element('value').value = typeof selectedValue === 'string' ? selectedValue : JSON.stringify(selectedValue, null, 2) ?? '';
-  designControls.refresh(); selectionControls.refresh(); dataGrid.refresh();
+  designControls.refresh(); selectionControls.refresh(); dataGrid.refresh(); pictureTools?.refresh();
 }
 // Review text for one font resolution the registry recorded. A change inside one family is a style fallback (the weight or italic asked
 // for is not held, so the nearest face of the same family is drawn), not a replacement font: name the styles, never "Roboto → Roboto".
@@ -301,7 +306,7 @@ element('add').onclick = () => act(() => {
 element('add-layout').onclick = () => slideManager.openLayoutPicker();
 let applying = false;
 // Also the gallery handoff: it fills #json and clicks this button in the same tick, without waiting for the source preview.
-element('apply-json').onclick = async () => {
+element('apply-json').onclick = async event => {
   if (applying) return;
   const applied = element('json').value;
   let deck;
@@ -326,6 +331,8 @@ element('apply-json').onclick = async () => {
     updateJsonSource(sourceText ?? prettySource(editor.document), editor.document, sourceMemory);
     sourceText = applied;
     editor.applyPatch([{op:'replace',path:'',value:deck}]);
+    // A host that loads a document (the gallery handoff clicks this button from script) is not the user's work: do not autosave it or warn about it.
+    if (event?.isTrusted === false) persistence?.rebase();
     if (renderError) { element('json-error').textContent = renderError; return; }
     element('source-dialog').close(); status('Presentation source updated');
   } catch(error) { sourceText = prior; element('json-error').textContent = error.issues?.[0]?.message ?? error.message; }
@@ -371,6 +378,7 @@ element('download').onclick = () => {
   const deck=editor.document, blob=new Blob([JSON.stringify(deck,null,2)],{type:'application/json'}), url=URL.createObjectURL(blob);
   const link=document.createElement('a'); link.href=url; link.download=`${(deck.name ?? 'presentation').replace(/[^a-z0-9_-]+/gi,'-').replace(/^-|-$/g,'') || 'presentation'}.opf.json`;
   link.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); status('OPF file downloaded');
+  persistence?.markSaved();
 };
 document.addEventListener('keydown',event=>{
   if (!(event.metaKey || event.ctrlKey)) return;
@@ -380,6 +388,22 @@ document.addEventListener('keydown',event=>{
   }
 });
 refresh();
+
+// RR-22: autosave to this browser (IndexedDB, with localStorage as the fallback), a restore prompt for a stored copy that differs from the starting
+// document, and a warning before the page closes with changes that were not saved as an OPF file. Nothing leaves the browser. A host page
+// configures it with `globalThis.OPF_EDITOR_HOST = { persistence: { key, storage, onRestorePrompt } | false }` before this script runs, or a
+// frame with `?persist=<key>` (`?persist=0` turns it off); the default key is shared by every copy of this editor on one origin.
+const hostPersistence = (() => {
+  const params = new URLSearchParams(globalThis.location?.search ?? '');
+  const configured = globalThis.OPF_EDITOR_HOST?.persistence;
+  if (configured === false || params.get('persist') === '0') return null;
+  return { ...(configured && typeof configured === 'object' ? configured : {}), key: params.get('persist') || configured?.key || 'opf-editor-playground' };
+})();
+let persistence;
+if (hostPersistence) {
+  const persistenceUi = createPersistenceUi({ banner: element('restore-banner'), indicator: element('autosave-status'), restoreEarlier: () => persistence.restoreEarlier(), suffix: 'Save an OPF file to keep a copy.', fallback: 'Changes stay in this session.\nSave an OPF file to keep your work.' });
+  persistence = createPersistence(editor, { ...hostPersistence, onRestorePrompt: hostPersistence.onRestorePrompt ?? persistenceUi.prompt, onStatus: status => { persistenceUi.status(status); hostPersistence.onStatus?.(status); }, beforeFlush: () => { canvas?.commit(); } });
+}
 
 const galleryConfig=await fetch('./galleries.json').then(response=>{if(!response.ok)throw new Error('Gallery configuration unavailable');return response.json();}).catch(()=>[{name:'PPTX.gallery',url:'https://www.pptx.gallery/registry.json'}]);
 installTransferControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,renderOptions:layoutOptions,galleries:galleryConfig,fonts:fontGate});
@@ -406,6 +430,9 @@ for(const [id,path]of [['deck',''],['slide',()=>`/slides/${slideIndex}`],['selec
 element('properties-preview').onclick=event=>{const target=event.target.closest('[data-opf-path]');if(target)propertiesInspector?.navigate(target.getAttribute('data-opf-path'));};
 
 installDataControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,renderOptions:layoutOptions,fonts:fontGate});
+pictureTools=installCropControls({editor,getCanvas:()=>canvas,getSelectedPath:()=>selectedPath,getSlideIndex:()=>slideIndex,status});
+installFindControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,goToSlide:index=>{if(index===slideIndex)return;slideIndex=index;return refresh();},status,showPanel});
+installMobileControls();
 installTemplateControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,renderOptions:layoutOptions,fonts:fontGate});
 // RR-29: the Review tab. A finding's go-to selects the slide and the content; the panel re-audits after every redraw (render()).
 const openPropertiesAt = pointer => { element('open-properties').click(); propertiesInspector?.navigate(pointer); };
