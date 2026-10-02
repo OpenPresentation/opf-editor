@@ -11,6 +11,9 @@ import * as renderFontCore from '@openpresentation/opf-render/fonts';
 import { resolveScriptFonts } from '@openpresentation/opf';
 import { installPptxExport } from './pptx-controls.js';
 import { createDesignControls } from '../src/design-controls.js';
+import { createSlideManager } from '../src/slide-manager.js';
+import { createOutlineView } from '../src/outline-view.js';
+import { createDataGrid } from '../src/data-grid.js';
 import { MAX_EXACT_SOURCE_LENGTH, createSourceMemory, findDuplicateKey, updateJsonSource } from '../src/exact-source.js';
 
 // fonts.json holds the faces the page starts with. A build that splits the eager faces (the gallery editor) adds base-fonts.json: the
@@ -70,6 +73,20 @@ let slideIndex = 0, selectedPath = 'slides.0.title', selectedValue, canvas, rend
 // undoable session change, so the editor.subscribe(refresh) below redraws the preview (and loads fonts first) exactly as for an edit.
 const designControls = createDesignControls(element('design-controls'), {editor, getSlideIndex: () => slideIndex, getSelectedPath: () => selectedPath, sections: ['look', 'background', 'slide-image', 'header-footer', 'brand', 'layout-options', 'info']});
 const selectionControls = createDesignControls(element('selection-controls'), {editor, getSlideIndex: () => slideIndex, getSelectedPath: () => selectedPath, sections: ['selection', 'table'], onSelectPath: path => select(path)});
+// RR-24: "Edit data" opens the data grid for the selected chart or table over the bottom of the canvas (it never moves the slide), so edits show in the preview at once.
+let dataGridOpen = false, dataGrid;
+const syncDataGrid = () => {
+  const target = dataGrid?.target;
+  const open = dataGridOpen && Boolean(target);
+  element('edit-data').hidden = !target;
+  element('edit-data').setAttribute('aria-expanded', String(open));
+  element('edit-data').textContent = open ? 'Hide data' : 'Edit data';
+  element('data-grid-dock').hidden = !open;
+};
+dataGrid = createDataGrid(element('data-grid-host'), {editor, getSelectedPath: () => selectedPath, onTargetChange: () => syncDataGrid()});
+syncDataGrid();
+element('edit-data').onclick = () => { dataGridOpen = !dataGridOpen; syncDataGrid(); if (dataGridOpen) dataGrid.focus(); };
+element('close-data-grid').onclick = () => { dataGridOpen = false; syncDataGrid(); element('edit-data').focus(); };
 function status(message) { element('status').textContent = message; }
 let activePanel = 'content';
 const thumbnailCache = new Map();
@@ -111,40 +128,49 @@ function viewSource(deck) {
   }
   catch { sourceText = null; return prettySource(deck); }
 }
+// RR-21: the slide navigator and the sorter share one component (slide-manager.js): select, drag and keyboard reorder, hide, sections,
+// duplicate, delete, add with a layout, split and merge. The thumbnails come from the same cache, keyed by what a slide draws.
+const thumbnailKey = (deck, index) => JSON.stringify([index, deck.slides.length, deck.slides[index], deck.design, deck.catalogs, deck.assets]);
+function thumbnailHtml(deck, index) {
+  const key = thumbnailKey(deck, index);
+  if (!thumbnailCache.has(key)) {
+    try { thumbnailCache.set(key, renderSvg(deck, {...layoutOptions, slideIndex:index, trace: false})); }
+    catch { thumbnailCache.set(key, 'Preview unavailable'); }
+  }
+  return thumbnailCache.get(key);
+}
+const slideManagerOptions = {
+  editor, getSlideIndex: () => slideIndex, setSlideIndex: value => { slideIndex = value; refresh(); },
+  renderThumbnail: thumbnailHtml, onStatus: message => status(message), onError: () => {}, autoRender: false,
+};
+const slideManager = createSlideManager(element('slide-list'), {...slideManagerOptions, toolbar: element('slide-toolbar')});
+let sorter, outline, activeView = 'slide';
 function renderNavigator(deck) {
   element('slide-count').textContent = deck.slides.length;
-  const liveKeys = new Set();
-  element('slide-list').replaceChildren(...deck.slides.map((slide, index) => {
-    const button = document.createElement('button');
-    button.className = 'slide-card';
-    button.setAttribute('aria-current', String(index === slideIndex));
-    button.setAttribute('aria-label', `Slide ${index + 1}: ${slide.title ?? 'Untitled'}`);
-    const number = document.createElement('span'); number.className = 'thumbnail-number'; number.textContent = String(index + 1).padStart(2, '0');
-    const content = document.createElement('span'); content.className = 'thumbnail-content';
-    const thumbnail = document.createElement('span'); thumbnail.className = 'thumbnail'; thumbnail.setAttribute('aria-hidden', 'true');
-    const key = JSON.stringify([index, deck.slides.length, slide, deck.design, deck.catalogs, deck.assets]); liveKeys.add(key);
-    if (!thumbnailCache.has(key)) {
-      try {
-        const svg = renderSvg(deck, {...layoutOptions, slideIndex:index, trace: false});
-        thumbnailCache.set(key, svg);
-      } catch { thumbnailCache.set(key, 'Preview unavailable'); }
-    }
-    thumbnail.innerHTML = thumbnailCache.get(key);
-    // Thumbnail SVGs are decorative and never add a second keyboard focus target.
-    thumbnail.querySelectorAll('[tabindex]').forEach(node => node.removeAttribute('tabindex'));
-    const label = document.createElement('span'); label.className = 'thumbnail-title'; label.textContent = slide.title ?? 'Untitled slide';
-    content.append(thumbnail, label); button.append(number, content);
-    button.onclick = () => { slideIndex = index; refresh(); };
-    button.onkeydown = event => {
-      if (!['ArrowUp','ArrowDown','Home','End'].includes(event.key)) return;
-      event.preventDefault();
-      slideIndex = event.key === 'Home' ? 0 : event.key === 'End' ? deck.slides.length - 1 : Math.max(0, Math.min(deck.slides.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)));
-      refresh(); element('slide-list').children[slideIndex]?.focus();
-    };
-    return button;
-  }));
-  for (const key of thumbnailCache.keys()) if (!liveKeys.has(key)) thumbnailCache.delete(key);
+  slideManager.render();
+  if (activeView === 'sorter') sorter.render();
+  if (activeView === 'outline') outline.render();
+  const live = new Set(deck.slides.map((_, index) => thumbnailKey(deck, index)));
+  for (const key of thumbnailCache.keys()) if (!live.has(key)) thumbnailCache.delete(key);
 }
+// Slide, Sorter and Outline are views of the same document; the slide inspector follows whichever slide is current.
+function showView(view, focus = false) {
+  if (view !== 'slide' && canvas && !canvas.commit()) return;
+  activeView = view;
+  if (view === 'sorter' && !sorter) sorter = createSlideManager(element('sorter-list'), {...slideManagerOptions, variant: 'sorter'});
+  if (view === 'outline' && !outline) outline = createOutlineView(element('outline-view'), {editor, onSelectSlide: index => { if (index !== slideIndex) { slideIndex = index; refresh(); } }, getSlideIndex: () => slideIndex, onStatus: message => status(message)});
+  for (const name of ['slide', 'sorter', 'outline']) element(`view-${name}`).setAttribute('aria-pressed', String(name === view));
+  document.querySelector('.canvas-scroll').hidden = view !== 'slide';
+  element('sorter-view').hidden = view !== 'sorter';
+  element('outline-view').hidden = view !== 'outline';
+  document.querySelector('.canvas-column').dataset.view = view;
+  for (const id of ['insert-content', 'arrange', 'zoom']) element(id).disabled = view !== 'slide';
+  if (view === 'sorter') { sorter.render(); if (focus) sorter.focus(slideIndex); }
+  if (view === 'outline') { outline.render(); if (focus) outline.focusSlide(slideIndex); }
+  if (view === 'slide' && canvas) canvas.setSlide(slideIndex);
+  status(view === 'slide' ? 'Slide view' : view === 'sorter' ? 'Slide sorter: drag slides, or use Alt and the arrow keys, to reorder' : 'Outline: edit titles and text as an outline');
+}
+for (const view of ['slide', 'sorter', 'outline']) element(`view-${view}`).onclick = () => showView(view, true);
 
 function act(callback) {
   try { callback(); status(renderError ?? 'Changes saved in this session'); }
@@ -160,7 +186,7 @@ function select(path) {
   element('value-label').textContent = typeof selectedValue === 'string' ? 'Text content' : 'Content JSON';
   element('preview').querySelectorAll('g[data-opf-path]').forEach(node => node.classList.toggle('is-selected', node.getAttribute('data-opf-path') === path));
   element('value').value = typeof selectedValue === 'string' ? selectedValue : JSON.stringify(selectedValue, null, 2) ?? '';
-  designControls.refresh(); selectionControls.refresh();
+  designControls.refresh(); selectionControls.refresh(); dataGrid.refresh();
 }
 // Review text for one font resolution the registry recorded. A change inside one family is a style fallback (the weight or italic asked
 // for is not held, so the nearest face of the same family is drawn), not a replacement font: name the styles, never "Roboto → Roboto".
@@ -224,6 +250,8 @@ function render() {
   element('diagnostics-section').hidden = diagnostics.length === 0;
   element('diagnostic-count').textContent = diagnostics.length;
   updateZoom();
+  // A cell of a chart or table that an insert, delete, move or sort made vanish keeps its chart or table selected (RR-24), so the data grid stays open.
+  if (selectedPath.startsWith(`slides.${slideIndex}.`) && editor.get(selectedPath) === undefined) { const owner = /^(.*[.](?:table|chart))[.]/.exec(selectedPath)?.[1]; if (owner && editor.get(owner) !== undefined) selectedPath = owner; }
   if (!selectedPath.startsWith(`slides.${slideIndex}.`) || editor.get(selectedPath) === undefined) selectedPath = `slides.${slideIndex}.title`;
   select(selectedPath);
   review?.refresh();
@@ -270,6 +298,7 @@ element('add').onclick = () => act(() => {
   slideIndex = deck.slides.length;
   editor.applyPatch([{ op: 'add', path: '/slides/-', value: { id: `slide-${index}`, title: 'New slide', text: 'Write your next idea here.' } }]);
 });
+element('add-layout').onclick = () => slideManager.openLayoutPicker();
 let applying = false;
 // Also the gallery handoff: it fills #json and clicks this button in the same tick, without waiting for the source preview.
 element('apply-json').onclick = async () => {

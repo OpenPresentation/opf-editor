@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: ecfe0cd09f1be04cea3e8c7021e9933d2eee79ba # RR-29: core PR opf#267 (core main with template variables plus the audit); repin to its merge commit once merged
+          ref: de5d5d8cbd7fc3b26b430047a1ece274f07bc991 # core main: contains RR-29 /audit (opf#267) and RR-32 template variables
           path: opf
           fetch-depth: 0
           persist-credentials: false
@@ -83,6 +83,7 @@ jobs:
       - name: Verify Playwright image version
         run: node -e "if (require('playwright/package.json').version !== '1.63.0') throw new Error('Update the pinned Playwright image with the test package.');"
       - run: npm run test:playground
+      - run: npm run test:data-grid-browser
       - run: npm run test:code-browser
       - run: npm run test:selection-browser
       - run: npm run test:click-entry-browser
