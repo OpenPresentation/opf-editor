@@ -38,14 +38,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: bbab9b892e3906c065f714f26640bcade04bf084 # RR-35: opf-render PR #100 (the preview draws the chart options); repin to its merge commit once merged
+          ref: 3b68ee4601550976126f2919ef6393cf78bcea8f # RR-35: opf-render PR #100 head (main plus the chart options preview; the Fill template preview needs the RR-32 variables option)
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-pptx
-          ref: 0ece6c3ed8963c1c5113bd843617dd007c7d970b # RR-35: opf-pptx PR #144 (native chart options export and import); repin to its merge commit once merged
+          ref: e1f5a48c5db69457053ae2684303162998c6c95f # RR-35: opf-pptx PR #144 (native chart options export and import); repin to its merge commit once merged
           path: opf-pptx
           fetch-depth: 0
           persist-credentials: false
