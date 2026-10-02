@@ -232,6 +232,8 @@
     }
   },
   "devDependencies": {
+    "@expo-google-fonts/noto-color-emoji": "0.4.6",
+    "@expo-google-fonts/noto-emoji": "0.4.7",
     "@expo-google-fonts/noto-naskh-arabic": "0.4.5",
     "@expo-google-fonts/noto-nastaliq-urdu": "0.4.2",
     "@expo-google-fonts/noto-sans": "0.4.2",
@@ -266,6 +268,7 @@
     "@expo-google-fonts/noto-sans-thai": "0.4.2",
     "@expo-google-fonts/noto-serif-hebrew": "0.4.2",
     "@expo-google-fonts/noto-serif-tibetan": "0.4.2",
+    "@expo-google-fonts/stix-two-math": "0.4.0",
     "@openpresentation/opf-pptx": "^0.11.7",
     "@openpresentation/opf-render": "^0.11.9",
     "axe-core": "4.13.0",
