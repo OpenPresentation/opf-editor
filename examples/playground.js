@@ -1,5 +1,6 @@
 import {installDataControls} from './data-controls.js';
 import {createSchemaInspector} from '../src/schema-inspector.js';
+import {installTemplateControls} from './template-controls.js';
 import {installTransferControls} from './transfer-controls.js';
 import { createEditorSession } from '../src/index.js';
 import {createCanvasEditor,createFontGate} from '../src/canvas.js';
@@ -9,6 +10,7 @@ import * as renderFontCore from '@openpresentation/opf-render/fonts';
 import { resolveScriptFonts } from '@openpresentation/opf';
 import { installPptxExport } from './pptx-controls.js';
 import { createDesignControls } from '../src/design-controls.js';
+import { createDataGrid } from '../src/data-grid.js';
 import { MAX_EXACT_SOURCE_LENGTH, createSourceMemory, findDuplicateKey, updateJsonSource } from '../src/exact-source.js';
 
 // fonts.json holds the faces the page starts with. A build that splits the eager faces (the gallery editor) adds base-fonts.json: the
@@ -68,6 +70,20 @@ let slideIndex = 0, selectedPath = 'slides.0.title', selectedValue, canvas, rend
 // undoable session change, so the editor.subscribe(refresh) below redraws the preview (and loads fonts first) exactly as for an edit.
 const designControls = createDesignControls(element('design-controls'), {editor, getSlideIndex: () => slideIndex, getSelectedPath: () => selectedPath, sections: ['look', 'background', 'slide-image', 'header-footer', 'brand', 'layout-options', 'info']});
 const selectionControls = createDesignControls(element('selection-controls'), {editor, getSlideIndex: () => slideIndex, getSelectedPath: () => selectedPath, sections: ['selection', 'table', 'slide-content'], onSelectPath: path => select(path)});
+// RR-24: "Edit data" opens the data grid for the selected chart or table over the bottom of the canvas (it never moves the slide), so edits show in the preview at once.
+let dataGridOpen = false, dataGrid;
+const syncDataGrid = () => {
+  const target = dataGrid?.target;
+  const open = dataGridOpen && Boolean(target);
+  element('edit-data').hidden = !target;
+  element('edit-data').setAttribute('aria-expanded', String(open));
+  element('edit-data').textContent = open ? 'Hide data' : 'Edit data';
+  element('data-grid-dock').hidden = !open;
+};
+dataGrid = createDataGrid(element('data-grid-host'), {editor, getSelectedPath: () => selectedPath, onTargetChange: () => syncDataGrid()});
+syncDataGrid();
+element('edit-data').onclick = () => { dataGridOpen = !dataGridOpen; syncDataGrid(); if (dataGridOpen) dataGrid.focus(); };
+element('close-data-grid').onclick = () => { dataGridOpen = false; syncDataGrid(); element('edit-data').focus(); };
 function status(message) { element('status').textContent = message; }
 let activePanel = 'content';
 const thumbnailCache = new Map();
@@ -158,7 +174,17 @@ function select(path) {
   element('value-label').textContent = typeof selectedValue === 'string' ? 'Text content' : 'Content JSON';
   element('preview').querySelectorAll('g[data-opf-path]').forEach(node => node.classList.toggle('is-selected', node.getAttribute('data-opf-path') === path));
   element('value').value = typeof selectedValue === 'string' ? selectedValue : JSON.stringify(selectedValue, null, 2) ?? '';
-  designControls.refresh(); selectionControls.refresh();
+  designControls.refresh(); selectionControls.refresh(); dataGrid.refresh();
+}
+// Review text for one font resolution the registry recorded. A change inside one family is a style fallback (the weight or italic asked
+// for is not held, so the nearest face of the same family is drawn), not a replacement font: name the styles, never "Roboto → Roboto".
+function describeFontChange(change) {
+  const sameFamily = (change.sourceFamily ?? change.requestedFamily).toLowerCase() === change.resolvedFamily.toLowerCase();
+  if (!sameFamily) return `${change.requestedFamily} → ${change.resolvedFamily} · ${change.compatibility === 'metric' ? 'Metric substitute' : 'Approximate substitute; wrapping may change'} (${change.resolvedWeight}).`;
+  const drawn = `${change.resolvedFamily} ${change.resolvedWeight}${change.italic ? ' italic' : ''}`;
+  return change.requestedWeight === change.resolvedWeight
+    ? `${change.requestedFamily}: the ${change.italic ? 'italic' : 'upright'} face asked for is not available, so ${drawn} is drawn; wrapping may change.`
+    : `${change.requestedFamily} ${change.requestedWeight}: that weight is not available, so ${drawn} is drawn; wrapping may change.`;
 }
 function render() {
   fontRegistry.clearSubstitutions();
@@ -207,11 +233,13 @@ function render() {
   });
   else canvas.setSlide(slideIndex);
   diagnostics.push(...geometry.diagnostics);
-  diagnostics.push(...fontRegistry.substitutions.filter((change,index,all)=>all.findIndex(other=>other.requestedFamily===change.requestedFamily && other.requestedWeight===change.requestedWeight && other.italic===change.italic)===index).map(change=>({path:change.path ?? 'design.fontScheme',message:`${change.requestedFamily} → ${change.resolvedFamily} · ${change.compatibility === 'metric' ? 'Metric substitute' : 'Approximate substitute; wrapping may change'} (${change.resolvedWeight}).`})));
+  diagnostics.push(...fontRegistry.substitutions.filter((change,index,all)=>all.findIndex(other=>other.requestedFamily===change.requestedFamily && other.requestedWeight===change.requestedWeight && other.italic===change.italic)===index).map(change=>({path:change.path ?? 'design.fontScheme',message:describeFontChange(change)})));
   element('diagnostics').replaceChildren(...diagnostics.map(issue => { const item = document.createElement('li'); item.textContent = issue.message; item.title = issue.path; return item; }));
   element('diagnostics-section').hidden = diagnostics.length === 0;
   element('diagnostic-count').textContent = diagnostics.length;
   updateZoom();
+  // A cell of a chart or table that an insert, delete, move or sort made vanish keeps its chart or table selected (RR-24), so the data grid stays open.
+  if (selectedPath.startsWith(`slides.${slideIndex}.`) && editor.get(selectedPath) === undefined) { const owner = /^(.*[.](?:table|chart))[.]/.exec(selectedPath)?.[1]; if (owner && editor.get(owner) !== undefined) selectedPath = owner; }
   if (!selectedPath.startsWith(`slides.${slideIndex}.`) || editor.get(selectedPath) === undefined) selectedPath = `slides.${slideIndex}.title`;
   select(selectedPath);
 }
@@ -362,3 +390,4 @@ for(const [id,path]of [['deck',''],['slide',()=>`/slides/${slideIndex}`],['selec
 element('properties-preview').onclick=event=>{const target=event.target.closest('[data-opf-path]');if(target)propertiesInspector?.navigate(target.getAttribute('data-opf-path'));};
 
 installDataControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,renderOptions:layoutOptions,fonts:fontGate});
+installTemplateControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,renderOptions:layoutOptions,fonts:fontGate});

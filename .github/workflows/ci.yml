@@ -31,14 +31,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: 72f741b3c357846c79e99ebd3d8cfaf1fb614c0d # RR-26: opf#258 (codex/rr-26-convert), core main plus @openpresentation/opf/convert; repin to its merge commit once merged
+          ref: de5d5d8cbd7fc3b26b430047a1ece274f07bc991 # core main: contains RR-26 /convert (opf#258), RR-29 /audit (opf#267) and RR-32 template variables
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 2fbc0abf3c327b6e9e9525a52c8ea9e56e84646e # opf-render 0.11.9 release commit
+          ref: 2d5c5684f4378291ef54f9b8595480bae95dec1f # RR-32: opf-render main with the variables option (#96 merged)
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
@@ -89,6 +89,7 @@ jobs:
       - name: Verify Playwright image version
         run: node -e "if (require('playwright/package.json').version !== '1.63.0') throw new Error('Update the pinned Playwright image with the test package.');"
       - run: npm run test:playground
+      - run: npm run test:data-grid-browser
       - run: npm run test:code-browser
       - run: npm run test:selection-browser
       - run: npm run test:click-entry-browser
