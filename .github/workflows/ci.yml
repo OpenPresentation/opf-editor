@@ -31,14 +31,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf
-          ref: e44f37261f2a0c3bd4ac003254e0dc3e322982a0 # RR-32: core main with template variables (opf#256 merged)
+          ref: cd29c41352a79e5cba132b8333c43fad5a5a04fe # core main (RR-32 template variables, RR-29 audit, RR-26 convert, RR-27)
           path: opf
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: OpenPresentation/opf-render
-          ref: 117c42eac811c96cb53c23ebb56f72e277967c69 # RR-23: opf-render#105 (export-browser); repin to its merge commit before merging this PR
+          ref: e0a55f933dd46ef20c3d35b20c9ddd285207a53f # opf-render main with RR-23 export-browser (opf-render#105 merged)
           path: opf-render
           fetch-depth: 0
           persist-credentials: false
