@@ -4,6 +4,12 @@
 
 - RR-17 (tests only; no package change): per-family script fixture for the editor font gate (FF-44, FF-45). `test/font-gate-script-families.mjs` drives `createFontGate` with the renderer's registry for each of the 35 open script, emoji and math families (`test/fixtures/script-family-samples.json`: original FF-44 corpus text and the FF-45 emoji and math samples), checks that the gate reports and loads only the family's script packages, that the registry holds the pinned faces and resolves each style to the family itself, and that a deck of the samples renders strictly in the family (`glyphFallback: 'none'`). It writes `artifacts/script-family-hosts/editor.json` for the font tracker in core.
 
+## 0.11.2 (2026-10-02)
+
+Patch release: editor switches for slide size and purpose (RR-41). Additive API; no dependency range changes (core ^0.12.0, renderer ^0.12.0).
+
+- RR-41 ([opf#293](https://github.com/OpenPresentation/opf/issues/293)): editor switches for slide size and purpose. `/switches` gains two dimensions at the end of `SWITCH_DIMENSIONS`: `slide-sizes` (one of the schema's seven `DimensionPreset` values, exported as `SLIDE_SIZE_PRESETS`, written to `design.dimensions`; deck only; slides with their own size are reported in `shadowed` and `clearSlideOverrides` removes them) and `purposes` (a purposes catalog id, free-form goal text or a Purpose object, written to `purpose`; `record` adds a gallery item's record inline). Each is one patch and one undo step, `listSwitchOptions` and `currentSwitchValue` read both, and the types are updated. The preview recomposes at the new canvas and the PowerPoint export writes the matching `p:sldSz`. The Design panel gets a Slide size select (Look) and a Purpose select (Audience and story). `SWITCH_DIMENSIONS` now has 16 entries: code that assumed 14 (pickers that loop over it) shows two more. Tests: `test/switches.mjs`, `test/switches-ui.mjs`, `test/switches-export.mjs` (all seven presets: `p:sldSz`, re-import, undo) and `test/design-controls-browser.mjs`.
+
 ## 0.11.1 (2026-10-02)
 
 Patch release.
