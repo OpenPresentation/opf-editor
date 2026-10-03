@@ -52,3 +52,9 @@ A test that failed at least once raises a `Flaky test` annotation. The measureme
 cannot be set up.
 
 To run it locally: `node scripts/flake-repeat.mjs --suite <name> --repeat 5`.
+
+## Platform caveats
+
+The measurement and CI run on Linux. Two playground tests fail on macOS for platform reasons, not flakiness, and are not
+quarantine candidates: `design-controls-browser` (ArrowDown on a `<select>`) and `slides-browser` (Ctrl+click). A macOS
+failure of either says nothing about the Linux pass rate.
