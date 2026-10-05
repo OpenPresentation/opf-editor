@@ -58,6 +58,8 @@ export function parseTableCellPath(path) {
 function tableAt(document, tablePath) {
   const parts = splitOpfPath(tablePath);
   const table = getValueAtPath(document, parts);
+  if (isObject(table) && !Array.isArray(table.rows) && typeof table.dataset === "string")
+    throw fail("table-dataset-backed", `This table shows the shared dataset '${table.dataset}', which holds no cell styles or merged cells. Use a copy of the data (in the data grid) to style it.`, { tablePath, dataset: table.dataset });
   if (!isObject(table) || !Array.isArray(table.rows)) throw fail("table-not-found", "Choose a table (a path ending in .table).", { tablePath });
   return { parts, table };
 }

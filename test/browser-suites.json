@@ -94,6 +94,10 @@
           "command": "npm run test:data-grid-browser"
         },
         {
+          "id": "browser:data-grid-datasets",
+          "command": "npm run test:data-grid-datasets-browser"
+        },
+        {
           "id": "browser:code",
           "command": "npm run test:code-browser"
         },

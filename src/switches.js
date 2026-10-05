@@ -2,6 +2,7 @@
 // dimension that turns "switch this dimension to X" into a validated JSON Patch, and applies
 // it to an editor session as one undoable transaction. The preview recomposes and the PPTX
 // export follows from the same document, so no dimension needs a special refresh path.
+import * as core from "@openpresentation/opf";
 import { catalogSchemaNames, catalogs as bundledCatalogs, schemas } from "@openpresentation/opf";
 import {
   OPFEditorError,
@@ -394,11 +395,16 @@ const SINGLE_SERIES_ONLY = new Set(["pieChart", "doughnutChart", "funnelChart", 
 const MULTI_SERIES_CAPABLE = new Set(["barChart", "lineChart", "areaChart", "radarChart"]);
 const DISTRIBUTION_ELEMENTS = new Set(["histogramChart", "boxWhiskerChart", "mapChart"]);
 
-function chartDataShape(chart) {
-  const data = chart?.data;
-  if (!data || !Array.isArray(data.columns) || !Array.isArray(data.rows)) return undefined;
-  // The renderers read the first column as the category label and every further column as a series.
-  return { series: Math.max(0, data.columns.length - 1), categories: data.rows.length };
+function chartDataShape(chart, document) {
+  // RR-54: inline data, a dataset reference and a series mapping all resolve to the columns the renderers read: the first column labels
+  // the categories and every further column is a series.
+  if (typeof core.resolveChartData !== "function") {
+    const data = chart?.data;
+    return data && Array.isArray(data.columns) && Array.isArray(data.rows) ? { series: Math.max(0, data.columns.length - 1), categories: data.rows.length } : undefined;
+  }
+  const resolved = core.resolveChartData(chart, document);
+  if (!resolved.ok) return undefined;
+  return { series: Math.max(0, resolved.columns.length - 1), categories: resolved.rows.length };
 }
 
 /**
@@ -415,7 +421,7 @@ export function compatibleChartTypes(document, options = {}) {
   const owner = options.path ? splitOpfPath(options.path) : document.slides?.[slideIndex] ? findChartOwner(document, slideIndex) : undefined;
   const chart = owner && getValueAtPath(document, [...owner, "chart"]);
   if (!chart || typeof chart !== "object") return [];
-  const shape = chartDataShape(chart);
+  const shape = chartDataShape(chart, document);
   const result = [];
   for (const option of listSwitchOptions(document, "charts", options)) {
     const record = option.record;
