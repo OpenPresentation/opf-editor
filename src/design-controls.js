@@ -836,7 +836,7 @@ export function createDesignControls(container, options = {}) {
         field.set(currentSwitchValue(editor.document, dimension).value);
       });
     };
-    single("narrative", "Narrative", "narratives", "The storyline the deck follows. Authoring metadata: the slides do not change.");
+    single("narrative", "Narrative", "narratives", "The narrative plan the deck points at (a catalog id; a custom one is a record in the JSON source). The slides do not change, and keep their beat links.");
     single("tone", "Tone", "tones");
     single("purpose", "Purpose", "purposes", "What the deck is for. Authoring metadata: the slides do not change. A goal written in the JSON source shows as custom.");
     const audience = selectField("audience", "Audience", {
