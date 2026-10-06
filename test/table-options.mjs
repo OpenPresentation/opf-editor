@@ -23,7 +23,7 @@ import {
 const T = "slides.0.blocks.0.table";
 const deck = () => ({
   name: "Table options fixture",
-  design: { theme: "minimal", fontScheme: "aptos" },
+  design: { theme: "classic", fontScheme: "aptos" },
   slides: [
     {
       id: "table",
