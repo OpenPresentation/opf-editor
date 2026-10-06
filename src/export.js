@@ -70,6 +70,19 @@ function exportError(code, message, cause) {
   return error;
 }
 
+// The faces a PDF may embed: the same permissive-license list as the SVG (`embeddableFonts`), as the bytes the converter reads. The fonts
+// handle itself is never given to `svgToPdf`: it would embed every face the registry holds, whatever its license.
+function pdfFontData(faces) {
+  return faces.map((face) => {
+    const text = String(face.dataUrl ?? "");
+    const base64 = text.slice(text.indexOf(",") + 1);
+    const binary = atob(base64);
+    const data = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) data[index] = binary.charCodeAt(index);
+    return { family: face.family, data };
+  });
+}
+
 const fontLabel = (face) => `${face.family} ${face.weight}${face.italic ? " italic" : ""}`;
 
 function slideOf(path) {
@@ -114,10 +127,14 @@ async function loadConverters(options) {
  * - `renderOptions`: the render options the host draws with (`catalogs`, `date`, ...), the same as its preview.
  * - `fonts`: the renderer's fonts handle (`loadFonts()` from `@openpresentation/opf-render/fonts-browser`), the one the preview uses. Its
  *   `textMeasurement` lays the slides out, the faces the deck needs load through its `ensure` before anything is drawn, and its registry's
- *   faces are what gets embedded (the SVG carries the faces its slides draw; a PDF can also embed the handle's script faces).
+ *   faces are what gets embedded: the SVG carries the faces its slides draw, and the PDF embeds the registry's faces (script faces included).
+ *   Both apply the same license rule (OFL-1.1, Apache-2.0, MIT or UFL-1.0): a face whose license text names none of them is left out of the SVG
+ *   and the PDF and reported once as `export-font-license`. Text that needed it is drawn with another face the registry holds and
+ *   reported by the converter (`pdf-font-substituted`, `pdf-glyph-missing`); when no face is left at all the PDF rejects with
+ *   `export-fonts-unlicensed` (the converter's error is its `cause`).
  * - `signal`, `onProgress({ stage, done, total, message })`, `onDiagnostic(diagnostic)`.
  * Resolves `{ download, files, diagnostics, slides }`. Rejects with an error whose `code` is `export-aborted`,
- * `export-no-slides`, `export-unavailable`, `fonts-unavailable` or a renderer code.
+ * `export-fonts-unlicensed`, `export-no-slides`, `export-unavailable`, `fonts-unavailable` or a renderer code.
  */
 export async function exportDeck(deck, options = {}) {
   const format = EXPORT_FORMATS[options.format];
@@ -144,7 +161,8 @@ export async function exportDeck(deck, options = {}) {
   check();
   const converters = format.extension === "svg" ? null : await loadConverters(options);
 
-  const embeddedFonts = options.embeddedFonts ?? embeddableFonts(options.fonts?.registry, (face) => note({ code: "export-font-license", severity: "warning", message: `${fontLabel(face)} is not embedded: its license is not one of OFL-1.1, Apache-2.0, MIT or UFL-1.0.`, family: face.family }));
+  const dropped = [];
+  const embeddedFonts = options.embeddedFonts ?? embeddableFonts(options.fonts?.registry, (face) => { dropped.push(face); note({ code: "export-font-license", severity: "warning", message: `${fontLabel(face)} is not embedded: its license is not one of OFL-1.1, Apache-2.0, MIT or UFL-1.0.`, family: face.family }); });
   progress("render", 0, indexes.length, "Drawing slides…");
   await yieldToHost();
   const rendered = renderSvg(deck, {
@@ -189,13 +207,17 @@ export async function exportDeck(deck, options = {}) {
         scale,
         metadata,
         signal,
-        fonts: options.fonts,
+        fontData: pdfFontData(embeddedFonts),
         ...(options.fallbackFamily ? { defaultFontFamily: options.fallbackFamily } : {}),
         onDiagnostic: (diagnostic) => { const described = describeDiagnostic(diagnostic, "pdf"); if (keep(described)) note(described); },
         onProgress: ({ page, pages }) => progress("convert", page, pages, `Page ${page} of ${pages}`),
       });
     } catch (error) {
       if (signal?.aborted) throw exportError("export-aborted", "The export was cancelled.");
+      // The license rule can leave the converter with no face for some text (every face of a family was dropped): say why, not only what.
+      if (dropped.length && /font face/i.test(String(error?.message))) {
+        throw exportError("export-fonts-unlicensed", `The PDF could not be written: ${dropped.map(fontLabel).join(", ")} ${dropped.length === 1 ? "is" : "are"} not embedded because the license is not one of OFL-1.1, Apache-2.0, MIT or UFL-1.0, and no other face is available. ${error.message}`, error);
+      }
       throw error;
     }
     files = [{ name: exportFileName(deck, "pdf"), type: format.type, bytes }];

@@ -240,6 +240,7 @@
     "test:mobile-browser": "node test/mobile-browser.mjs",
     "test:review-panel-browser": "node test/review-panel-browser.mjs",
     "test:review-hook-browser": "node test/review-hook-browser.mjs",
+    "test:export-license-browser": "node test/export-license-browser.mjs",
     "test:chart-options-browser": "node test/chart-options-browser.mjs",
     "test:numbering-panel-browser": "node test/numbering-panel-browser.mjs"
   },

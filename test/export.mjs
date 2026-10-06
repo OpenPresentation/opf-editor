@@ -103,7 +103,8 @@ assert.equal(crc32(new TextEncoder().encode('123456789')), 0xcbf43926, 'CRC-32 c
   assert.equal(pdf.download.type, EXPORT_FORMATS.pdf.type);
   assert.equal(seen.pdf.svgs.length, 2);
   assert.equal(seen.pdf.options.mode, 'raster');
-  assert.equal(seen.pdf.options.fonts, fonts, 'the PDF conversion gets the fonts handle, so its faces (script faces included) can be embedded');
+  assert.equal(seen.pdf.options.fonts, undefined, 'the fonts handle itself is never given to the converter: it would embed faces whatever their license');
+  assert.ok(seen.pdf.options.fontData.length > 0 && seen.pdf.options.fontData.every(face => face.family && face.data instanceof Uint8Array && face.data.length > 0), 'the PDF gets the registry faces as bytes, so script faces can be embedded');
   assert.equal(seen.pdf.options.scale, 4, 'the scale is capped');
   assert.equal(seen.pdf.options.metadata.title, 'Quarterly review');
   assert.match(seen.pdf.svgs[0], /data-opf-path/, 'the PDF is drawn with trace paths for its diagnostics');
@@ -118,6 +119,33 @@ assert.equal(crc32(new TextEncoder().encode('123456789')), 0xcbf43926, 'CRC-32 c
   const single = await exportDeck(deck, { format: 'png', slides: 'current', slideIndex: 0, renderOptions, fonts, convert });
   assert.equal(single.download.name, 'q3-review-01.png');
   assert.equal(single.download.type, 'image/png');
+}
+
+// ---- PDF font licenses: the SVG rule applies to the PDF too ----------------------------------------------------------------------------
+{
+  const OFL = 'This Font Software is licensed under the SIL Open Font License, Version 1.1.';
+  const face = (family, license, bytes) => ({ family, weight: 400, ...(license ? { license } : {}), dataUrl: 'data:font/ttf;base64,' + Buffer.from(bytes).toString('base64') });
+  const registry = { selectEmbeddedFonts: () => [face('Open Sans', OFL, [1, 2, 3]), face('Proprietary Sans', 'All rights reserved. Commercial.', [9, 9, 9]), face('Noto Sans JP', 'Licensed under the Apache License, Version 2.0', [4, 5]), face('Unlabelled', undefined, [7])] };
+  const handle = { textMeasurement: fonts.textMeasurement, pending: () => [], ensure: async () => {}, registry };
+  let seenPdf;
+  const convert = { async svgToPdf(svgs, options) { seenPdf = options; options.onDiagnostic?.({ code: 'pdf-font-substituted', message: 'Proprietary Sans was drawn with Roboto.', path: 'slides.0.title' }); return Uint8Array.from([37, 80, 68, 70]); }, async svgToPng() { return new Uint8Array(); } };
+  const result = await exportDeck(deck, { format: 'pdf', slides: 'current', slideIndex: 0, fonts: handle, convert });
+  assert.deepEqual(seenPdf.fontData.map(item => item.family), ['Open Sans', 'Noto Sans JP', 'Unlabelled'], 'a face with a non-permissive license is not given to the PDF converter');
+  assert.deepEqual([...seenPdf.fontData[0].data], [1, 2, 3], 'the bytes of the face are the registry\'s');
+  assert.equal(seenPdf.fonts, undefined);
+  const licenseNotes = result.diagnostics.filter(item => item.code === 'export-font-license');
+  assert.equal(licenseNotes.length, 1, 'the dropped face is reported once, for SVG and PDF together');
+  assert.equal(licenseNotes[0].family, 'Proprietary Sans');
+  assert.equal(licenseNotes[0].severity, 'warning');
+  // What the converter then does about text that needed the dropped face is its own report, passed through.
+  assert.ok(result.diagnostics.some(item => item.code === 'pdf-font-substituted' && item.slide === 0), 'the converter\'s substitution notice reaches the caller');
+  // Faces handed in explicitly are filtered by the caller; the PDF uses exactly those.
+  const explicit = await exportDeck(deck, { format: 'pdf', slides: 'current', slideIndex: 0, fonts: handle, embeddedFonts: embeddableFonts(registry), convert });
+  assert.equal(explicit.diagnostics.filter(item => item.code === 'export-font-license').length, 0, 'an explicit embeddedFonts list is the caller\'s choice');
+  assert.deepEqual(seenPdf.fontData.map(item => item.family), ['Open Sans', 'Noto Sans JP', 'Unlabelled']);
+  // The raster PDF draws images and needs no fonts, but the rule is the same.
+  await exportDeck(deck, { format: 'pdf', pdfMode: 'raster', slides: 'current', slideIndex: 0, fonts: handle, convert });
+  assert.ok(!seenPdf.fontData.some(item => item.family === 'Proprietary Sans'));
 }
 
 // ---- Errors and cancellation ------------------------------------------------------------------------------------------------------------------

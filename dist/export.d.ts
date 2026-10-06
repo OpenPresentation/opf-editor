@@ -69,7 +69,7 @@ export interface ExportResult {
   slides: number[];
 }
 /**
- * Draw the deck with the renderer the preview uses and convert it. Rejects with an error whose `code` is `export-aborted`, `export-no-slides`,
+ * Draw the deck with the renderer the preview uses and convert it. Rejects with an error whose `code` is `export-aborted`, `export-fonts-unlicensed` (the license rule left the PDF converter no face for some text), `export-no-slides`,
  * `export-format`, `export-unavailable` (PDF and PNG need the renderer's `export-browser` entry), `fonts-unavailable` or a renderer code.
  */
 export declare function exportDeck(deck: unknown, options: ExportOptions): Promise<ExportResult>;

@@ -128,6 +128,10 @@
         {
           "id": "browser:rich-input-estimated",
           "command": "npm run test:rich-input-browser -- artifacts/rich-input-browser-estimated.json estimated"
+        },
+        {
+          "id": "browser:export-license",
+          "command": "npm run test:export-license-browser"
         }
       ]
     }
