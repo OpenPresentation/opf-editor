@@ -632,7 +632,7 @@ export function createDesignControls(container, options = {}) {
       { value: "footer", label: "Footer" },
     ]);
     furniture.set(pick.which);
-    const zoneSelect = selectField("hf-zone", "Zone", { help: "Each zone stacks its parts top to bottom: logo, image, text, organization, socials, section, slide number, date." });
+    const zoneSelect = selectField("hf-zone", "Zone", { help: "Each zone stacks its parts top to bottom: logo, image, text, organization, speaker, socials, section, slide number, date." });
     zoneSelect.setOptions(HEADER_FOOTER_ZONES.map((value) => ({ value, label: titleCase(value) })));
     zoneSelect.set(pick.zone);
     furniture.select.addEventListener("change", () => {
@@ -678,11 +678,12 @@ export function createDesignControls(container, options = {}) {
       onCommit: (value) => edit({ dateFormat: value.trim() }, `${where()} date format changed.`),
     });
     const organization = checkField("hf-organization", "Show the organization name", { onChange: (checked) => edit({ organization: checked }, `${where()} organization ${checked ? "shown" : "removed"}.`) });
+    const speaker = checkField("hf-speaker", "Show the speaker name and title", { onChange: (checked) => edit({ speaker: checked }, `${where()} speaker ${checked ? "shown" : "removed"}.`) });
     const socials = checkField("hf-socials", "Show the organization's social profiles", { onChange: (checked) => edit({ socials: checked }, `${where()} social profiles ${checked ? "shown" : "removed"}.`) });
     const section = checkField("hf-section", "Show the section label", { onChange: (checked) => edit({ section: checked }, `${where()} section label ${checked ? "shown" : "removed"}.`) });
     const summary = h("ul", { class: "opf-dc-summary", "aria-label": "Zones in use" });
     const warnings = h("ul", { class: "opf-dc-warnings", "aria-label": "Header and footer warnings" });
-    const controls = [text, logo, image, number, numberFormat, dateNow, dateFixed, dateFormat, organization, socials, section];
+    const controls = [text, logo, image, number, numberFormat, dateNow, dateFixed, dateFormat, organization, speaker, socials, section];
     body.append(furniture.wrap, hide.wrap, zoneSelect.wrap, summary, ...controls.map((control) => control.wrap), warnings);
     const describe = (fields) =>
       Object.entries(fields)
@@ -703,6 +704,7 @@ export function createDesignControls(container, options = {}) {
       dateFixed.set(typeof fields.date === "string" ? fields.date : "");
       dateFormat.set(typeof fields.dateFormat === "string" ? fields.dateFormat : "");
       organization.set(fields.organization === true);
+      speaker.set(fields.speaker === true);
       socials.set(fields.socials === true);
       section.set(fields.section === true);
       for (const control of controls) for (const input of control.wrap.querySelectorAll("input,select,button")) input.disabled = state.hidden;

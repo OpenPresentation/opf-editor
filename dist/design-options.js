@@ -23,8 +23,8 @@ export const LOGO_VARIANTS = Object.freeze([
 ]);
 export const HEADER_FOOTER_ZONES = Object.freeze(["left", "center", "right"]);
 // Flag fields of a header/footer zone: false is stored as "absent" (so is a `date` of false).
-const ZONE_FLAGS = ["logo", "slideNumber", "organization", "socials", "section"];
-export const ZONE_FIELDS = Object.freeze(["logo", "text", "image", "slideNumber", "slideNumberFormat", "date", "dateFormat", "organization", "socials", "section"]);
+const ZONE_FLAGS = ["logo", "slideNumber", "organization", "speaker", "socials", "section"];
+export const ZONE_FIELDS = Object.freeze(["logo", "text", "image", "slideNumber", "slideNumberFormat", "date", "dateFormat", "organization", "speaker", "socials", "section"]);
 /** Date tokens a `dateFormat` understands (English names, independent of the host locale). */
 export const DATE_FORMAT_TOKENS = Object.freeze(["yyyy", "yy", "MMMM", "MMM", "MM", "M", "dd", "d", "EEEE", "EEE"]);
 const ISO_DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
@@ -32,7 +32,7 @@ const ISO_DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 // Friendly validation of one zone field before the schema sees it.
 function checkZoneField(key, value) {
   const bad = (message) => fail("invalid-design-value", message, { field: key, value });
-  if (["logo", "slideNumber", "organization", "socials", "section"].includes(key) && typeof value !== "boolean") throw bad(`${key} is true or false.`);
+  if (ZONE_FLAGS.includes(key) && typeof value !== "boolean") throw bad(`${key} is true or false.`);
   if (key === "text" && typeof value !== "string") throw bad("Text is a string.");
   if (key === "image" && typeof value !== "string" && !isObject(value)) throw bad("An image is a source, an asset reference or an asset object.");
   if (key === "slideNumberFormat" && (typeof value !== "string" || !value.includes("{current}"))) throw bad("The slide number format must contain {current}, for example Page {current} of {total}.");
@@ -90,6 +90,11 @@ function primaryOrganization(document) {
   return list.find((entry) => entry?.role === "primary") ?? list[0];
 }
 
+function firstSpeaker(document) {
+  const list = Array.isArray(document.speaker) ? document.speaker : document.speaker ? [document.speaker] : [];
+  return list[0];
+}
+
 /** Whether a logo resolves for the slide: slide design, then deck design, then the primary organization. */
 export function hasResolvableLogo(document, slideIndex) {
   return Boolean(document.slides?.[slideIndex]?.design?.logo ?? document.design?.logo ?? primaryOrganization(document)?.logo);
@@ -115,6 +120,8 @@ export function designWarnings(document, slideIndex = 0) {
       const item = isObject(design[which]) ? design[which][zone] : undefined;
       if (item?.organization === true && !organization)
         warnings.push({ code: "unresolved-content", path: `design.${which}.${zone}.organization`, message: `The ${which} ${zone} zone shows the organization, but the presentation has none.` });
+      if (item?.speaker === true && !firstSpeaker(document)?.name)
+        warnings.push({ code: "unresolved-content", path: `design.${which}.${zone}.speaker`, message: `The ${which} ${zone} zone shows the speaker, but the presentation has no named speaker.` });
       if (item?.socials === true && !organization?.socials)
         warnings.push({ code: "unresolved-content", path: `design.${which}.${zone}.socials`, message: `The ${which} ${zone} zone shows social profiles, but the organization has none.` });
     }
@@ -351,7 +358,7 @@ export function readLogoVariants(document, options = {}) {
 
 /**
  * Compute the patch that edits one header or footer zone. `fields` merges into the zone (logo, text,
- * image, slideNumber, slideNumberFormat, date, dateFormat, organization, socials, section); `null`,
+ * image, slideNumber, slideNumberFormat, date, dateFormat, organization, speaker, socials, section); `null`,
  * `false` for a flag, or an empty string removes a field. A zone left empty is removed, then an empty
  * header or footer, so a slide never carries `{}`. A slide's own header or footer replaces the deck's
  * whole one, so the first edit on a slide that has none of its own starts from a copy of the deck's
