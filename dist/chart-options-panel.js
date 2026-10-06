@@ -1,7 +1,9 @@
 // The chart options panel (RR-35): axis titles, legend position and data labels for the selected chart.
 // It mounts into any host element over an editor session; every control commits one undoable change through
 // `setChartOptions` (src/chart-options.js), the canvas redraws, and Undo restores the chart. The panel shows only what
-// the selected chart type can show (core's support table), and hides itself when no chart is selected.
+// the selected chart type can show (core's support table), and hides itself when no chart is selected. On a combo chart
+// (FA-15) a "Series" group sets which series are lines and which lines use the secondary value axis, and a secondary axis
+// title field appears while a line uses that axis.
 import { CHART_LABEL_CONTENT, CHART_LEGEND_POSITIONS, chartOptionsAvailable, parseChartPath, readChartOptions, setChartOptions } from "./chart-options.js";
 
 const LEGEND_LABELS = { default: "Default", none: "None", top: "Top", bottom: "Bottom", left: "Left", right: "Right" };
@@ -9,6 +11,7 @@ const CONTENT_LABELS = { category: "Category", value: "Value", percent: "Percent
 const POSITION_LABELS = { auto: "Automatic", center: "Center", "inside-end": "Inside end", "inside-base": "Inside base", "outside-end": "Outside end", above: "Above", below: "Below", left: "Left", right: "Right" };
 
 let counter = 0;
+const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 
 /**
  * Mount the panel in `host`. `getSelectedPath()` returns the selected OPF path (any path inside a chart selects it);
@@ -27,7 +30,9 @@ export function createChartOptionsPanel(host, { editor, getSelectedPath, onStatu
     <div class="opf-co-group" data-group="axisTitles">
       <label class="opf-co-row" data-axis="category"><span>Category axis title</span><input type="text" id="${id}-category" aria-label="Category axis title" data-opf-chart-option="axisTitles.category" autocomplete="off"></label>
       <label class="opf-co-row" data-axis="value"><span>Value axis title</span><input type="text" id="${id}-value" aria-label="Value axis title" data-opf-chart-option="axisTitles.value" autocomplete="off"></label>
+      <label class="opf-co-row" data-axis="secondary"><span>Secondary axis title</span><input type="text" id="${id}-secondary" aria-label="Secondary axis title" data-opf-chart-option="axisTitles.secondary" autocomplete="off"></label>
     </div>
+    <fieldset class="opf-co-group opf-co-series" data-group="combo"><legend>Series</legend><div data-row="combo-series"></div></fieldset>
     <div class="opf-co-group" data-group="legend">
       <label class="opf-co-row"><span>Legend</span><select id="${id}-legend" aria-label="Legend" data-opf-chart-option="legend">${CHART_LEGEND_POSITIONS.map((value) => `<option value="${value}">${LEGEND_LABELS[value]}</option>`).join("")}</select></label>
     </div>
@@ -40,7 +45,8 @@ export function createChartOptionsPanel(host, { editor, getSelectedPath, onStatu
   host.append(root);
   const $ = (selector) => root.querySelector(selector);
   const fields = {
-    category: $(`#${id}-category`), value: $(`#${id}-value`), legend: $(`#${id}-legend`), labels: $(`#${id}-labels`),
+    category: $(`#${id}-category`), value: $(`#${id}-value`), secondary: $(`#${id}-secondary`), legend: $(`#${id}-legend`), labels: $(`#${id}-labels`),
+    series: $("[data-row='combo-series']"),
     position: $(`#${id}-position`), separator: $(`#${id}-separator`), contents: [...root.querySelectorAll("[data-opf-chart-option^='dataLabels.content.']")],
   };
   let chartPath;
@@ -55,13 +61,31 @@ export function createChartOptionsPanel(host, { editor, getSelectedPath, onStatu
       return;
     }
     chartPath = path;
-    const { fields: support, state } = readChartOptions(chart);
+    const { fields: support, state, combo } = readChartOptions(chart, editor.document);
     root.hidden = false;
     const setValue = (input, value) => { if (input !== document.activeElement && input.value !== value) input.value = value; };
-    for (const axis of ["category", "value"]) {
-      $(`[data-axis="${axis}"]`).hidden = !support.axisTitles[axis];
+    const secondaryInUse = Boolean(combo?.series.some((entry) => entry.axis === "secondary"));
+    for (const axis of ["category", "value", "secondary"]) {
+      $(`[data-axis="${axis}"]`).hidden = !support.axisTitles[axis] || (axis === "secondary" && !secondaryInUse);
       setValue(fields[axis], state.axisTitles[axis]);
     }
+    // FA-15: one row per plotted series of a combo chart: "Line" and, for a line, "Secondary axis".
+    $("[data-group='combo']").hidden = !combo;
+    const series = combo?.series ?? [];
+    const signature = JSON.stringify(series.map((entry) => entry.name));
+    if (fields.series.dataset.series !== signature) {
+      fields.series.innerHTML = series.map((entry, index) => `<div class="opf-co-row opf-co-series-row" data-series="${index}"><span>${escapeHtml(entry.name)}</span>` +
+        `<label class="opf-co-check"><input type="checkbox" data-opf-chart-option="line" value="${escapeHtml(entry.name)}" aria-label="${escapeHtml(entry.name)} as a line"><span>Line</span></label>` +
+        `<label class="opf-co-check"><input type="checkbox" data-opf-chart-option="secondaryAxis" value="${escapeHtml(entry.name)}" aria-label="${escapeHtml(entry.name)} on the secondary axis"><span>Secondary axis</span></label></div>`).join("");
+      fields.series.dataset.series = signature;
+    }
+    series.forEach((entry, index) => {
+      const row = fields.series.querySelector(`[data-series="${index}"]`);
+      const line = row.querySelector("[data-opf-chart-option='line']"), secondary = row.querySelector("[data-opf-chart-option='secondaryAxis']");
+      line.checked = entry.role === "line";
+      secondary.checked = entry.axis === "secondary";
+      secondary.disabled = entry.role !== "line";
+    });
     $("[data-group='axisTitles']").hidden = !support.axisTitles.category && !support.axisTitles.value;
     $("[data-group='legend']").hidden = !support.legend;
     fields.legend.value = state.legend;
@@ -101,6 +125,12 @@ export function createChartOptionsPanel(host, { editor, getSelectedPath, onStatu
   const listeners = [
     [fields.category, "change", () => commit({ axisTitles: { category: fields.category.value } }, "Changed the category axis title. Undo restores it.")],
     [fields.value, "change", () => commit({ axisTitles: { value: fields.value.value } }, "Changed the value axis title. Undo restores it.")],
+    [fields.secondary, "change", () => commit({ axisTitles: { secondary: fields.secondary.value } }, "Changed the secondary axis title. Undo restores it.")],
+    [fields.series, "change", () => {
+      const checked = (option) => [...fields.series.querySelectorAll(`[data-opf-chart-option='${option}']`)].filter((input) => input.checked).map((input) => input.value);
+      const line = checked("line");
+      commit({ line, secondaryAxis: checked("secondaryAxis").filter((name) => line.includes(name)) }, "Changed which series are lines. Undo restores them.");
+    }],
     [fields.legend, "change", () => commit({ legend: fields.legend.value }, "Changed the legend. Undo restores it.")],
     [fields.labels, "change", () => commit({ dataLabels: fields.labels.checked }, fields.labels.checked ? "Showing data labels. Undo restores the chart." : "Hid the data labels. Undo restores them.")],
     [fields.position, "change", () => commit({ dataLabels: { position: fields.position.value } }, "Moved the data labels. Undo restores them.")],
