@@ -33,7 +33,7 @@ for (const type of ["column", "bar", "stacked-column", "line", "area", "pie", "d
 }
 assert.deepEqual(readChartOptions({ type: "column", data }).state, {
   alt: "", decorative: false,
-  axisTitles: { category: "", value: "" }, legend: "default",
+  axisTitles: { category: "", value: "", secondary: "" }, legend: "default",
   dataLabels: { on: false, explicit: false, content: ["value"], position: "auto", separator: ", " },
   highlight: { series: [], categories: [] },
 });

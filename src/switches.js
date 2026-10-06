@@ -251,7 +251,7 @@ export function prepareDimensionSwitch(document, dimension, value, options = {})
       throw fail("path-slide-mismatch", "options.path is not on the slide named by options.slideIndex.", { slideIndex, path: options.path });
     const chart = owner && getValueAtPath(document, [...owner, "chart"]);
     if (!chart || typeof chart !== "object") throw fail("chart-not-found", "This slide has no chart to switch. Insert a chart block first.", { slideIndex, path: options.path });
-    patches = [...catalogRecordPatches(document, dimension, options), ...(chart.type === value ? [] : [...createValuePatch(document, [...owner, "chart", "type"], value), ...staleMappingPatches(document, owner, chart, value)])];
+    patches = [...catalogRecordPatches(document, dimension, options), ...(chart.type === value ? [] : [...createValuePatch(document, [...owner, "chart", "type"], value), ...staleMappingPatches(document, owner, chart, value), ...staleComboPatches(document, owner, chart, value)])];
   } else if (dimension === "blocks") {
     if (options.path === undefined) throw fail("missing-path", "Choose the block to replace with options.path.");
     // convert: true moves the block's own text into the new kind (block-convert.js) instead of replacing it.
@@ -407,6 +407,20 @@ function staleMappingPatches(document, owner, chart, type) {
   return Object.keys(rest).length ? createValuePatch(document, parts, rest) : [{ op: "remove", path: opfPathToJsonPointer(parts) }];
 }
 
+// FA-15: `line`, `secondaryAxis` and the secondary axis title belong to combo charts; any other type ignores them (core warns
+// chart-option-adapted). Switching away from combo removes them, and an `axisTitles` left empty.
+function staleComboPatches(document, owner, chart, type) {
+  if (typeof core.chartOptionTarget !== "function" || core.chartOptionTarget(type)?.kind === "combo") return [];
+  const parts = [...owner, "chart"];
+  const patches = ["line", "secondaryAxis"].filter((key) => chart[key] !== undefined).map((key) => ({ op: "remove", path: opfPathToJsonPointer([...parts, key]) }));
+  const titles = chart.axisTitles;
+  if (titles && typeof titles === "object" && !Array.isArray(titles) && titles.secondary !== undefined) {
+    const { secondary: _secondary, ...rest } = titles;
+    patches.push(Object.keys(rest).length ? { op: "remove", path: opfPathToJsonPointer([...parts, "axisTitles", "secondary"]) } : { op: "remove", path: opfPathToJsonPointer([...parts, "axisTitles"]) });
+  }
+  return patches;
+}
+
 function chartDataShape(chart, document) {
   // RR-54: inline data, a dataset reference and a series mapping all resolve to the columns the renderers read: the first column labels
   // the categories and every further column is a series.
@@ -423,8 +437,8 @@ function chartDataShape(chart, document) {
  * Chart types the chart's inline data can use as it is, from the chartTypes catalog: simple,
  * non-geographic, non-distribution types whose series count fits the data (the first column labels
  * the categories and each further column is a series; a type with N series needs exactly N value
- * columns, except that a stacked or percent-stacked type takes N or more; column, bar, line, area and
- * radar take any number). Data that is read from
+ * columns, except that a stacked or percent-stacked type and a combination such as combo take N or more;
+ * column, bar, line, area and radar take any number). Data that is read from
  * an external source returns every simple type. This is data-shape compatibility, not a claim that
  * an engine draws the type. `path` or `slideIndex` picks the chart (default: the slide's first).
  * Each entry has `current: true` for the chart's present type, which is always listed.
@@ -440,12 +454,14 @@ export function compatibleChartTypes(document, options = {}) {
     const record = option.record;
     const element = record.mappings?.openxml?.element;
     const current = option.id === chart.type;
-    const simple = record.complexity === "simple" && record.mappings?.openxml?.composition !== "mixed" && !DISTRIBUTION_ELEMENTS.has(element);
+    const simple = record.complexity === "simple" && !DISTRIBUTION_ELEMENTS.has(element);
+    // A combination (composition "mixed", the FA-15 combo chart) needs at least its series count, like a stacked type.
+    const atLeast = STACKED_GROUPINGS.has(record.mappings?.openxml?.grouping) || record.mappings?.openxml?.composition === "mixed";
     const seriesOk =
       !shape ||
       !record.series ||
       (record.series > 1
-        ? STACKED_GROUPINGS.has(record.mappings?.openxml?.grouping)
+        ? atLeast
           ? shape.series >= record.series
           : record.series === shape.series
         : shape.series === 1 || (MULTI_SERIES_CAPABLE.has(element) && !SINGLE_SERIES_ONLY.has(element)));
