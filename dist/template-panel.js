@@ -12,6 +12,7 @@ import {
   suggestVariableId,
   templatesAvailable,
 } from "./templates.js";
+import { slideTitle } from "./slides.js";
 
 const KIND_LABELS = { text: "Text", number: "Number", date: "Date", image: "Image", url: "Link", list: "List", color: "Color" };
 const STATUS_TEXT = { filled: "Filled", default: "Default value", unfilled: "Needs a value", optional: "Optional" };
@@ -215,7 +216,7 @@ export function createTemplatePanel(container, options) {
       fieldList.append(row.element);
     }
     insertSelect.replaceChildren(...fields.map((field) => h(doc, "option", { value: field.id, text: `${field.label} (${KIND_LABELS[field.kind]})` })));
-    slideSelect.replaceChildren(...(editor.document.slides ?? []).map((slide, index) => h(doc, "option", { value: String(index), text: `${index + 1}. ${typeof slide.title === "string" && slide.title ? slide.title : "Untitled"}` })));
+    slideSelect.replaceChildren(...(editor.document.slides ?? []).map((slide, index) => h(doc, "option", { value: String(index), text: `${index + 1}. ${slideTitle(slide) || "Untitled"}` })));
     previewSlide = Math.min(previewSlide, Math.max(0, (editor.document.slides?.length ?? 1) - 1));
     slideSelect.value = String(previewSlide);
     modeBox.checked = isTemplateDocument(editor.document);
