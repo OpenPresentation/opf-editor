@@ -166,7 +166,7 @@ try{
   await page.evaluate(()=>editor.undo());assert.deepEqual(await text(),original);await passed('Trailing blank lines keep their source offset and insertion caret',{blankCaret});
   // FA-10: a TextRun[] title, subtitle and quote text open the same rich input; a plain title offers Format text; quotation marks do not shift the caret.
   const beginAt=async field=>{const node=page.locator(`[data-canvas-target][data-opf-path="slides.0.${field}"]`);await node.focus();await page.keyboard.press('Enter');await paint();assert.equal(await input().count(),1);};
-  const headings={name:'Headings',design:{fontScheme:{id:'roboto',heading:{family:'Arimo'},body:{family:'Arimo'},code:{family:'Arimo'}}},slides:[{id:'h',title:['Revenue grew ',{text:'28%',bold:true}],subtitle:'A plain subtitle',quote:{text:['Cut it by ',{text:'40%',italic:true}],attribution:'Ada'}}]};
+  const headings={name:'Headings',design:{fontScheme:{id:'roboto',heading:'Arimo',body:'Arimo',code:'Arimo'}},slides:[{id:'h',title:['Revenue grew ',{text:'28%',bold:true}],subtitle:'A plain subtitle',quote:{text:['Cut it by ',{text:'40%',italic:true}],attribution:'Ada'}}]};
   await mount(headings);await beginAt('title');assert.equal(await input().inputValue(),'Revenue grew 28%');
   await select(16);await input().pressSequentially(' more');await commit();
   assert.deepEqual(await page.evaluate(()=>editor.get('slides.0.title')),['Revenue grew ',{text:'28% more',bold:true}]);

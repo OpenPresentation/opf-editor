@@ -217,20 +217,20 @@ try {
   await step('content direction', () => field(design, 'Content direction').selectOption('vertical'), current => current.design.contentDirection === 'vertical');
   await step('primary chart position', () => field(design, 'Primary chart position').selectOption('left'), current => current.design.chartPrimary === 'left');
   await step('content box', () => field(design, 'Content box').selectOption('yes'), current => current.design.contentBox === true);
-  await step('accent font', async () => { const input = field(design, 'Accent font'); await input.fill('Georgia'); await input.press('Enter'); }, current => current.design.fontScheme?.accent?.family === 'Georgia');
+  await step('accent font', async () => { const input = field(design, 'Accent font'); await input.fill('Georgia'); await input.press('Enter'); }, current => current.design.fontScheme?.accent === 'Georgia');
   {
     const before = await doc();
     const accent = field(design, 'Accent font');
     await accent.fill('Georgia');
     await accent.press('Enter');
-    await waitDoc(current => current.design.fontScheme?.accent?.family === 'Georgia', 'accent font for the Typography check');
+    await waitDoc(current => current.design.fontScheme?.accent === 'Georgia', 'accent font for the Typography check');
     await settle();
     assert.equal(await page.locator('#font').inputValue(), 'roboto', 'the Typography select shows the scheme id');
     await page.locator('#font').selectOption('calibri');
-    await waitDoc(current => current.design.fontScheme?.id === 'calibri' && current.design.fontScheme.accent?.family === 'Georgia', 'the Typography select keeps the accent font');
+    await waitDoc(current => current.design.fontScheme?.id === 'calibri' && current.design.fontScheme.accent === 'Georgia', 'the Typography select keeps the accent font');
     await settle();
     await field(design, 'Font scheme').selectOption('georgia');
-    await waitDoc(current => current.design.fontScheme?.id === 'georgia' && current.design.fontScheme.accent?.family === 'Georgia', 'a font scheme switch keeps the accent font');
+    await waitDoc(current => current.design.fontScheme?.id === 'georgia' && current.design.fontScheme.accent === 'Georgia', 'a font scheme switch keeps the accent font');
     await settle();
     await button('Undo').click();
     await button('Undo').click();
