@@ -1,4 +1,5 @@
-// The chart options panel (RR-35): axis titles, legend position and data labels for the selected chart, plus (FA-09) its alt text.
+// The chart options panel (RR-35): axis titles, legend position and data labels for the selected chart, and (FA-14) which
+// series and categories to highlight.
 // It mounts into any host element over an editor session; every control commits one undoable change through
 // `setChartOptions` (src/chart-options.js), the canvas redraws, and Undo restores the chart. The panel shows only what
 // the selected chart type can show (core's support table), and hides itself when no chart is selected.
@@ -24,10 +25,6 @@ export function createChartOptionsPanel(host, { editor, getSelectedPath, onStatu
   root.hidden = true;
   root.innerHTML = `
     <h3 class="opf-co-title">Chart options</h3>
-    <div class="opf-co-group" data-group="alt">
-      <label class="opf-co-row"><span>Alt text</span><input type="text" id="${id}-alt" aria-label="Chart alt text" data-opf-chart-option="alt" autocomplete="off" placeholder="What the chart shows"></label>
-      <label class="opf-co-row opf-co-check"><input type="checkbox" id="${id}-decorative" aria-label="Decorative chart" data-opf-chart-option="alt.decorative"><span>Decorative (no alt text)</span></label>
-    </div>
     <div class="opf-co-group" data-group="axisTitles">
       <label class="opf-co-row" data-axis="category"><span>Category axis title</span><input type="text" id="${id}-category" aria-label="Category axis title" data-opf-chart-option="axisTitles.category" autocomplete="off"></label>
       <label class="opf-co-row" data-axis="value"><span>Value axis title</span><input type="text" id="${id}-value" aria-label="Value axis title" data-opf-chart-option="axisTitles.value" autocomplete="off"></label>
@@ -40,12 +37,17 @@ export function createChartOptionsPanel(host, { editor, getSelectedPath, onStatu
       <fieldset class="opf-co-content"><legend>Label shows</legend>${CHART_LABEL_CONTENT.map((part) => `<label class="opf-co-check"><input type="checkbox" value="${part}" aria-label="Label shows ${CONTENT_LABELS[part].toLowerCase()}" data-opf-chart-option="dataLabels.content.${part}"><span>${CONTENT_LABELS[part]}</span></label>`).join("")}</fieldset>
       <label class="opf-co-row" data-row="position"><span>Label position</span><select id="${id}-position" aria-label="Label position" data-opf-chart-option="dataLabels.position"></select></label>
       <label class="opf-co-row" data-row="separator"><span>Separator</span><input type="text" id="${id}-separator" aria-label="Label separator" data-opf-chart-option="dataLabels.separator" autocomplete="off"></label>
+    </div>
+    <div class="opf-co-group" data-group="highlight">
+      <fieldset class="opf-co-highlight" data-part="series"><legend>Highlight series</legend><div class="opf-co-choices" data-choices="series"></div></fieldset>
+      <fieldset class="opf-co-highlight" data-part="categories"><legend>Highlight categories</legend><div class="opf-co-choices" data-choices="categories"></div></fieldset>
     </div>`;
   host.append(root);
   const $ = (selector) => root.querySelector(selector);
   const fields = {
-    alt: $(`#${id}-alt`), decorative: $(`#${id}-decorative`), category: $(`#${id}-category`), value: $(`#${id}-value`), legend: $(`#${id}-legend`), labels: $(`#${id}-labels`),
+    category: $(`#${id}-category`), value: $(`#${id}-value`), legend: $(`#${id}-legend`), labels: $(`#${id}-labels`),
     position: $(`#${id}-position`), separator: $(`#${id}-separator`), contents: [...root.querySelectorAll("[data-opf-chart-option^='dataLabels.content.']")],
+    highlight: { series: $("[data-choices='series']"), categories: $("[data-choices='categories']") },
   };
   let chartPath;
 
@@ -59,12 +61,9 @@ export function createChartOptionsPanel(host, { editor, getSelectedPath, onStatu
       return;
     }
     chartPath = path;
-    const { fields: support, state } = readChartOptions(chart);
+    const { fields: support, state, choices } = readChartOptions(chart, editor.document);
     root.hidden = false;
     const setValue = (input, value) => { if (input !== document.activeElement && input.value !== value) input.value = value; };
-    setValue(fields.alt, state.alt);
-    fields.decorative.checked = state.decorative;
-    fields.alt.disabled = state.decorative;
     for (const axis of ["category", "value"]) {
       $(`[data-axis="${axis}"]`).hidden = !support.axisTitles[axis];
       setValue(fields[axis], state.axisTitles[axis]);
@@ -91,6 +90,31 @@ export function createChartOptionsPanel(host, { editor, getSelectedPath, onStatu
     setValue(fields.separator, state.dataLabels.separator);
     fields.separator.disabled = off || state.dataLabels.content.length < 2;
     $("[data-row='separator']").hidden = support.dataLabels.content.length < 2;
+    // Highlight: one checkbox per plotted series and per category label the chart type can highlight.
+    for (const part of ["series", "categories"]) {
+      const offered = support.highlight[part] && choices[part].length > 0;
+      $(`[data-part='${part}']`).hidden = !offered;
+      const list = fields.highlight[part];
+      if (!offered) continue;
+      if (list.dataset.options !== JSON.stringify(choices[part])) {
+        list.replaceChildren(...choices[part].map((name) => {
+          const label = document.createElement("label");
+          label.className = "opf-co-check";
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.value = name;
+          input.setAttribute("aria-label", `Highlight ${part === "series" ? "series" : "category"} ${name}`);
+          input.setAttribute("data-opf-chart-option", `highlight.${part}`);
+          const text = document.createElement("span");
+          text.textContent = name;
+          label.append(input, text);
+          return label;
+        }));
+        list.dataset.options = JSON.stringify(choices[part]);
+      }
+      for (const input of list.querySelectorAll("input")) input.checked = state.highlight[part].includes(input.value);
+    }
+    $("[data-group='highlight']").hidden = $("[data-part='series']").hidden && $("[data-part='categories']").hidden;
   }
 
   function commit(change, message) {
@@ -104,16 +128,19 @@ export function createChartOptionsPanel(host, { editor, getSelectedPath, onStatu
     refresh();
   }
 
+  const checkedNames = (part) => [...fields.highlight[part].querySelectorAll("input:checked")].map((input) => input.value);
   const selectedContent = () => fields.contents.filter((input) => input.checked && !input.closest("label").hidden).map((input) => input.value);
   const listeners = [
-    [fields.alt, "change", () => commit({ alt: fields.alt.value }, "Changed the chart's alt text. Undo restores it.")],
-    [fields.decorative, "change", () => commit({ decorative: fields.decorative.checked }, fields.decorative.checked ? "Marked the chart decorative. Undo restores it." : "The chart is no longer decorative. Undo restores it.")],
     [fields.category, "change", () => commit({ axisTitles: { category: fields.category.value } }, "Changed the category axis title. Undo restores it.")],
     [fields.value, "change", () => commit({ axisTitles: { value: fields.value.value } }, "Changed the value axis title. Undo restores it.")],
     [fields.legend, "change", () => commit({ legend: fields.legend.value }, "Changed the legend. Undo restores it.")],
     [fields.labels, "change", () => commit({ dataLabels: fields.labels.checked }, fields.labels.checked ? "Showing data labels. Undo restores the chart." : "Hid the data labels. Undo restores them.")],
     [fields.position, "change", () => commit({ dataLabels: { position: fields.position.value } }, "Moved the data labels. Undo restores them.")],
     [fields.separator, "change", () => commit({ dataLabels: { separator: fields.separator.value } }, "Changed the label separator. Undo restores it.")],
+    ...["series", "categories"].map((part) => [fields.highlight[part], "change", () => {
+      const names = checkedNames(part);
+      commit({ highlight: { [part]: names } }, names.length ? `Highlighted ${names.join(", ")}. Undo restores the colors.` : `Cleared the ${part} highlight. Undo restores it.`);
+    }]),
     ...fields.contents.map((input) => [input, "change", () => {
       const content = selectedContent();
       // A label always shows something: unticking the last part keeps it.

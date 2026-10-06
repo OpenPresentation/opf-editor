@@ -115,6 +115,21 @@ try {
   await step('label content', () => panel.locator('[data-opf-chart-option="dataLabels.content.category"]').check(), current => JSON.stringify(chartOf(current).dataLabels?.content) === '["category","value"]');
   mark('only supported label positions and contents are offered');
 
+  // FA-14: the highlight lists one checkbox per series and per category; each commits one undoable change and the preview redraws.
+  assert.deepEqual(await panel.locator('[data-choices="series"] input').evaluateAll(inputs => inputs.map(input => input.value)), ['North', 'South']);
+  assert.deepEqual(await panel.locator('[data-choices="categories"] input').evaluateAll(inputs => inputs.map(input => input.value)), ['Q1', 'Q2', 'Q3']);
+  await step('highlight a series', () => field('Highlight series North').check(), current => JSON.stringify(chartOf(current).highlight) === '{"series":["North"]}');
+  await step('highlight a category', () => field('Highlight category Q2').check(), current => JSON.stringify(chartOf(current).highlight) === '{"categories":["Q2"]}');
+  await field('Highlight series South').check();
+  await waitDoc(current => JSON.stringify(chartOf(current).highlight) === '{"series":["South"]}', 'highlight for the follow-up step');
+  await field('Highlight category Q3').check();
+  await waitDoc(current => JSON.stringify(chartOf(current).highlight) === '{"series":["South"],"categories":["Q3"]}', 'both parts together');
+  await field('Highlight series South').uncheck();
+  await field('Highlight category Q3').uncheck();
+  await waitDoc(current => chartOf(current).highlight === undefined, 'clearing both lists removes the field');
+  await settle();
+  mark('the highlight lists series and categories');
+
   // A pie offers percent and a different position set, and no axis titles.
   await page.locator('#preview [data-canvas-target][data-opf-path="slides.1.blocks.0.chart"]').waitFor().catch(() => {});
   await page.locator('#slide-list button').nth(1).click();
@@ -122,6 +137,8 @@ try {
   await panel.waitFor({ state: 'visible' });
   assert.equal(await panel.locator('[data-group="axisTitles"]').isHidden(), true, 'a pie has no axis titles');
   assert.equal(await panel.locator('[data-opf-chart-option="dataLabels.content.percent"]').evaluate(input => input.closest('label').hidden), false, 'a pie offers percent');
+  assert.equal(await panel.locator('[data-part="series"]').isHidden(), true, 'a pie highlights slices, not series');
+  assert.equal(await panel.locator('[data-part="categories"]').isVisible(), true, 'a pie highlights categories');
   mark('the panel follows the chart type');
 
   // The panel follows Undo done elsewhere.

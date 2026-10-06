@@ -20,8 +20,12 @@ export interface ChartOptionFields {
     /** True for the constructs that label their marks by default (funnel, treemap). */
     defaultOn: boolean;
   };
+  /** What `chart.highlight` can name on this chart type: series, categories (one slice of a pie, one point of a line). */
+  highlight: { series: boolean; categories: boolean };
 }
-/** The three fields as form state. */
+/** The names a highlight can take on a chart, from its resolved data (empty when the data does not resolve). */
+export interface ChartHighlightChoices { series: string[]; categories: string[] }
+/** The fields as form state. */
 export interface ChartOptionState {
   /** The chart's text alternative (empty when absent or decorative). */
   alt: string;
@@ -30,6 +34,8 @@ export interface ChartOptionState {
   axisTitles: { category: string; value: string };
   legend: ChartLegendChoice;
   dataLabels: { on: boolean; explicit: boolean; content: ChartLabelContent[]; position: ChartLabelPosition | "auto"; separator: string };
+  /** The series and categories `chart.highlight` names (empty lists when it is absent). */
+  highlight: { series: string[]; categories: string[] };
 }
 export interface ChartOptionChange {
   /** The text alternative: what the data shows. Trimmed; an empty string or null removes it. */
@@ -39,6 +45,8 @@ export interface ChartOptionChange {
   axisTitles?: { category?: string; value?: string };
   legend?: ChartLegendChoice;
   dataLabels?: boolean | null | { content?: ChartLabelContent[]; position?: ChartLabelPosition | "auto"; separator?: string };
+  /** `null` removes the highlight; a list replaces that part (an empty list removes it) and the other part is kept. */
+  highlight?: null | { series?: string[]; categories?: string[] };
 }
 export interface PreparedChartOptions {
   action: "chart-options";
@@ -52,6 +60,6 @@ export interface PreparedChartOptions {
 export declare function chartOptionsAvailable(): boolean;
 /** The chart path a selection path points at, or undefined. */
 export declare function parseChartPath(path: string): string | undefined;
-export declare function readChartOptions(chart: unknown): { target: unknown; fields: ChartOptionFields; state: ChartOptionState };
+export declare function readChartOptions(chart: unknown, document?: unknown): { target: unknown; fields: ChartOptionFields; choices: ChartHighlightChoices; state: ChartOptionState };
 export declare function prepareChartOptions(document: unknown, chartPath: string, change: ChartOptionChange): PreparedChartOptions;
 export declare function setChartOptions(editor: EditorSession, chartPath: string, change: ChartOptionChange, meta?: Record<string, unknown>): EditorChange & { action: "chart-options"; chartPath: string; changed: boolean };
