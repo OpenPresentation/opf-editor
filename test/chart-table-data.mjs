@@ -625,4 +625,14 @@ assert.equal(typeof core.chartNumber, "function", "core exports chartNumber (RR-
   assert.equal(grid.describeDataGrid(editor.document, C_INLINE, { decimal: "," }).lines[1][1].text, "12,4");
 }
 
+{
+  // A two-column XY chart has no X column (core's rule since opf#376): the second column is its one series, plotted against row
+  // numbers, so the Chart columns panel lists it as a series and a mapping can be written without an X.
+  assert.deepEqual(grid.chartColumnRoles(2, "scatter", { category: "Point" }, ["Point", "Revenue"]), ["label", "series"]);
+  assert.deepEqual(grid.chartColumnRoles(3, "scatter", { category: "Point" }, ["Point", "Spend", "Revenue"]), ["label", "x", "series"]);
+  const narrow = { slides: [{ title: "Two columns", chart: { type: "scatter", data: { columns: ["Point", "Revenue"], rows: [["a", 1], ["b", 2]] } } }] };
+  const unchanged = grid.prepareChartMapping(narrow, "slides.0.chart", { series: ["Revenue"] });
+  assert.equal(unchanged.changed, false, "the default mapping of a two-column scatter is its one series: nothing to write");
+}
+
 console.log("Chart and table data (editor): DataColumn headers, shared datasets through fields, column number formats, chart mapping and import as a dataset, each one undoable patch; documents without the new fields behave as before.");

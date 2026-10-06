@@ -323,8 +323,11 @@ function displayText(model, raw, column, role, text) {
   return shown === text ? undefined : shown;
 }
 
-/** The default X column of an XY chart: the second column, or the first when the category is the second (core's rule). */
-const defaultX = (category) => (category === 1 ? 0 : 1);
+/**
+ * The default X column of an XY chart (core's rule): the second column, or the first when the category is the second, and only
+ * with three or more columns. With two, the second column is the one series, plotted against row numbers.
+ */
+const defaultX = (category, count) => (count > 2 ? (category === 1 ? 0 : 1) : undefined);
 
 /**
  * The columns a chart plots, by index: `{ category, x, series }`. `mapping` names them (`{ category?, x?, series? }`); a missing or
@@ -338,8 +341,8 @@ function mappingColumns(count, xy, mapping, names) {
   let x;
   if (xy) {
     x = known(map.x);
-    if (x < 0 || x === category) x = defaultX(category);
-    if (x >= count || x === category) x = undefined;
+    if (x < 0 || x === category) x = defaultX(category, count);
+    if (x !== undefined && (x >= count || x === category)) x = undefined;
   }
   let series;
   if (Array.isArray(map.series)) {
@@ -349,6 +352,11 @@ function mappingColumns(count, xy, mapping, names) {
       if (index >= 0 && index !== category && index !== x && !series.includes(index)) series.push(index);
     }
   } else series = Array.from({ length: count }, (_, index) => index).filter((index) => index !== category && index !== x);
+  // An X column needs a series beside it; otherwise core plots it as the series against row numbers.
+  if (x !== undefined && !series.length) {
+    series = [x];
+    x = undefined;
+  }
   return { category, x, series };
 }
 
@@ -1213,9 +1221,9 @@ export function prepareChartMapping(document, path, wanted = {}) {
   if (wanted.x !== undefined && !xy) throw fail("chart-mapping-x-unsupported", `A '${found.chartType ?? "chart"}' chart has no X axis, so it has no X column. Only a scatter chart does.`, { x: wanted.x });
   const category = wanted.category !== undefined ? pick(wanted.category, "category") : current.category;
   let x;
-  if (xy) x = wanted.x !== undefined ? pick(wanted.x, "X") : current.x === category ? defaultX(category) : current.x;
+  if (xy) x = wanted.x !== undefined ? pick(wanted.x, "X") : current.x === category || current.x === undefined ? defaultX(category, names.length) : current.x;
   if (xy && x === category) throw fail("chart-mapping-conflict", "The X column and the category column must be different columns.", { category: names[category] });
-  if (xy && (x === undefined || x >= names.length)) throw fail("chart-mapping-conflict", "An XY chart needs a column for X besides the category.", {});
+  if (xy && x !== undefined && x >= names.length) throw fail("chart-mapping-conflict", "An XY chart needs a column for X besides the category.", {});
   const defaultSeries = names.map((_, index) => index).filter((index) => index !== category && index !== x);
   // Without its own `series`, a chart plots every other column: that follows a new category or X column.
   let series = wanted.series !== undefined ? wanted.series.map((name) => pick(name, "series")) : Array.isArray(model.mapping?.series) ? current.series : defaultSeries;
@@ -1223,7 +1231,7 @@ export function prepareChartMapping(document, path, wanted = {}) {
   if (!series.length) throw fail("chart-mapping-no-series", "Choose at least one series column to plot.", {});
   const next = {};
   if (category !== 0) next.category = names[category];
-  if (xy && x !== defaultX(category)) next.x = names[x];
+  if (xy && x !== undefined && x !== defaultX(category, names.length)) next.x = names[x];
   if (series.length !== defaultSeries.length || series.some((index, position) => index !== defaultSeries[position])) next.series = series.map((index) => names[index]);
   const after = Object.keys(next).length ? next : undefined;
   const before = validateOpfDocument(document);
