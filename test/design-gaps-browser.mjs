@@ -29,7 +29,7 @@ const source = {
   language: 'english',
   narrative: 'problem-solution',
   tone: 'formal',
-  audience: ['executives'],
+  audience: ['executive'],
   speaker: { id: 'alice', name: 'Alice Chen' },
   organization: { id: 'acme', name: 'Acme Corp' },
   assets: { logo: PIXEL, mark: PIXEL, photo: PIXEL },

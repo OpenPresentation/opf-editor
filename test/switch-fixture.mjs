@@ -46,7 +46,7 @@ export const baseDeck = () => ({
   language: "english",
   narrative: "problem-solution",
   tone: "formal",
-  audience: ["executives"],
+  audience: ["executive"],
   speaker: { id: "alice", name: "Alice Chen" },
   organization: { id: "acme", name: "Acme" },
   assets: { cover: PIXEL },

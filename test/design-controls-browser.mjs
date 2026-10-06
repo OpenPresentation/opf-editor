@@ -30,7 +30,7 @@ const source = {
   language: 'english',
   narrative: 'problem-solution',
   tone: 'formal',
-  audience: ['executives'],
+  audience: ['executive'],
   speaker: { id: 'alice', name: 'Alice Chen' },
   organization: { id: 'acme', name: 'Acme' },
   assets: { logo: PIXEL, mark: PIXEL, photo: PIXEL },
@@ -166,7 +166,7 @@ try {
   await step('layouts', () => field(design, 'Layout of this slide').selectOption('text-2x'), current => current.slides[0].layout === 'text-2x', { preview: true });
   await step('narratives', () => field(design, 'Narrative').selectOption('scqa'), current => current.narrative === 'scqa');
   await step('tones', () => field(design, 'Tone').selectOption('casual'), current => current.tone === 'casual');
-  await step('audiences', () => field(design, 'Audience').selectOption(['executives', 'investors']), current => JSON.stringify(current.audience) === '["executives","investors"]');
+  await step('audiences', () => field(design, 'Audience').selectOption(['executive', 'investor']), current => JSON.stringify(current.audience) === '["executive","investor"]');
   await step('socials', async () => { await field(design, 'Platform').selectOption('linkedin'); const input = field(design, 'Handle or address'); await input.fill('alice-chen'); await input.press('Enter'); }, current => current.speaker.socials?.linkedin === 'alice-chen');
   await step('headers-footers', async () => { const input = field(design, 'Text'); await input.fill('Confidential'); await input.press('Enter'); }, current => current.design.footer?.center?.text === 'Confidential');
   await step('image-treatments (slide image)', () => field(design, 'Position').selectOption('right'), current => current.design.slideImage?.position === 'right');

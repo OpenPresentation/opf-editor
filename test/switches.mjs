@@ -213,13 +213,13 @@ assert.deepEqual(summary, ALL_DIMENSIONS);
 // FA-07: the root audience may be one inline Audience object; the document stays valid and a switch replaces it with catalog ids.
 {
   const document = baseDeck();
-  document.audience = { id: "executives", attentionBudgetMinutes: 20 };
+  document.audience = { id: "executive", attentionBudgetMinutes: 20 };
   assert.equal(validatePresentation(document).valid, true);
-  assert.deepEqual(currentSwitchValue(document, "audiences"), { value: { id: "executives", attentionBudgetMinutes: 20 }, scope: "deck" });
+  assert.deepEqual(currentSwitchValue(document, "audiences"), { value: { id: "executive", attentionBudgetMinutes: 20 }, scope: "deck" });
   const editor = session(document);
-  const change = switchDimension(editor, "audiences", ["investors"]);
-  assert.deepEqual(change.patches, [{ op: "replace", path: "/audience", value: ["investors"] }]);
-  assert.deepEqual(editor.get("audience"), ["investors"]);
+  const change = switchDimension(editor, "audiences", ["investor"]);
+  assert.deepEqual(change.patches, [{ op: "replace", path: "/audience", value: ["investor"] }]);
+  assert.deepEqual(editor.get("audience"), ["investor"]);
 }
 
 // Backgrounds accept the schema's shorthand strings as well as objects.
@@ -419,7 +419,7 @@ assert.deepEqual(summary, ALL_DIMENSIONS);
   reject("font-schemes", "", {}, "invalid-catalog-id");
   reject("themes", "no-such-theme", {}, "unknown-catalog-id");
   reject("narratives", "no-such-narrative", {}, "unknown-catalog-id");
-  reject("audiences", ["executives", "nobody"], {}, "unknown-catalog-id");
+  reject("audiences", ["executive", "nobody"], {}, "unknown-catalog-id");
   reject("audiences", [], {}, "invalid-catalog-id");
   reject("languages", "klingon-ish", {}, "unknown-catalog-id");
   reject("tones", "sarcastic", {}, "unknown-catalog-id");

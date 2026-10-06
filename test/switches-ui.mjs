@@ -91,7 +91,7 @@ for (const [dimension, kind] of [
   assert.deepEqual(at("languages"), { value: "english", scope: "deck" });
   assert.deepEqual(at("narratives"), { value: "problem-solution", scope: "deck" });
   assert.deepEqual(at("tones"), { value: "formal", scope: "deck" });
-  assert.deepEqual(at("audiences"), { value: ["executives"], scope: "deck" });
+  assert.deepEqual(at("audiences"), { value: ["executive"], scope: "deck" });
   assert.deepEqual(at("backgrounds"), { scope: "deck" });
   assert.deepEqual(at("backgrounds", { slideIndex: 1 }), { value: "light1", scope: "slide" });
   assert.deepEqual(at("charts", { slideIndex: 1 }), { value: "column", scope: "slide" });
