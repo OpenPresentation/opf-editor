@@ -162,7 +162,8 @@ function toModel(found) {
     lines = [clone(dataset.indices.map((index) => data.columns[index])), ...data.rows.map((row, r) => Object.assign(pick(row), { [LINE_ORIGIN]: r }))];
   } else lines = [...(hasHeader ? [clone(data.columns)] : []), ...clone(data.rows).map((row) => (Array.isArray(row) ? row : [row]))];
   const mapping = kind === "chart" && isObject(found.owner?.mapping) ? clone(found.owner.mapping) : undefined;
-  const model = { kind, hasHeader, lines, width: 0, chartType: found.chartType, dataset, mapping, colOrigin: [], origNames: [] };
+  // `datasetNames` are every column of the shared dataset, also the ones `fields` hides: a new column's name must differ from them.
+  const model = { kind, hasHeader, lines, width: 0, chartType: found.chartType, dataset, mapping, colOrigin: [], origNames: [], datasetNames: dataset ? data.columns.map(columnNameOf) : [] };
   model.width = widthOf(model);
   // Where each column came from, so renames, deletions and moves can be followed after an operation (null: a new column).
   model.colOrigin = Array.from({ length: model.width }, (_, index) => index);
@@ -190,7 +191,7 @@ const bodyCount = (model) => model.lines.length - offset(model);
 // target gets a distinct placeholder name instead of "".
 const needsNames = (model) => Boolean(model.dataset) || model.mapping !== undefined;
 function uniqueName(model, taken = []) {
-  const used = new Set([...namesOfModel(model), ...taken]);
+  const used = new Set([...namesOfModel(model), ...model.datasetNames, ...taken]);
   let n = 1;
   while (used.has(n === 1 ? "New column" : `New column ${n}`)) n += 1;
   return n === 1 ? "New column" : `New column ${n}`;
@@ -299,7 +300,28 @@ const isScatter = (type) => typeof type === "string" && /^(scatter|bubble)/.test
 // editor working on documents that use none of the new fields: numbers and scatter-like type ids read as the editor always read them.
 const chartNumber = (value) =>
   typeof core.chartNumber === "function" ? core.chartNumber(value) : typeof value === "number" ? (Number.isFinite(value) ? value : null) : typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value)) ? Number(value) : null;
+/** Whether the installed core has the RR-54 chart and table data contract (number formats, datasets, `chartNumber`); an older core edits documents that use none of it. */
+export const supportsChartTableData = ["chartNumber", "numberFormatError", "inlineChartData", "inlineTableData", "isXYChartType"].every((name) => typeof core[name] === "function");
 const isXYType = (type) => (typeof core.isXYChartType === "function" ? core.isXYChartType(type) : isScatter(type));
+
+/**
+ * A number as the slide draws it: the column's format (a table body cell's own format wins) through core's `formatDataNumber`, or undefined when
+ * the cell is not a number, has no valid format, or the format changes nothing. A chart cell is read by `chartNumber`, as the renderer does, and
+ * only in a column the chart plots as numbers; a table cell is formatted only when it holds a number. The cell's `text` (the raw value) is never
+ * replaced: editing and copying use it.
+ */
+function displayText(model, raw, column, role, text) {
+  if (!supportsChartTableData || typeof core.formatDataNumber !== "function") return undefined;
+  const format = (model.kind === "table" ? formatOf(raw) : undefined) ?? (model.hasHeader ? formatOf(model.lines[0]?.[column]) : undefined);
+  if (format === undefined || core.numberFormatError(format) !== undefined) return undefined;
+  const value = valueOf(raw);
+  let number = null;
+  if (model.kind === "chart") number = isNumericRole(role) && (typeof value === "number" || typeof value === "string") ? chartNumber(value) : null;
+  else if (typeof value === "number" && Number.isFinite(value)) number = value;
+  if (number === null) return undefined;
+  const shown = core.formatDataNumber(number, format);
+  return shown === text ? undefined : shown;
+}
 
 /** The default X column of an XY chart: the second column, or the first when the category is the second (core's rule). */
 const defaultX = (category) => (category === 1 ? 0 : 1);
@@ -389,6 +411,10 @@ export function describeDataGrid(document, path, options = {}) {
       };
       if (Array.isArray(value)) cell.runs = value;
       if (isStyled(raw) && raw.style) cell.style = raw.style;
+      if (!owner && address.section === "body") {
+        const display = displayText(model, raw, column, roles[column], cell.text);
+        if (display !== undefined) cell.display = display;
+      }
       if (address.section === "header" && formatOf(raw) !== undefined) cell.format = formatOf(raw);
       if (owner) cell.owner = { line: owner.u, column: owner.c };
       if (model.kind === "chart") {
@@ -422,7 +448,7 @@ export function describeDataGrid(document, path, options = {}) {
     rowCount: bodyCount(model),
     columnCount: model.width,
     columnRoles: roles,
-    columnFormats: Array.from({ length: model.width }, (_, column) => formatOf(model.lines[0]?.[column])),
+    columnFormats: Array.from({ length: model.width }, (_, column) => (model.hasHeader ? formatOf(model.lines[0]?.[column]) : undefined)),
     ...(model.hasHeader ? { columnNames: namesOfModel(model) } : {}),
     ...(found.dataset ? { dataset: { id: found.dataset.id, ...(found.dataset.fields ? { fields: [...found.dataset.fields] } : {}), items: datasetUsage(document, found.dataset.id).map((entry) => entry.path) } } : {}),
     ...(model.mapping ? { mapping: clone(model.mapping) } : {}),
@@ -833,8 +859,11 @@ function setHeader(model, enabled, options) {
     model.hasHeader = true;
     return { header: true, use, restyle: true, touchesStructure: true, what: "A header row" };
   }
+  // A DataColumn header (`{ name, format }`) is not a body cell: it becomes its name. Its column format has nowhere to go and is dropped.
+  const dropped = model.lines[0].filter((raw) => isColumnObject(raw) && formatOf(raw) !== undefined).length;
+  model.lines[0] = model.lines[0].map((raw) => (isColumnObject(raw) ? raw.name : raw));
   model.hasHeader = false;
-  return { header: false, restyle: true };
+  return { header: false, restyle: true, ...(dropped ? { droppedFormats: dropped } : {}) };
 }
 
 // --- transpose ---------------------------------------------------------------------------------
@@ -874,8 +903,16 @@ function growTo(model, lines, width) {
   }
 }
 
+// The column names of a shared dataset (and of a chart with a mapping) are how `fields` and `mapping` address columns: never blank.
+const blankNameError = (model, address, text) =>
+  address.section === "header" && model.hasHeader && needsNames(model) && String(text ?? "").trim() === ""
+    ? `A column name cannot be empty here: ${model.dataset ? "the shared dataset" : "the chart's column mapping"} addresses columns by name.`
+    : undefined;
+
 function newRaw(model, raw, text, decimal, address, roles) {
   const value = valueOf(raw);
+  const blank = blankNameError(model, address, text);
+  if (blank) return { error: blank };
   // Text that is already what the cell shows is left alone: a number kept as text stays text, runs keep their styling.
   const shown = cellText(raw, model.kind, decimal);
   if (Array.isArray(value)) {
@@ -917,6 +954,8 @@ function applyEdits(model, edits, decimal, owners) {
         if (model.kind === "chart" && !(value === null || ["string", "number", "boolean"].includes(typeof value))) throw fail("invalid-grid-value", "A chart cell is text, a number, true or false, or empty.", { cell: address });
         if (typeof value === "number" && !Number.isFinite(value)) throw fail("invalid-grid-value", "A cell cannot hold Infinity or NaN.", { cell: address });
         if (model.dataset && address.section === "header" && typeof value !== "string") throw fail("invalid-grid-value", "A dataset column name is text.", { cell: address });
+        const blank = blankNameError(model, address, value);
+        if (blank && !(valueOf(raw) === "" && value === "")) throw fail("invalid-grid-value", blank, { cell: address });
         model.lines[u][address.column] = withValue(raw, value);
         continue;
       }
@@ -1084,6 +1123,7 @@ export function prepareTranspose(document, path) {
 /** Why `format` is not a valid number format ("#,##0", "0.0%", "$#,##0.00"), or undefined when it is valid or empty (empty clears the format). */
 export function columnFormatError(format) {
   if (format === undefined || format === null || format === "") return undefined;
+  if (!supportsChartTableData) return "This version of OPF has no number formats; update @openpresentation/opf.";
   return core.numberFormatError(format);
 }
 
@@ -1203,6 +1243,7 @@ export function prepareChartMapping(document, path, wanted = {}) {
 export function prepareDetachDataset(document, path) {
   const found = locateGridData(document, path);
   if (!found.dataset) throw fail("grid-not-dataset", "This chart or table does not use a shared dataset.", { path });
+  if (!supportsChartTableData) throw fail("grid-core-too-old", "This version of OPF cannot copy a shared dataset; update @openpresentation/opf.", { path });
   const inline = found.kind === "chart" ? core.inlineChartData(found.owner, document).data : core.inlineTableData(found.owner, document);
   const pointer = opfPathToJsonPointer(found.dataset.refParts);
   const patches = [{ op: "test", path: pointer, value: clone(found.dataset.ref) }, { op: "replace", path: pointer, value: clone(inline) }];

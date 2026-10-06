@@ -33,6 +33,7 @@ import {
   setGridColumnFormat,
   setGridHeader,
   sortGridRows,
+  supportsChartTableData,
   transposeGridData,
 } from "./grid-model.js";
 import { NUMBER_FORMATS, parseDelimited, resolveNumberFormat, toDelimited } from "./grid-text.js";
@@ -382,7 +383,12 @@ export function createDataGrid(container, options = {}) {
           title: cell.warning,
         });
         if (cell.runs) renderRuns(td, cell.runs);
-        else td.textContent = cell.text;
+        else if (cell.display !== undefined) {
+          // The number as the slide draws it; the raw value is what editing and copying use.
+          td.textContent = cell.display;
+          td.classList.add("opf-grid-formatted");
+          if (!cell.warning) td.title = `Stored as ${cell.text}`;
+        } else td.textContent = cell.text;
         tr.append(td);
       }
       tbody.append(tr);
@@ -541,19 +547,22 @@ export function createDataGrid(container, options = {}) {
   }
 
   const formatColumn = () => activeCell()?.column ?? 0;
+  // The column the field is for. It follows the selected column, but not while someone types in the field: a click on another cell
+  // moves the selection before the field's change event fires, and the format typed for one column must not land on the next.
+  let formatBound = 0;
   function updateFormatRow() {
-    const visible = Boolean(grid?.hasHeader) && target?.editable !== false;
+    const visible = Boolean(grid?.hasHeader) && target?.editable !== false && supportsChartTableData;
     formatRow.hidden = !visible;
     if (!visible) return;
-    const column = formatColumn();
-    const name = grid.columnNames?.[column];
-    formatLabel.textContent = `Format of column ${columnLabel(column)}${name ? ` (${name})` : ""}`;
-    // The field follows the selected column; it is left alone while someone types in it.
     if (doc.activeElement !== formatInput) {
-      formatInput.value = grid.columnFormats?.[column] ?? "";
+      formatBound = formatColumn();
+      formatInput.value = grid.columnFormats?.[formatBound] ?? "";
       formatInput.removeAttribute("aria-invalid");
       formatError.textContent = "";
     }
+    const column = formatBound;
+    const name = grid.columnNames?.[column];
+    formatLabel.textContent = `Format of column ${columnLabel(column)}${name ? ` (${name})` : ""}${target?.dataset ? " in the shared dataset" : ""}`;
     formatClear.setAttribute("aria-disabled", String(grid.columnFormats?.[column] === undefined));
   }
   formatInput.addEventListener("input", () => {
@@ -563,7 +572,7 @@ export function createDataGrid(container, options = {}) {
     else formatInput.removeAttribute("aria-invalid");
   });
   function applyFormat(value) {
-    const column = formatColumn();
+    const column = formatBound;
     const error = columnFormatError(value);
     if (error) {
       formatInput.setAttribute("aria-invalid", "true");
@@ -584,7 +593,7 @@ export function createDataGrid(container, options = {}) {
       applyFormat(formatInput.value);
     } else if (event.key === "Escape") {
       event.preventDefault();
-      formatInput.value = grid?.columnFormats?.[formatColumn()] ?? "";
+      formatInput.value = grid?.columnFormats?.[formatBound] ?? "";
       formatError.textContent = "";
       formatInput.removeAttribute("aria-invalid");
     }
@@ -604,7 +613,7 @@ export function createDataGrid(container, options = {}) {
 
   function buildMapping() {
     mappingBody.replaceChildren();
-    mappingBox.hidden = !grid || target?.kind !== "chart";
+    mappingBox.hidden = !grid || target?.kind !== "chart" || !supportsChartTableData;
     if (mappingBox.hidden) return;
     let view;
     try {

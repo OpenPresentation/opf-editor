@@ -114,6 +114,29 @@ try {
   assert.equal(await page.locator('.opf-grid-dataset').isHidden(), true);
   assert.deepEqual(await page.locator('tbody tr').first().locator('td').allInnerTexts(), ['Quarter', 'Revenue', 'Costs']);
   assert.match((await page.locator('th[data-ruler="column"]').allInnerTexts())[1], /format \$#,##0\.0/);
+  // A format typed for one column goes to that column, also when the click that leaves the field selects another one.
+  await page.evaluate(() => { while (window.editor.snapshot().undoDepth) window.editor.undo(); });
+  await refresh('slides.0.blocks.1.chart');
+  await page.locator('td[data-line="0"][data-column="2"]').click();
+  await page.locator('[data-role="column-format"]').fill('0.00');
+  await page.locator('td[data-line="1"][data-column="1"]').click();
+  assert.deepEqual(await page.evaluate(() => window.editor.document.slides[0].blocks[1].chart.data.columns), ['Quarter', { name: 'Revenue', format: '$#,##0.0' }, { name: 'Costs', format: '0.00' }], 'the format went to the column it was typed for, not the one that was clicked');
+  // A formatted column shows its numbers as the slide draws them; editing and copying use the raw value.
+  await page.evaluate(() => { while (window.editor.snapshot().undoDepth) window.editor.undo(); });
+  await refresh('slides.0.blocks.1.chart');
+  const cell = (u, c) => page.locator(`td[data-line="${u}"][data-column="${c}"]`);
+  assert.equal(await cell(1, 1).innerText(), '$12.4', 'a formatted number shows its format');
+  assert.equal(await cell(1, 2).innerText(), '5', 'a column without a format shows the value');
+  await cell(1, 1).dblclick();
+  assert.equal(await page.locator('textarea[data-role="cell-editor"]').inputValue(), '12.4', 'editing shows the raw value');
+  await page.keyboard.press('Escape');
+  assert.equal(await cell(1, 1).innerText(), '$12.4', 'the format is back after the edit');
+  assert.equal(await undoDepth(), 0, 'looking at a cell changes nothing');
+  await cell(0, 1).click();
+  await page.locator('[data-role="column-format"]').fill('0.0%');
+  await page.locator('[data-role="column-format"]').press('Enter');
+  assert.equal(await cell(1, 1).innerText(), '1240.0%', 'a new format shows at once');
+  assert.equal(await cell(1, 1).getAttribute('title'), 'Stored as 12.4');
   assert.deepEqual(errors, []);
   console.log('Data grid (RR-54): shared dataset status, edits through fields, column format, chart columns and use-a-copy, in a real browser.');
 } finally {

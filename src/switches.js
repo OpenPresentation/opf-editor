@@ -252,7 +252,7 @@ export function prepareDimensionSwitch(document, dimension, value, options = {})
       throw fail("path-slide-mismatch", "options.path is not on the slide named by options.slideIndex.", { slideIndex, path: options.path });
     const chart = owner && getValueAtPath(document, [...owner, "chart"]);
     if (!chart || typeof chart !== "object") throw fail("chart-not-found", "This slide has no chart to switch. Insert a chart block first.", { slideIndex, path: options.path });
-    patches = [...catalogRecordPatches(document, dimension, options), ...(chart.type === value ? [] : createValuePatch(document, [...owner, "chart", "type"], value))];
+    patches = [...catalogRecordPatches(document, dimension, options), ...(chart.type === value ? [] : [...createValuePatch(document, [...owner, "chart", "type"], value), ...staleMappingPatches(document, owner, chart, value)])];
   } else if (dimension === "blocks") {
     if (options.path === undefined) throw fail("missing-path", "Choose the block to replace with options.path.");
     // convert: true moves the block's own text into the new kind (block-convert.js) instead of replacing it.
@@ -394,6 +394,17 @@ export function listSwitchOptions(document, dimension, options = {}) {
 const SINGLE_SERIES_ONLY = new Set(["pieChart", "doughnutChart", "funnelChart", "treemapChart", "waterfallChart"]);
 const MULTI_SERIES_CAPABLE = new Set(["barChart", "lineChart", "areaChart", "radarChart"]);
 const DISTRIBUTION_ELEMENTS = new Set(["histogramChart", "boxWhiskerChart", "mapChart"]);
+
+// RR-54: `mapping.x` names the X column of an XY chart; a type without an X axis ignores it (core warns chart-mapping-adapted). Switching to such a
+// type removes it, and the whole mapping when nothing else is left, so the document does not keep a warning it cannot act on.
+function staleMappingPatches(document, owner, chart, type) {
+  const mapping = chart.mapping;
+  if (!mapping || typeof mapping !== "object" || Array.isArray(mapping) || mapping.x === undefined) return [];
+  if (typeof core.isXYChartType !== "function" || core.isXYChartType(type)) return [];
+  const { x: _x, ...rest } = mapping;
+  const parts = [...owner, "chart", "mapping"];
+  return Object.keys(rest).length ? createValuePatch(document, parts, rest) : [{ op: "remove", path: opfPathToJsonPointer(parts) }];
+}
 
 function chartDataShape(chart, document) {
   // RR-54: inline data, a dataset reference and a series mapping all resolve to the columns the renderers read: the first column labels

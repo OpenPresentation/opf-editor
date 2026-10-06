@@ -11,6 +11,7 @@ import * as tables from "../dist/table-options.js";
 import * as findReplace from "../dist/find-replace.js";
 import * as switches from "../dist/switches.js";
 import { DATASET_ID_PATTERN, createDataContent, prepareDatasetImport } from "../dist/data.js";
+import { prepareOpfImport } from "../dist/transfer.js";
 
 const C_INLINE = "slides.0.blocks.0.chart";
 const C_FIELDS = "slides.0.blocks.1.chart";
@@ -495,6 +496,133 @@ assert.equal(typeof core.chartNumber, "function", "core exports chartNumber (RR-
 
   // Block conversion of a dataset chart keeps the reference; a dataset table converts with the document.
   assert.doesNotThrow(() => tables.describeTableCell(editor.get(T_INLINE), { section: "header", row: 0, column: 1 }), "a DataColumn header describes without throwing");
+}
+
+// --- review fixes: names, headers, style, mapping after a type switch ---------------------------------------------------
+{
+  // A new column of a dataset is named distinctly from every column of the dataset, also the ones `fields` hides.
+  const hidden = () => ({
+    name: "Hidden names",
+    design: { theme: "minimal", fontScheme: "aptos" },
+    datasets: { ds: { columns: ["A", "New column", "B"], rows: [["a", "x", 1], ["b", "y", 2]] } },
+    slides: [{ id: "d", title: "D", blocks: [
+      { chart: { type: "column", data: { dataset: "ds", fields: ["A", "B"] } } },
+      { chart: { type: "column", data: { dataset: "ds", fields: ["B", "A"] } } },
+    ] }],
+  });
+  const H0 = "slides.0.blocks.0.chart";
+  const editor = session(hidden());
+  step(editor, "insert a column beside a hidden 'New column'", () => grid.insertGridColumns(editor, H0, 2), () => {
+    assert.deepEqual(editor.get("datasets.ds.columns"), ["A", "New column", "B", "New column 2"]);
+    assert.deepEqual(editor.get(`${H0}.data.fields`), ["A", "B", "New column 2"]);
+  });
+  step(editor, "paste that grows the grid beside a hidden 'New column'", () => grid.pasteGridText(editor, H0, body(0, 1), "1\t2\t3"), () => {
+    assert.deepEqual(editor.get("datasets.ds.columns").slice(3), ["New column 2", "New column 3"]);
+  });
+  // A column name of a shared dataset (or of a chart with a mapping) is never blank.
+  refuses(editor, "a blank dataset column name", () => grid.setGridCells(editor, H0, [{ section: "header", column: 1, text: "  " }]), "invalid-grid-values");
+  refuses(editor, "a duplicate dataset column name", () => grid.setGridCells(editor, H0, [{ section: "header", column: 1, text: "A" }]));
+}
+
+{
+  // A header that holds DataColumn objects: turning the header off, styling and merging keep the document valid.
+  const withHeader = () => ({
+    name: "Header", design: { theme: "minimal", fontScheme: "aptos" },
+    slides: [{ id: "d", title: "D", blocks: [{ table: { columns: ["Region", { name: "Share", format: "0%" }], rows: [["EMEA", 0.4], ["APAC", 0.6]] } }] }],
+  });
+  const T = "slides.0.blocks.0.table";
+  const editor = session(withHeader());
+  step(editor, "header off over DataColumn headers", () => grid.setGridHeader(editor, T, false), () => {
+    assert.deepEqual(editor.get(`${T}.rows`)[0], ["Region", "Share"], "the names become the first body row");
+    assert.equal(editor.get(`${T}.columns`), undefined);
+  });
+  step(editor, "style a DataColumn header cell", () => tables.setTableCellStyle(editor, T, [{ section: "header", column: 1 }], { align: "right" }), () => {
+    assert.deepEqual(editor.get(`${T}.columns.1`), { value: "Share", format: "0%", style: { align: "right" } }, "the column keeps its format as a styled header");
+  });
+  step(editor, "a table style over DataColumn headers", () => tables.setTableStyle(editor, T, "minimal"));
+  step(editor, "merge a DataColumn header, joining the text", () => tables.mergeTableCells(editor, T, { section: "header", row: 0, column: 0 }, { colSpan: 2 }, { join: true }), () => {
+    assert.equal(editor.get(`${T}.columns.0.value`), "Region Share", "the joined text is the names, not objects");
+  });
+}
+
+{
+  // Switching a scatter chart to a type without an X axis drops the `mapping.x` the type cannot use.
+  const scatter = () => ({
+    name: "Scatter", design: { theme: "minimal", fontScheme: "aptos" },
+    slides: [{ id: "d", title: "D", blocks: [{ chart: { type: "scatter", data: { columns: ["L", "X", "Y", "Z"], rows: [["a", 1, 2, 3]] }, mapping: { x: "Z", series: ["Y"] } } }] }],
+  });
+  const editor = session(scatter());
+  const warnings = () => (validatePresentation(editor.document).warnings ?? []).map((entry) => entry.params?.code ?? entry.code);
+  step(editor, "switch a scatter chart with mapping.x to column", () => switches.switchDimension(editor, "charts", "column", { slideIndex: 0, path: "slides.0.blocks.0" }), () => {
+    assert.deepEqual(editor.get("slides.0.blocks.0.chart.mapping"), { series: ["Y"] }, "x leaves the mapping");
+    assert.ok(!warnings().includes("chart-mapping-adapted"), "no chart-mapping-adapted warning is left behind");
+  });
+  const only = session({ ...scatter(), slides: [{ id: "d", title: "D", blocks: [{ chart: { type: "scatter", data: { columns: ["L", "X", "Y"], rows: [["a", 1, 2]] }, mapping: { x: "Y" } } }] }] });
+  switches.switchDimension(only, "charts", "column", { slideIndex: 0, path: "slides.0.blocks.0" });
+  assert.equal(only.get("slides.0.blocks.0.chart.mapping"), undefined, "a mapping left empty is removed");
+  switches.switchDimension(only, "charts", "scatter", { slideIndex: 0, path: "slides.0.blocks.0" });
+  assert.equal(only.get("slides.0.blocks.0.chart.type"), "scatter", "switching back keeps working");
+}
+
+// --- inserting slides that use a shared dataset ---------------------------------------------------------------------
+{
+  const incoming = (rows) => ({
+    name: "Other", design: { theme: "minimal", fontScheme: "aptos" },
+    datasets: { revenue: { columns: ["Quarter", "Revenue"], rows }, spare: { columns: ["X"], rows: [[1]] } },
+    slides: [{ id: "in", title: "In", blocks: [{ chart: { type: "column", data: { dataset: "revenue" }, mapping: { series: ["Revenue"] } } }, { table: { dataset: "revenue", fields: ["Quarter"] } }] }],
+  });
+  const current = deck();
+  // Different rows under a name the deck already uses: the incoming dataset is stored under a new id and the slide follows it.
+  const merged = prepareOpfImport(current, { document: incoming([["Q1", 1]]) }, { mode: "insert", slideIndex: 0 });
+  assert.equal(validatePresentation(merged.document).valid, true, "the merged deck is valid OPF");
+  assert.deepEqual(merged.document.datasets.revenue, current.datasets.revenue, "the deck's own dataset is untouched");
+  assert.deepEqual(merged.document.datasets["revenue-2"].rows, [["Q1", 1]], "the incoming dataset is kept under a free id");
+  assert.equal(merged.document.datasets.spare, undefined, "a dataset no inserted slide uses is not copied");
+  const inserted = merged.document.slides[1].blocks;
+  assert.deepEqual([inserted[0].chart.data, inserted[1].table.dataset], [{ dataset: "revenue-2" }, "revenue-2"], "every reference follows the new id");
+  // The same dataset under the same id is shared, not copied.
+  const same = prepareOpfImport(current, { document: { ...incoming(current.datasets.revenue.rows), datasets: { revenue: current.datasets.revenue } } }, { mode: "insert", slideIndex: 0 });
+  assert.deepEqual(Object.keys(same.document.datasets), ["revenue"], "an identical dataset is reused");
+  assert.equal(same.document.slides[1].blocks[0].chart.data.dataset, "revenue");
+  // A deck with no datasets takes the incoming ones as they are.
+  const bare = prepareOpfImport({ name: "Bare", design: { theme: "minimal", fontScheme: "aptos" }, slides: [{ id: "b", title: "B", blocks: [{ text: "x" }] }] }, { document: incoming([["Q1", 1]]) }, { mode: "insert", slideIndex: 0 });
+  assert.deepEqual(Object.keys(bare.document.datasets), ["revenue"]);
+  assert.equal(validatePresentation(bare.document).valid, true);
+}
+
+// --- numbers show formatted in the grid; the raw value is what editing and copying use ------------------------------------
+{
+  const editor = session();
+  const texts = (path, column) => grid.describeDataGrid(editor.document, path).lines.slice(1).map((line) => line[column]);
+  // A chart column with a format shows it; the stored value is the cell's text.
+  const revenue = texts(C_INLINE, 1);
+  assert.deepEqual(revenue.map((cell) => cell.display), ["$12.4", "$18.1"], "a formatted chart column shows its format");
+  assert.deepEqual(revenue.map((cell) => cell.text), ["12.4", "18.1"], "the raw value stays as the cell text");
+  assert.equal(texts(C_INLINE, 2)[0].display, undefined, "a column without a format shows the value as before");
+  assert.equal(texts(C_INLINE, 0)[0].display, undefined, "a category column is never formatted");
+  // A dataset column's format shows in every item that shows the column (the `fields` order does not matter).
+  assert.deepEqual(texts(T_DATASET, 1).map((cell) => cell.display), ["$12.4", "$18.1", "$24.0"]);
+  // A table body cell's own format wins over its column's; text and rich cells are left alone.
+  const table = grid.describeDataGrid(editor.document, T_INLINE);
+  assert.deepEqual(table.lines.slice(1).map((line) => line.map((cell) => cell.display)), [[undefined, "40%", "10.0%"], [undefined, "60%", "20%"]]);
+  assert.deepEqual(table.lines.slice(1).map((line) => line[2].text), ["0.1", "0.2"], "a table cell's text is the raw value");
+  // A format that does not apply leaves the number as it was, in the grid's own number format.
+  const comma = grid.describeDataGrid(editor.document, C_INLINE, { decimal: "," });
+  assert.equal(comma.lines[1][2].text, "5");
+  const plain = session({ ...deck(), slides: [{ id: "p", title: "P", blocks: [{ chart: { type: "column", data: { columns: ["Q", "Revenue"], rows: [["Q1", 12.5]] } } }, { table: { columns: ["A", "B"], rows: [[1.5, 2]] } }] }] });
+  const noFormats = [grid.describeDataGrid(plain.document, "slides.0.blocks.0.chart", { decimal: "," }), grid.describeDataGrid(plain.document, "slides.0.blocks.1.table")];
+  assert.ok(noFormats.every((view) => view.lines.every((line) => line.every((cell) => !("display" in cell)))), "a document without formats has no display text");
+  assert.equal(noFormats[0].lines[1][1].text, "12,5", "unformatted numbers follow the locale's decimal separator as before");
+  // A table without a header has no column formats: its first body row is not a header.
+  const headerless = session({ ...deck(), slides: [{ id: "h", title: "H", blocks: [{ table: { rows: [[{ value: 0.5, format: "0%" }, 2], [0.25, 3]] } }] }] });
+  const headlessView = grid.describeDataGrid(headerless.document, "slides.0.blocks.0.table");
+  assert.deepEqual(headlessView.columnFormats, [undefined, undefined], "a body cell's format is not a column format");
+  assert.deepEqual(headlessView.lines.map((line) => line[0].display), ["50%", undefined]);
+  // Copy writes the raw values; editing a formatted cell sees the raw text and a no-op edit changes nothing.
+  assert.equal(grid.gridRangeText(editor.document, C_INLINE), "Quarter\tRevenue\tCosts\nQ1\t12.4\t5\nQ2\t18.1\t8");
+  assert.equal(grid.prepareGridCells(editor.document, C_INLINE, [{ section: "body", row: 0, column: 1, text: "12.4" }]).changed, false);
+  assert.equal(grid.describeDataGrid(editor.document, C_INLINE, { decimal: "," }).lines[1][1].display, "$12.4", "the format decides the formatted text; the decimal separator is for the raw text");
+  assert.equal(grid.describeDataGrid(editor.document, C_INLINE, { decimal: "," }).lines[1][1].text, "12,4");
 }
 
 console.log("Chart and table data (editor): DataColumn headers, shared datasets through fields, column number formats, chart mapping and import as a dataset, each one undoable patch; documents without the new fields behave as before.");

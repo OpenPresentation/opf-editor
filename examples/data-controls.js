@@ -69,18 +69,20 @@ export function installDataControls({editor,getCanvas,getSlideIndex,getSelectedP
     const table=document.createElement('table');
     for(const [i,row]of [data.columns,...data.rows.slice(0,8)].entries()){const tr=document.createElement('tr');for(const value of row){const td=document.createElement(i?'td':'th');td.textContent=value===null?'—':String(value);tr.append(td);}table.append(tr);}
     $('data-grid').append(table);$('data-summary').textContent=`${data.rows.length} rows · ${data.columns.length} columns${data.rows.length>8?' · first 8 rows shown below':''}`;
-    prepare();$('data-apply').disabled=false;
+    try{prepare();}catch(error){failed(error);return;}$('data-apply').disabled=false;
    };
    const failed=error=>{content=undefined;$('data-apply').disabled=true;$('data-error').textContent=error.message;};
    if(fonts)fonts.run(preview,{isCurrent:()=>run===previewRun,loading:()=>{$('data-summary').textContent='Loading fonts for this document…';},ready:show,failed});
    else show();
   }catch(error){content=undefined;$('data-error').textContent=error.message;}
  }
- button.onclick=()=>{if(getCanvas()&&!getCanvas().commit())return;dialog.showModal();update();$('data-text').focus();};
+ // The dataset id starts as the first one the deck does not hold, so a second import does not replace the first one's rows. Typing an id (to replace one on purpose) keeps it.
+ function freeDatasetId(){const taken=editor.document.datasets&&typeof editor.document.datasets==='object'?editor.document.datasets:{};let id='data',n=1;while(Object.hasOwn(taken,id))id=`data-${++n}`;return id;}
+ button.onclick=()=>{if(getCanvas()&&!getCanvas().commit())return;if($('data-dataset-id').dataset.typed!=='1')$('data-dataset-id').value=freeDatasetId();dialog.showModal();update();$('data-text').focus();};
  $('data-close').onclick=()=>dialog.close();dialog.onclose=()=>{if(!dialog.open)revision++;};
  $('data-text').oninput=()=>{revision++;update();};
  for(const id of ['data-format','data-as','data-header','data-chart-type','data-destination','data-dataset'])$(id).onchange=update;
- $('data-dataset-id').oninput=update;
+ $('data-dataset-id').oninput=()=>{$('data-dataset-id').dataset.typed='1';update();};
  $('data-slide-title').oninput=update;
  $('data-category').onchange=()=>{for(const input of $('data-series').querySelectorAll('input'))input.checked=input.value!==$('data-category').value;update();};
  $('data-file').onchange=async()=>{const file=$('data-file').files[0],request=++revision;if(!file)return;try{if(file.size>10*1024*1024)throw new Error('Choose a data file under 10 MB.');const text=await file.text();if(request!==revision)return;$('data-format').value=/\.json$/i.test(file.name)?'json':/\.tsv$/i.test(file.name)?'tsv':'csv';$('data-text').value=text;update();}catch(error){content=undefined;$('data-apply').disabled=true;$('data-error').textContent=error.message;}};

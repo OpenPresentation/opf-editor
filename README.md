@@ -411,7 +411,7 @@ sortTableRows(editor, "slides.4.blocks.1.table", 1, { direction: "desc" });     
 setChartCells(editor, "slides.3.blocks.0.chart", [{ section: "body", row: 0, column: 1, text: "12,5" }], { decimal: "," });
 ```
 
-Chart columns and table headers may be `DataColumn` objects (`{ name, format }`; the grid keeps the format), a chart or table may show a shared top-level dataset (the grid edits `/datasets/<id>` through `fields` and says how many items share it), each column has a number format field and each chart a category, X and series mapping (RR-54):
+Chart columns and table headers may be `DataColumn` objects (`{ name, format }`; the grid keeps the format and shows a formatted column's numbers as the slide draws them, while editing and copy use the raw value), a chart or table may show a shared top-level dataset (the grid edits `/datasets/<id>` through `fields` and says how many items share it), each column has a number format field and each chart a category, X and series mapping (RR-54):
 
 ```js
 import { setGridColumnFormat, setChartMapping, detachGridDataset } from "@openpresentation/opf-editor/data-grid";

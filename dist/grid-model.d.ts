@@ -61,6 +61,8 @@ export interface GridCell {
   row: number;
   /** What the cell shows. A table cell shows what the slide draws; a chart number shows in the number format. "" for a gap or a covered cell. */
   text: string;
+  /** A number as the slide draws it (the column's format, or a table cell's own), when a valid format changes how it reads. `text` stays the raw value: editing and copying use it. */
+  display?: string;
   rich: boolean;
   runs?: unknown[];
   rowSpan: number;
@@ -171,6 +173,8 @@ export declare function prepareSetHeader(document: unknown, path: string, enable
 export declare function prepareTranspose(document: unknown, path: string): PreparedGridChange;
 /** Why `format` is not a valid number format ("#,##0", "0.0%", "$#,##0.00"), or undefined when it is valid or empty (empty clears the format). */
 export declare function columnFormatError(format: unknown): string | undefined;
+/** Whether the installed core has the RR-54 chart and table data contract (number formats, datasets, strict chart numbers). An older core edits documents that use none of it. */
+export declare const supportsChartTableData: boolean;
 /**
  * Set or clear (`null` or "") the number format of column `column` (its header cell). A string header becomes `{ name, format }` and returns to a string
  * when the format is cleared. Throws `number-format-invalid` with the reason, or `grid-no-header` for a table without a header row.
