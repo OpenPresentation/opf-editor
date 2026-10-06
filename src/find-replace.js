@@ -81,6 +81,8 @@ function payloadFields(fields, state, base, payload, prefix = "") {
   else if (isObject(payload.quote)) {
     field(fields, state, at("quote", "text"), payload.quote.text, `${prefix}Quote`);
     field(fields, state, at("quote", "attribution"), payload.quote.attribution, `${prefix}Quote attribution`);
+    field(fields, state, at("quote", "role"), payload.quote.role, `${prefix}Quote role`);
+    if (isObject(payload.quote.photo)) field(fields, state, at("quote", "photo", "alt"), payload.quote.photo.alt, `${prefix}Quote photo alt text`, "alt");
     field(fields, state, at("quote", "source"), payload.quote.source, `${prefix}Quote source`);
   }
   const timeline = payload.timeline;
