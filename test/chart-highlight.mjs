@@ -19,7 +19,7 @@ const session = (type, chart) => createEditorSession(deck(type, chart), { reject
 const svg = (document) => renderSvg(document, { trace: true });
 
 // What each chart type offers follows core's support table.
-for (const type of ["column", "bar", "stacked-column-3x", "line", "area", "pie", "doughnut", "scatter", "radar", "histogram", "waterfall", "funnel", "treemap", "box-and-whisker", "world"]) {
+for (const type of ["column", "bar", "stacked-column", "line", "area", "pie", "doughnut", "scatter", "radar", "histogram", "waterfall", "funnel", "treemap", "box-and-whisker", "world"]) {
   assert.deepEqual(readChartOptions({ type, data }).fields.highlight, chartOptionSupport(chartOptionTarget(type)).highlight, `${type}: the highlight fields are core's support table`);
 }
 assert.deepEqual(readChartOptions({ type: "mystery", data }).fields.highlight, { series: true, categories: true }, "a type outside the catalog offers both");
