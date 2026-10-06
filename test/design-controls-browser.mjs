@@ -348,7 +348,7 @@ try {
   await page.locator('#preview [data-canvas-target][data-opf-path="slides.2.blocks.0.chart"]').click();
   await selection.getByLabel(label('Chart type')).waitFor();
   const chartTypes = await selection.getByLabel(label('Chart type')).locator('option').evaluateAll(options => options.map(option => option.value));
-  assert.ok(chartTypes.includes('line') && chartTypes.includes('pie') && !chartTypes.includes('stacked-column-3x') && !chartTypes.includes('world'), 'chart types follow the data');
+  assert.ok(chartTypes.includes('line') && chartTypes.includes('pie') && !chartTypes.includes('stacked-column') && !chartTypes.includes('world'), 'chart types follow the data');
   await step('charts', () => selection.getByLabel(label('Chart type')).selectOption('line'), current => current.slides[2].blocks[0].chart.type === 'line', { preview: true });
   await step('chart to table conversion', () => selection.getByLabel(label('Content type')).selectOption('table'), current => current.slides[2].blocks[0].table?.columns?.[0] === 'Quarter');
 

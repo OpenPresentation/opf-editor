@@ -50,15 +50,17 @@ for (const [dimension, kind] of [
   const ids = (document, options) => compatibleChartTypes(document, { slideIndex: 0, ...options }).map((entry) => entry.id);
   const one = ids(chart(data("Revenue")));
   for (const expected of ["column", "bar", "line", "area", "pie", "doughnut", "radar", "funnel", "treemap", "waterfall"]) assert.ok(one.includes(expected), `${expected} suits one series`);
-  for (const rejected of ["stacked-column-3x", "scatter", "dot-plot", "sparkline", "histogram", "world", "box-and-whisker", "bullet-bar"]) assert.ok(!one.includes(rejected), `${rejected} does not suit one series`);
+  for (const rejected of ["stacked-column", "scatter", "histogram", "world", "box-and-whisker"]) assert.ok(!one.includes(rejected), `${rejected} does not suit one series`);
   const two = ids(chart(data("Revenue", "Cost")));
-  assert.ok(two.includes("line") && two.includes("column") && two.includes("clustered-column") && two.includes("stacked-column-2x") && two.includes("scatter"));
-  assert.ok(!two.includes("pie") && !two.includes("doughnut") && !two.includes("stacked-column-3x"), "single-series types and other series counts are excluded");
+  assert.ok(two.includes("line") && two.includes("column") && two.includes("stacked-column") && two.includes("stacked-line") && two.includes("scatter"));
+  assert.ok(!two.includes("pie") && !two.includes("doughnut"), "single-series types are excluded");
   const three = ids(chart(data("A", "B", "C")));
-  assert.ok(three.includes("stacked-column-3x") && three.includes("line-3x") && !three.includes("stacked-column-2x"));
+  assert.ok(three.includes("stacked-column") && three.includes("100pct-stacked-area") && !three.includes("scatter"), "a stacked type takes any series count from two up; scatter needs exactly two");
+  const five = ids(chart(data("A", "B", "C", "D", "E")));
+  assert.ok(five.includes("stacked-bar") && !five.includes("scatter"));
   // The current type is always listed and flagged, even when the data would not suit it.
-  const current = compatibleChartTypes(chart(data("Revenue"), "stacked-column-3x"), { slideIndex: 0 });
-  assert.deepEqual(current.filter((entry) => entry.current).map((entry) => entry.id), ["stacked-column-3x"]);
+  const current = compatibleChartTypes(chart(data("Revenue"), "stacked-column"), { slideIndex: 0 });
+  assert.deepEqual(current.filter((entry) => entry.current).map((entry) => entry.id), ["stacked-column"]);
   // Every offered type is a valid switch for that chart.
   for (const id of one) {
     const editor = createEditorSession(chart(data("Revenue")), { rejectInvalid: true });

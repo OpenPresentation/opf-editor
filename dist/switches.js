@@ -367,7 +367,7 @@ export function switchDimension(editor, dimension, value, options = {}) {
 
 // --- options for pickers and current values ---------------------------------------------------
 
-const labelOf = (record) => record.label ?? record.name ?? record.id;
+const labelOf = (record) => record.name ?? record.id;
 
 /**
  * The values a picker can offer for a catalog-backed dimension, in document order: the document's
@@ -393,6 +393,7 @@ export function listSwitchOptions(document, dimension, options = {}) {
 
 const SINGLE_SERIES_ONLY = new Set(["pieChart", "doughnutChart", "funnelChart", "treemapChart", "waterfallChart"]);
 const MULTI_SERIES_CAPABLE = new Set(["barChart", "lineChart", "areaChart", "radarChart"]);
+const STACKED_GROUPINGS = new Set(["stacked", "percentStacked"]);
 const DISTRIBUTION_ELEMENTS = new Set(["histogramChart", "boxWhiskerChart", "mapChart"]);
 
 // RR-54: `mapping.x` names the X column of an XY chart; a type without an X axis ignores it (core warns chart-mapping-adapted). Switching to such a
@@ -422,7 +423,8 @@ function chartDataShape(chart, document) {
  * Chart types the chart's inline data can use as it is, from the chartTypes catalog: simple,
  * non-geographic, non-distribution types whose series count fits the data (the first column labels
  * the categories and each further column is a series; a type with N series needs exactly N value
- * columns; column, bar, line, area and radar take any number). Data that is read from
+ * columns, except that a stacked or percent-stacked type takes N or more; column, bar, line, area and
+ * radar take any number). Data that is read from
  * an external source returns every simple type. This is data-shape compatibility, not a claim that
  * an engine draws the type. `path` or `slideIndex` picks the chart (default: the slide's first).
  * Each entry has `current: true` for the chart's present type, which is always listed.
@@ -440,7 +442,13 @@ export function compatibleChartTypes(document, options = {}) {
     const current = option.id === chart.type;
     const simple = record.complexity === "simple" && record.mappings?.openxml?.composition !== "mixed" && !DISTRIBUTION_ELEMENTS.has(element);
     const seriesOk =
-      !shape || !record.series || (record.series > 1 ? record.series === shape.series : shape.series === 1 || (MULTI_SERIES_CAPABLE.has(element) && !SINGLE_SERIES_ONLY.has(element)));
+      !shape ||
+      !record.series ||
+      (record.series > 1
+        ? STACKED_GROUPINGS.has(record.mappings?.openxml?.grouping)
+          ? shape.series >= record.series
+          : record.series === shape.series
+        : shape.series === 1 || (MULTI_SERIES_CAPABLE.has(element) && !SINGLE_SERIES_ONLY.has(element)));
     if (current || (simple && seriesOk)) result.push({ id: option.id, label: option.label, current, record });
   }
   return result;
