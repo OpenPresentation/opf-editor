@@ -85,7 +85,7 @@ export function createRichTextToolbar(root, {editor, report, beforeChange, onPro
   const size=field('Font size (pt)','number');size.min='0.1';size.step='0.5';size.style.width='80px';
   size.onchange=()=>{try{apply({fontSize:size.value?Number(size.value):null});}catch(error){report(error);}};
   const family=field('Font family');family.onchange=()=>{try{apply({fontFamily:family.value||null});}catch(error){report(error);}};
-  const link=field('Link URL');link.onchange=()=>{try{if(link.value&&!/^(https?:|mailto:)/i.test(link.value))throw new Error('Use an HTTP, HTTPS, or mailto link.');apply({link:link.value||null});}catch(error){report(error);}};
+  const link=field('Link URL');link.onchange=()=>{try{if(link.value&&!/^(https?:\/\/|mailto:|tel:)\S+$/.test(link.value))throw new Error('Use an HTTP, HTTPS, mailto or tel link without spaces.');apply({link:link.value||null});}catch(error){report(error);}};
   const language=field('Language tag');language.style.width='80px';
   language.onchange=()=>{try{if(language.value&&!/^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$/.test(language.value))throw new Error('Use a BCP-47 language tag such as fr-FR or ja-JP.');apply({lang:language.value||null});}catch(error){report(error);}};
   const replacement=field('Selected text');replacement.style.width='160px';
