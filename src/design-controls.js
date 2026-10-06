@@ -752,6 +752,18 @@ export function createDesignControls(container, options = {}) {
       apply: (ref) => setDesignOption(editor, "watermark", ref === null ? null : { src: ref }, scoped()),
       build: (ref, doc) => prepareDesignOption(doc, "watermark", { src: ref }, scoped()),
     });
+    // FA-13: a watermark is an image or a text stamp; the text field and the image cluster replace each other.
+    const watermarkText = textField("watermark-text", "Watermark text", {
+      placeholder: "DRAFT",
+      help: "A text stamp centered on the slide, drawn diagonally in the theme text color at the opacity below. Press Enter to apply; clear the field to remove it. It replaces a watermark image.",
+      onCommit: (value) => run(() => {
+        const text = value.trim();
+        const current = getDesignOption(editor.document, "watermark", scoped()).value;
+        if (text === "") return current && typeof current === "object" && typeof current.text === "string" ? setDesignOption(editor, "watermark", null, scoped()) : { changed: false };
+        const opacity = current && typeof current === "object" && typeof current.opacity === "number" ? current.opacity : 0.1;
+        return setDesignOption(editor, "watermark", { text, opacity }, scoped());
+      }, value.trim() === "" ? "Watermark removed." : "Watermark text set."),
+    });
     const watermarkOpacity = numberField("watermark-opacity", "Watermark opacity (0 to 1)", {
       min: 0,
       max: 1,
@@ -761,7 +773,7 @@ export function createDesignControls(container, options = {}) {
     const watermarkOff = checkField("watermark-off", "Hide the inherited watermark", {
       onChange: (checked) => run(() => setDesignOption(editor, "watermark", checked ? false : null, scoped()), checked ? "Watermark hidden." : "Watermark restored."),
     });
-    body.append(variant.wrap, logoSource.wrap, orgLogo.wrap, bullet.wrap, accent.wrap, watermarkSource.wrap, watermarkOpacity.wrap, watermarkOff.wrap);
+    body.append(variant.wrap, logoSource.wrap, orgLogo.wrap, bullet.wrap, accent.wrap, watermarkSource.wrap, watermarkText.wrap, watermarkOpacity.wrap, watermarkOff.wrap);
     const warningList = h("ul", { class: "opf-dc-warnings", "aria-label": "Logo warnings" });
     body.append(warningList);
     syncs.push(() => {
@@ -777,8 +789,9 @@ export function createDesignControls(container, options = {}) {
       accent.set(accentOption.value ?? "", sourceNote(accentOption.scope, accentOption.value !== undefined));
       const watermark = getDesignOption(editor.document, "watermark", scoped());
       const mark = watermark.value;
-      // The opacity belongs to a watermark image; without one there is nothing to fade.
-      for (const input of watermarkOpacity.wrap.querySelectorAll("input")) input.disabled = !(typeof mark === "string" || (mark && typeof mark === "object" && typeof mark.src === "string"));
+      // The opacity belongs to a watermark image or text; without one there is nothing to fade.
+      for (const input of watermarkOpacity.wrap.querySelectorAll("input")) input.disabled = !(typeof mark === "string" || (mark && typeof mark === "object" && (typeof mark.src === "string" || typeof mark.text === "string")));
+      watermarkText.set(mark && typeof mark === "object" && typeof mark.text === "string" ? mark.text : "", sourceNote(watermark.scope, mark !== undefined));
       watermarkSource.set(typeof mark === "string" ? mark : mark && typeof mark === "object" ? stringOf(mark) : "", sourceNote(watermark.scope, mark !== undefined), target());
       watermarkOpacity.set(mark && typeof mark === "object" && typeof mark.opacity === "number" ? String(mark.opacity) : "");
       const own = scopeIndex() === undefined ? editor.document.design?.watermark : editor.document.slides?.[scopeIndex()]?.design?.watermark;

@@ -33,10 +33,11 @@ for (const [dimension, kind] of [
   assert.equal(options.length, catalogs.fontSchemes.length + 2);
   assert.deepEqual(listSwitchOptions({}, "blocks").map((option) => option.id), ["text", "list", "chart", "table", "metric", "quote", "code", "timeline", "group", "image", "video"]);
   assert.deepEqual(listSwitchOptions({}, "backgrounds"), [], "free-form dimensions have no catalog");
-  // RR-41: the slide sizes are the schema's seven presets, each labelled with its size in inches.
+  // RR-41: the slide sizes are the schema's ten presets, each labelled with its size in inches.
   const sizes = listSwitchOptions({}, "slide-sizes");
   assert.deepEqual(sizes.map((option) => option.id), [...SLIDE_SIZE_PRESETS]);
-  assert.deepEqual(sizes.map((option) => option.id), ["16:9", "4:3", "16:10", "letter", "a4", "widescreen", "standard"]);
+  assert.deepEqual(sizes.map((option) => option.id), ["16:9", "4:3", "16:10", "1:1", "4:5", "9:16", "letter", "a4", "widescreen", "standard"]);
+  assert.equal(sizes.find((option) => option.id === "4:5").label, "4:5 portrait (7.5 x 9.375 in)");
   assert.equal(sizes.find((option) => option.id === "a4").label, "A4 (11.69 x 8.27 in)");
   assert.ok(sizes.every((option) => /\d in\)$/.test(option.label)));
   assert.deepEqual(catalogs.purposes.map((record) => record.id), ["inform", "decide", "align", "persuade", "educate", "report", "pitch", "sell", "plan"]);

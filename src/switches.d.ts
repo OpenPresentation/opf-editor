@@ -2,7 +2,7 @@ import type { ConvertOptions } from "@openpresentation/opf/convert";
 import type { EditorChange, EditorSession, JsonPatchOperation } from "./index.js";
 
 /** The schema's DimensionPreset values: the values of the slide-sizes switch. */
-export declare const SLIDE_SIZE_PRESETS: readonly ["16:9", "4:3", "16:10", "letter", "a4", "widescreen", "standard"];
+export declare const SLIDE_SIZE_PRESETS: readonly ["16:9", "4:3", "16:10", "1:1", "4:5", "9:16", "letter", "a4", "widescreen", "standard"];
 export type SlideSizePreset = (typeof SLIDE_SIZE_PRESETS)[number];
 
 /** Every switchable dimension: the 14 pptx.gallery dimensions, then `slide-sizes` and `purposes`. */

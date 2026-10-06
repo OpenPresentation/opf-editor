@@ -145,16 +145,20 @@ function finish(document, patches, extra) {
 function mergedWatermark(existing, value) {
   if (value === null || value === false) return value;
   if (typeof value === "string") return value;
-  if (!isObject(value)) throw fail("invalid-design-value", "A watermark is false, an image source or { src, opacity }.", { value });
+  if (!isObject(value)) throw fail("invalid-design-value", "A watermark is false, an image source, { src, opacity } or { text, opacity }.", { value });
   const base = typeof existing === "string" ? { src: existing } : isObject(existing) ? { ...existing } : {};
   const merged = { ...base };
   for (const [key, entry] of Object.entries(value)) {
     if (entry === null || entry === undefined) delete merged[key];
     else merged[key] = entry;
   }
+  // FA-13: a watermark is an image (src) or a text stamp (text), never both: the field set last replaces the other.
+  if (value.text !== undefined && value.text !== null && value.src === undefined) delete merged.src;
+  else if (value.src !== undefined && value.src !== null && value.text === undefined) delete merged.text;
+  if (merged.text !== undefined && (typeof merged.text !== "string" || !merged.text.trim())) throw fail("invalid-design-value", "Watermark text is a non-empty string.", { value });
   if (merged.opacity !== undefined && (typeof merged.opacity !== "number" || merged.opacity < 0 || merged.opacity > 1))
     throw fail("invalid-design-value", "Watermark opacity is a number from 0 to 1.", { value });
-  if (merged.src === undefined && Object.keys(merged).length) throw fail("invalid-design-value", "Choose the watermark image before setting its opacity.", { value });
+  if (merged.src === undefined && merged.text === undefined && Object.keys(merged).length) throw fail("invalid-design-value", "Choose the watermark image before setting its opacity (or give it text instead).", { value });
   if (Object.keys(merged).length === 1 && typeof merged.src === "string") return merged.src;
   if (!Object.keys(merged).length) return null;
   if (merged.opacity === undefined) throw fail("invalid-design-value", "Set an opacity from 0 to 1 for the watermark.", { value });

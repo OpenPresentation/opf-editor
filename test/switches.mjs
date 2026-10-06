@@ -294,7 +294,7 @@ assert.deepEqual(summary, ALL_DIMENSIONS);
   assert.equal(fresh.get("slides.2.blocks.1.items.0"), "Changed since preview");
 }
 
-// Slide sizes (RR-41): each of the seven presets is one patch and one undo step, the shared composition
+// Slide sizes (RR-41): each of the ten presets is one patch and one undo step, the shared composition
 // and the SVG preview recompose at the new canvas, and undo restores the exact size.
 {
   const canvas = (document) => {

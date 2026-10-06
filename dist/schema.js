@@ -23,7 +23,14 @@ export function schemaVariants(schema, root = schemas.presentation) {
   const variants = resolved.oneOf ?? resolved.anyOf;
   if (!variants) return [resolved];
   const {$ref, oneOf, anyOf, ...base} = resolved;
-  return variants.flatMap(child => schemaVariants(child, root).map(variant => ({...base, ...variant, properties: base.properties || variant.properties ? {...base.properties,...variant.properties} : undefined})));
+  return variants.flatMap(child => schemaVariants(child, root).map(variant => {
+    // A branch that only names required fields (Watermark: exactly one of src and text) adds to the base's required list and is
+    // labelled by them, so the generic form offers "src" and "text" as two forms of one object.
+    const requiredOnly = !variant.type && !variant.properties && !variant.$ref && Array.isArray(variant.required);
+    return {...base, ...variant, properties: base.properties || variant.properties ? {...base.properties,...variant.properties} : undefined,
+      ...(base.required || variant.required ? {required: [...new Set([...(base.required ?? []), ...(variant.required ?? [])])]} : {}),
+      ...(requiredOnly && !variant.title ? {title: variant.required.join(' + ')} : {})};
+  }));
 }
 export function schemaType(schema, value) {
   return schema.type ?? (schema.properties || schema.additionalProperties ? 'object' : schema.items ? 'array' : schema.const !== undefined ? typeof schema.const : value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value === 'undefined' ? 'string' : typeof value);

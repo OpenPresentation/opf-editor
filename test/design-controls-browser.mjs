@@ -174,7 +174,7 @@ try {
   // RR-41: slide size and purpose. The size is one deck-level choice; the preview recomposes at it.
   const previewBox = () => page.locator('#preview svg').first().getAttribute('viewBox');
   assert.equal(await previewBox(), '0 0 1280 720', 'the classic theme composes at widescreen');
-  assert.deepEqual(await field(design, 'Slide size').locator('option').evaluateAll(nodes => nodes.map(node => node.value)), ['16:9', '4:3', '16:10', 'letter', 'a4', 'widescreen', 'standard'], 'the seven presets');
+  assert.deepEqual(await field(design, 'Slide size').locator('option').evaluateAll(nodes => nodes.map(node => node.value)), ['16:9', '4:3', '16:10', '1:1', '4:5', '9:16', 'letter', 'a4', 'widescreen', 'standard'], 'the ten presets');
   assert.equal(await field(design, 'Slide size').inputValue(), 'widescreen', 'the control shows the theme size');
   await step('slide-sizes', async () => {
     await field(design, 'Slide size').selectOption('4:3');

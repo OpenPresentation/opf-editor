@@ -18,14 +18,17 @@ import { checkedDocument, designPatches, fail, same } from "./edit-helpers.js";
 import { populateLayoutPlaceholders } from "./layout-placeholders.js";
 import { blockConversionTargets, prepareBlockConversion } from "./block-convert.js";
 
-/** The schema's DimensionPreset values (RR-41), the values of the slide-sizes switch. */
-export const SLIDE_SIZE_PRESETS = Object.freeze(["16:9", "4:3", "16:10", "letter", "a4", "widescreen", "standard"]);
+/** The schema's DimensionPreset values (RR-41, FA-13: with the social-feed ratios), the values of the slide-sizes switch. */
+export const SLIDE_SIZE_PRESETS = Object.freeze(["16:9", "4:3", "16:10", "1:1", "4:5", "9:16", "letter", "a4", "widescreen", "standard"]);
 
 // Slide size in inches per preset, as core's resolveCanvasDimensions composes it (for picker labels).
 const SLIDE_SIZE_LABELS = Object.freeze({
   "16:9": "16:9 (13.33 x 7.5 in)",
   "4:3": "4:3 (10 x 7.5 in)",
   "16:10": "16:10 (10 x 6.25 in)",
+  "1:1": "1:1 square (7.5 x 7.5 in)",
+  "4:5": "4:5 portrait (7.5 x 9.375 in)",
+  "9:16": "9:16 portrait (7.5 x 13.33 in)",
   letter: "Letter (11 x 8.5 in)",
   a4: "A4 (11.69 x 8.27 in)",
   widescreen: "Widescreen (13.33 x 7.5 in)",
