@@ -170,7 +170,7 @@ try {
   await step('socials', async () => { await field(design, 'Platform').selectOption('linkedin'); const input = field(design, 'Handle or address'); await input.fill('alice-chen'); await input.press('Enter'); }, current => current.speaker.socials?.linkedin === 'alice-chen');
   await step('headers-footers', async () => { const input = field(design, 'Text'); await input.fill('Confidential'); await input.press('Enter'); }, current => current.design.footer?.center?.text === 'Confidential');
   await step('image-treatments (slide image)', () => field(design, 'Position').selectOption('right'), current => current.design.slideImage?.position === 'right');
-  await step('picture placeholder fill', () => field(design, 'Picture placeholders').selectOption('fit'), current => current.design.imageFill === 'fit');
+  await step('image placeholder fill', () => field(design, 'Image placeholders').selectOption('fit'), current => current.design.imageFill === 'fit');
   // RR-41: slide size and purpose. The size is one deck-level choice; the preview recomposes at it.
   const previewBox = () => page.locator('#preview svg').first().getAttribute('viewBox');
   assert.equal(await previewBox(), '0 0 1280 720', 'the classic theme composes at widescreen');

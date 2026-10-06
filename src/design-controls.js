@@ -592,10 +592,10 @@ export function createDesignControls(container, options = {}) {
       onCommit: (value) => image({ size: value }, "Image size changed."),
     });
     const inset = checkField("image-inset", "Inset inside the slide padding", { onChange: (checked) => image({ inset: checked ? true : null }, "Image inset changed.") });
-    const placeholderFill = selectField("image-placeholder-fill", "Picture placeholders", {
+    const placeholderFill = selectField("image-placeholder-fill", "Image placeholders", {
       empty: "Presentation default",
-      help: "How pictures fill their layout placeholders across the presentation.",
-      onChange: (value) => run(() => switchDimension(editor, "image-treatments", { imageFill: value === "" ? null : value }), "Picture placeholder fill changed."),
+      help: "How images fill their layout placeholders across the presentation.",
+      onChange: (value) => run(() => switchDimension(editor, "image-treatments", { imageFill: value === "" ? null : value }), "Image placeholder fill changed."),
     });
     placeholderFill.setOptions([
       { value: "crop", label: "Crop to fill" },

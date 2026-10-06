@@ -184,28 +184,25 @@ function attachDefinition(document, descriptor) {
     return;
   let record;
   if (kind === "layouts") {
-    const n = Math.min(
-      12,
-      Number(String(source.contentMultiple ?? "").replace("x", "")) || 1,
-    );
-    const type =
-      { Image: "picture", Chart: "chart", List: "list" }[source.contentType] ??
-      "text";
+    // A gallery layout item is a layout record: its placeholders, design hints and composition are the
+    // record's own. Only an item that declares no placeholders gets the default title and text.
+    const placeholders = Array.isArray(source.placeholders)
+      ? source.placeholders
+          .filter((placeholder) => typeof placeholder?.type === "string")
+          .map((placeholder) => ({ type: placeholder.type }))
+      : [{ type: "title" }, { type: "text" }];
+    const plain = (value) =>
+      value && typeof value === "object" && !Array.isArray(value)
+        ? structuredClone(value)
+        : undefined;
     record = {
       $schema: "https://openpresentation.org/schema/opf-layout/v1",
       id,
       name: source.label ?? source.name ?? id,
-      placeholders: [
-        { type: "title" },
-        ...Array.from({ length: n }, () => ({ type })),
-      ],
-      ...(n > 1
-        ? {
-            composition: {
-              mode: n <= 3 ? "row" : "grid",
-              ...(n > 3 ? { columns: 2 } : {}),
-            },
-          }
+      ...(plain(source.design) ? { design: plain(source.design) } : {}),
+      placeholders,
+      ...(plain(source.composition)
+        ? { composition: plain(source.composition) }
         : {}),
     };
   } else if (kind === "fontSchemes") record = fontSchemeRecord(source, id);
