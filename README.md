@@ -61,6 +61,8 @@ Version 0.7.0 uses core 0.10.0 and renderer 0.8.0. Code source/metadata edits pr
 
 ## Live browser canvas
 
+A timeline event's `status` (`done`, `current`, `planned`; core's `TimelineEvent.status`) is a menu in the canvas properties form and in the schema inspector, not free text; "Add" on a timeline adds an event with no status. The canvas draws it as the preview does, and a PPTX export keeps it.
+
 The new `@openpresentation/opf-editor/canvas` entry provides a framework-independent SVG canvas with inline text/table-cell editing, live validated drafts, undo/redo, cancellation, and structured property forms for charts, lists, metrics, quotes, code, timelines and images. Mount it in a DOM container:
 
 Chart options (RR-35): `@openpresentation/opf-editor/chart-options` edits a chart's `axisTitles`, `legend` and `dataLabels` as one undoable patch (`setChartOptions(editor, chartPath, { legend: "bottom", dataLabels: { position: "inside-end" } })`), and `@openpresentation/opf-editor/chart-options-panel` mounts the control panel (`createChartOptionsPanel(host, { editor, getSelectedPath })`). The panel offers only what the chart type can show.
@@ -261,7 +263,7 @@ switchDimension(editor, "blocks", "list", { path: "slides.2.blocks.0", convert: 
 | text | table | A Markdown pipe table, tab-separated lines or a `delimiter`; refused without that structure. |
 | list | text, timeline, table | Nesting becomes indentation (lossless) or is reported; a description is kept as an indented line or an event description; a table has one column, or text and description, with no invented headings. |
 | quote, metric, code | text | The quote, then `— attribution` and `— source`; the metric as `value unit`, label, description and delta (a trend is reported as lost); code in a fenced block that keeps its language and file name. |
-| timeline | text, list, table | `when: what` per event with the description indented; a table has `When`, `What`, `Description` columns for the fields in use. Lossless apart from the timeline name and description. |
+| timeline | text, list, table | `when: what` per event with the description indented; a table has `When`, `What`, `Description` columns for the fields in use. Lossless apart from the timeline name and description, and each event's `status`, which a conversion reports as lost (`timeline event status`). |
 | chart | table | Inline data only. A chart's type is reported as lost. |
 | table | chart | Needs a plain label for every column and numbers after the first; styled, merged or rich cells and external data are refused. |
 | table | list, timeline, text, metric blocks | First column is the item; columns are read by heading (`When`, `What`, `Value`, ...); Markdown or tab-separated text. Dropped columns and headings are reported. |
