@@ -33,7 +33,6 @@ import {
   setGridColumnFormat,
   setGridHeader,
   sortGridRows,
-  supportsChartTableData,
   transposeGridData,
 } from "./grid-model.js";
 import { NUMBER_FORMATS, parseDelimited, resolveNumberFormat, toDelimited } from "./grid-text.js";
@@ -551,7 +550,7 @@ export function createDataGrid(container, options = {}) {
   // moves the selection before the field's change event fires, and the format typed for one column must not land on the next.
   let formatBound = 0;
   function updateFormatRow() {
-    const visible = Boolean(grid?.hasHeader) && target?.editable !== false && supportsChartTableData;
+    const visible = Boolean(grid?.hasHeader) && target?.editable !== false;
     formatRow.hidden = !visible;
     if (!visible) return;
     if (doc.activeElement !== formatInput) {
@@ -613,7 +612,7 @@ export function createDataGrid(container, options = {}) {
 
   function buildMapping() {
     mappingBody.replaceChildren();
-    mappingBox.hidden = !grid || target?.kind !== "chart" || !supportsChartTableData;
+    mappingBox.hidden = !grid || target?.kind !== "chart";
     if (mappingBox.hidden) return;
     let view;
     try {

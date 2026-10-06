@@ -1,5 +1,6 @@
 import { fromPptx, toPptx } from '@openpresentation/opf-pptx';
 import { exportFileName } from '../src/export.js';
+import { fontGate } from '../src/font-gate.js';
 
 export async function readPptxFile(file) {
   const diagnostics = [];
@@ -18,7 +19,7 @@ export function showConversionDiagnostics(container, diagnostics) {
   }));
 }
 
-export function installPptxExport({ editor, getCanvas, renderOptions, status, fonts, measurementFor }) {
+export function installPptxExport({ editor, getCanvas, status, fonts, measurementFor }) {
   const $ = id => document.getElementById(id);
   const dialog = $('export-dialog');
   let request = 0, bytes, filename;
@@ -39,15 +40,16 @@ export function installPptxExport({ editor, getCanvas, renderOptions, status, fo
     const diagnostics = [];
     try {
       // Text is measured with the loaded faces, so the faces the deck needs load before conversion measures anything.
-      if (fonts?.pending(deck).length) {
+      const gate = fontGate(fonts);
+      if (gate?.pending(deck).length) {
         $('export-summary').textContent = 'Loading fonts…';
-        await fonts.ensure(deck);
+        await gate.ensure(deck);
         if (id !== request || !dialog.open) return;
         $('export-summary').textContent = `Preparing ${deck.slides.length} slides…`;
       }
       const result = await toPptx(deck, {
         // A script-aware measurement for this deck (Japanese under Aptos measures with Noto Sans JP), when the host supplies one.
-        textMeasurement: measurementFor?.(deck) ?? renderOptions.textMeasurement,
+        fonts: measurementFor ? { textMeasurement: measurementFor(deck) } : fonts,
         strictAssets: true,
         onDiagnostic: issue => diagnostics.push(issue),
       });

@@ -1,8 +1,8 @@
 // RR-34: captions, references, citations and footnotes as validated, undoable session edits; the
 // numbering the engines draw; the preview draws the result and the PPTX export carries it.
 import assert from "node:assert/strict";
-import { validatePresentation } from "@openpresentation/opf";
-import { renderSvg } from "@openpresentation/opf-render/svg";
+import { validate } from "@openpresentation/opf";
+import { renderSlideSvg } from "@openpresentation/opf-render/svg";
 import * as pptx from "@openpresentation/opf-pptx";
 import { createEditorSession } from "../dist/index.js";
 import {
@@ -56,8 +56,8 @@ const throws = (fn, code) => { try { fn(); } catch (error) { assert.equal(error.
   assert.deepEqual(editor.document.slides[1].blocks[1].caption, { text: ["Table ", { text: "1", bold: true }], position: "above", align: "center" });
   setCaption(editor, "slides.3", { text: "Figure 2", position: "below", align: "left" });
   assert.equal(editor.document.slides[3].caption, "Figure 2", "default position and alignment store the short form");
-  assert.equal(validatePresentation(editor.document).valid, true);
-  ok(renderSvg(editor.document, { slideIndex: 1, trace: true }).includes('data-opf-caption="above"'), "the preview draws the caption band");
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
+  ok(renderSlideSvg(editor.document, 1, { trace: true }).includes('data-opf-caption="above"'), "the preview draws the caption band");
   throws(() => prepareCaption(editor.document, "slides.1.blocks.2", "no"), "caption-unsupported");
   throws(() => prepareCaption(editor.document, "slides.1", "no"), "caption-unsupported");
   throws(() => prepareCaption(editor.document, "slides.1.blocks.0", { text: "x", position: "left" }), "invalid-caption");
@@ -88,7 +88,7 @@ const throws = (fn, code) => { try { fn(); } catch (error) { assert.equal(error.
   removeReference(editor, "gartner", { force: true });
   assert.deepEqual(editor.document.references, [{ id: "annual", text: ["Annual report ", { text: "2025", bold: true }] }]);
   assert.deepEqual(editor.document.slides[2].items[0].text, ["Point ", "one"], "the forced removal drops the cite and simplifies the run");
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
   removeReference(editor, "annual");
   assert.equal(editor.document.references, undefined, "an empty list is removed");
   editor.undo(); editor.undo();
@@ -114,8 +114,8 @@ const throws = (fn, code) => { try { fn(); } catch (error) { assert.equal(error.
   assert.deepEqual(citations.notes.map((note) => [note.number, note.kind, note.id ?? note.text]), [[1, "reference", "gartner"], [2, "reference", "annual"], [3, "footnote", "Because it matters."]]);
   assert.deepEqual(citations.slides.map((slide) => [slide.slideIndex, slide.markers.map((marker) => marker.text), slide.notes]), [[0, ["1", "2,1"], [1, 2]], [2, ["1", "3"], [1, 3]]]);
   assert.deepEqual(citations.unused, []);
-  assert.equal(validatePresentation(editor.document).valid, true);
-  const svg = renderSvg(editor.document, { slideIndex: 0, trace: true });
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
+  const svg = renderSlideSvg(editor.document, 0, { trace: true });
   assert.deepEqual([...svg.matchAll(/data-opf-marker="([^"]*)"/g)].map((match) => match[1]), ["1", "2,1"]);
   ok(svg.includes('data-opf-footnotes="slides.0"'), "the preview draws the footnote area");
   const bytes = await pptx.toPptx(editor.document, { seed: 1 });

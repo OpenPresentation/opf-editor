@@ -1,7 +1,7 @@
 import {createCanvasEditor} from '../src/canvas.js';
 import {createEditorSession} from '../src/index.js';
 import {richTextContent} from '../src/rich-text.js';
-import {loadBrowserFontRegistry} from '@openpresentation/opf-render/fonts-browser';
+import { loadFonts } from '@openpresentation/opf-render/fonts-browser';
 const host=document.querySelector('#canvas'),output=document.querySelector('#results');
 const controls=document.createElement('div'),state=document.createElement('pre');
 state.id='state';host.after(controls,state);
@@ -19,10 +19,10 @@ function structural(){const table=editor.document.slides[0].table;check(table.ro
 function button(label,action){const b=document.createElement('button');b.textContent=label;b.onclick=()=>{try{action();show();}catch(error){output.textContent+='FAIL '+error.stack;}};controls.append(b);}
 try{
  const faces=(await fetch('./fonts.json').then(r=>r.json())).filter(face=>['Roboto','Roboto Mono'].includes(face.family));
- const fonts=await loadBrowserFontRegistry(faces.map(face=>({...face,url:face.dataUrl})));
+ const fonts=await loadFonts({ faces: faces.map(face=>({...face,url:face.dataUrl})) });
  check(faces.length>0&&fonts.embeddedFonts.length===faces.length,'Actual Roboto font bytes are loaded and measured');
  editor=createEditorSession(source,{rejectInvalid:true});
- canvas=createCanvasEditor(host,{editor,renderOptions:{textMeasurement:fonts.textMeasurement},onRender:show,onCommit:show,onCancel:show});await canvas.ready;
+ canvas=createCanvasEditor(host,{editor,fonts,onRender:show,onCommit:show,onCancel:show});await canvas.ready;
  const rect=host.querySelector('rect[data-opf-path="slides.0.table.rows.0.0"]');
  check(!!rect,'Merged anchor has a visible rectangle');
  check(!host.querySelector('[data-canvas-target][data-opf-path="slides.0.table.rows.1.0"]'),'Covered grid position is not an editable target');

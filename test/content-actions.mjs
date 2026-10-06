@@ -1,8 +1,8 @@
 // RR-26: list levels, grouping, regions, images between content and design, and slide split and merge as editor
 // transactions. Each is one guarded, validated, undoable step that reports what it cannot carry.
 import assert from "node:assert/strict";
-import { validatePresentation } from "@openpresentation/opf";
-import { renderSvg } from "@openpresentation/opf-render/svg";
+import { validate } from "@openpresentation/opf";
+import { renderSlideSvg } from "@openpresentation/opf-render/svg";
 import { createEditorSession } from "../dist/index.js";
 import {
   groupBlocks,
@@ -74,9 +74,9 @@ const refused = (action, pattern) => assert.throws(action, (error) => error.code
   assert.throws(() => editor.applyPatch(stale.patches), (error) => error.code === "patch-test-failed");
   undoAll(editor, original);
   // The preview follows: the nested item draws.
-  const before = renderSvg(editor.document, { slideIndex: 0 });
+  const before = renderSlideSvg(editor.document, 0);
   shiftListItems(editor, "slides.0.blocks.0", [1, 2], 1);
-  assert.notEqual(renderSvg(editor.document, { slideIndex: 0 }), before);
+  assert.notEqual(renderSlideSvg(editor.document, 0), before);
 }
 
 // --- group and ungroup -------------------------------------------------------------------------
@@ -97,7 +97,7 @@ const refused = (action, pattern) => assert.throws(action, (error) => error.code
   refused(() => groupBlocks(editor, "nowhere", [0]), /Choose a container/);
   refused(() => ungroupBlock(editor, "slides.1.blocks.0"), /Choose a group/);
   assert.equal(prepareGroupBlocks(editor.document, "slides.1", [0, 1]).patches.length, 2);
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
 }
 
 // --- regions -----------------------------------------------------------------------------------
@@ -147,7 +147,7 @@ const refused = (action, pattern) => assert.throws(action, (error) => error.code
   assert.equal(slideImage.changed, true);
   refused(() => moveImageToDesign(editor, "slides.3.blocks.1", "slideImage"), /only an image/);
   refused(() => moveImageToContent(editor, 3, "background"), /does not set/);
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
 }
 
 // --- slides ------------------------------------------------------------------------------------
@@ -167,9 +167,9 @@ const refused = (action, pattern) => assert.throws(action, (error) => error.code
   assert.deepEqual(merged.loss, ['slide id "blocks--2"']);
   assert.equal(editor.document.slides.length, original.slides.length);
   undoAll(editor, original);
-  const preview = renderSvg(editor.document, { slideIndex: 1 });
+  const preview = renderSlideSvg(editor.document, 1);
   splitSlideByBlocks(editor, 1, { each: true });
-  assert.notEqual(renderSvg(editor.document, { slideIndex: 1 }), preview, "the preview follows the split");
+  assert.notEqual(renderSlideSvg(editor.document, 1), preview, "the preview follows the split");
   undoAll(editor, original);
   refused(() => splitSlideByBlocks(editor, 6, { each: true }), /one block/);
   refused(() => mergeSlides(editor, 6, 2), /exist/);
@@ -189,7 +189,7 @@ const refused = (action, pattern) => assert.throws(action, (error) => error.code
   assert.equal(editor.document.slides.at(-1).id, "last");
   assert.ok(Array.isArray(split.pages) && split.pages.length === split.slideCount);
   assert.equal(editor.snapshot().undoDepth, 1, "a split on overflow is one undo step");
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
   assert.equal(editor.document.slides.slice(5, 5 + split.slideCount).flatMap((slide) => slide.blocks).filter((block) => block.text !== undefined).map((block) => block.text).join(""), long);
   const back = unpaginateSlides(editor, split.pages);
   assert.equal(editor.document.slides.length, original.slides.length);

@@ -1,4 +1,5 @@
-import { catalogKinds, catalogSchemaNames, schemas, validateCatalogRecord, validatePresentation } from "@openpresentation/opf";
+import { catalogKinds, catalogSchemaNames, schemas, validateCatalogRecord } from "@openpresentation/opf";
+import { checkFormat, firstErrorMessage } from "./checks.js";
 import { getCatalogOptions } from "./index.js";
 import { schemaAtPath, schemaVariants } from "./schema.js";
 import { applyEdits, findNodeAtLocation, findNodeAtOffset, getNodePath, modify, parseTree } from "jsonc-parser";
@@ -153,13 +154,13 @@ export function replaceFieldOption(context, value) {
         throw new Error("This field has a duplicate key. Resolve it in the JSON before choosing an option.");
     const types = context.options.find(option => option.value === value).placeholderTypes;
     if (value !== context.value && types && context.catalog === 'layouts' && context.path.length === 3
-        && context.path[0] === 'slides' && context.path[2] === 'layout' && validatePresentation(document).valid) {
+        && context.path[0] === 'slides' && context.path[2] === 'layout' && checkFormat(document).valid) {
         const populated = populateLayoutPlaceholders(document, context.path[1], types);
         next = updateSource(next, document, populated);
     }
-    const result = validatePresentation(JSON.parse(next));
-    if (!result.valid && validatePresentation(JSON.parse(context.source)).valid)
-        throw new Error(result.errors[0]?.message ?? "This option is not valid here.");
+    const result = checkFormat(JSON.parse(next));
+    if (!result.valid && checkFormat(JSON.parse(context.source)).valid)
+        throw new Error(firstErrorMessage(result, "This option is not valid here."));
     return next;
 }
 

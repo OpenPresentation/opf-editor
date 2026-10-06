@@ -81,6 +81,10 @@
           "command": "node test/review-panel-browser.mjs"
         },
         {
+          "id": "playground:review-hook-browser",
+          "command": "node test/review-hook-browser.mjs"
+        },
+        {
           "id": "playground:playground-download",
           "command": "node test/playground-download.mjs artifacts/playground-download"
         }

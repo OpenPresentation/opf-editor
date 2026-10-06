@@ -14,12 +14,9 @@ import {
   setTemplate,
   suggestVariableId,
   templateStatus,
-  templatesAvailable,
   valueToFieldText,
   variableToken,
 } from "../dist/templates.js";
-
-assert.equal(templatesAvailable(), true);
 
 const template = () => ({
   template: true,

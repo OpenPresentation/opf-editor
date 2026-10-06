@@ -2,9 +2,10 @@
 // Each dimension produces the expected patch, one undoable transaction, and a preview that
 // recomposes to the new fonts and content. Exports after a switch: switches-export.mjs.
 import assert from "node:assert/strict";
-import { validatePresentation } from "@openpresentation/opf";
-import { renderSvg } from "@openpresentation/opf-render/svg";
-import { OPFEditorError, createEditorSession, resolveSlideFonts } from "../dist/index.js";
+import { resolveSlideContext, validate } from "@openpresentation/opf";
+import { renderSlideSvg } from "@openpresentation/opf-render/svg";
+import { OPFEditorError, createEditorSession } from "../dist/index.js";
+const fontFamiliesOf = (document, index) => resolveSlideContext(document, index).options.fontFamilies;
 import { prepareBlockReplace } from "../dist/layout.js";
 import { currentSwitchValue, prepareDimensionSwitch, switchDimension, SWITCH_DIMENSIONS } from "../dist/switches.js";
 import { EXTRA_DIMENSIONS, GALLERY_DIMENSIONS, SLIDE_SIZES, baseDeck, cases } from "./switch-fixture.mjs";
@@ -15,24 +16,16 @@ assert.deepEqual([...SWITCH_DIMENSIONS], ALL_DIMENSIONS);
 assert.deepEqual(cases.map((entry) => entry.dimension), ALL_DIMENSIONS);
 
 const session = (document = baseDeck()) => createEditorSession(document, { rejectInvalid: true });
-const svg = (document, slideIndex) => renderSvg(document, { slideIndex });
+const svg = (document, slideIndex) => renderSlideSvg(document, slideIndex);
 function measuredFamilies(document, slideIndex) {
   const families = new Set();
   createEditorSession(document).composeSlide(slideIndex, {
-    textMeasurement: { measure: (text, size, style) => (families.add(style.fontFamily), text.length * size * 0.5) },
+    fonts: { textMeasurement: { measure: (text, size, style) => (families.add(style.fontFamily), text.length * size * 0.5) } },
   });
   return [...families].sort();
 }
-// Whether the installed renderer draws design.slideImage (unpublished FF-26 in renderer main).
-const slideImageSupported = (() => {
-  const document = baseDeck();
-  const plain = svg(document, 0);
-  document.slides[0].design = { slideImage: { src: "asset:cover", position: "right" } };
-  return svg(document, 0) !== plain;
-})();
-
 const summary = [];
-let languagePreview = "skipped: installed renderer does not mark the language in the SVG";
+let languagePreview = "unchanged by these switches";
 for (const entry of cases) {
   const { dimension, value, options, slide } = entry;
   const editor = session();
@@ -50,7 +43,7 @@ for (const entry of cases) {
   if (entry.patchPaths) assert.deepEqual(change.patches.map((patch) => patch.path), entry.patchPaths, `${dimension} patch paths`);
   entry.check?.(change.document);
   assert.equal(editor.validation.valid, true, `${dimension} valid`);
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
   assert.equal(editor.snapshot().undoDepth, 1, `${dimension} is one undo step`);
   assert.equal(events.length, 1);
   assert.equal(events[0].type, "patch");
@@ -73,9 +66,9 @@ for (const entry of cases) {
       languagePreview = "checked";
       assert.match(afterSvg, /xml:lang="ja"/, "the preview marks the new language");
     }
-  } else if (slideImageSupported) assert.notEqual(afterSvg, beforeSvg, `${dimension}: preview changes`);
+  } else assert.notEqual(afterSvg, beforeSvg, `${dimension}: preview changes`);
   if (entry.fonts) {
-    assert.deepEqual(resolveSlideFonts(switched, slide), { ...resolveSlideFonts(original, slide), ...entry.fonts }, `${dimension}: resolved fonts`);
+    assert.deepEqual(fontFamiliesOf(switched, slide), { ...fontFamiliesOf(original, slide), ...entry.fonts }, `${dimension}: resolved fonts`);
     assert.deepEqual(measuredFamilies(switched, slide), [...new Set(Object.values(entry.fonts))].sort(), `${dimension}: composition measures the new fonts`);
     assert.ok(afterSvg.includes(entry.fonts.body), `${dimension}: SVG names ${entry.fonts.body}`);
     assert.ok(!beforeSvg.includes(entry.fonts.body));
@@ -169,7 +162,7 @@ assert.deepEqual(summary, ALL_DIMENSIONS);
   const change = switchDimension(editor, "font-schemes", "team-mono", { record });
   assert.deepEqual(change.patches.map((patch) => [patch.op, patch.path]), [["add", "/catalogs"], ["replace", "/design/fontScheme"]]);
   assert.equal(editor.get("catalogs.fontSchemes.records.0.id"), "team-mono");
-  assert.deepEqual(resolveSlideFonts(editor.document, 0), { heading: "Inter", body: "Inter", code: "JetBrains Mono" });
+  assert.deepEqual(fontFamiliesOf(editor.document, 0), { heading: "Inter", body: "Inter", code: "JetBrains Mono" });
   assert.deepEqual(measuredFamilies(editor.document, 0), ["Inter"]);
   // With another inline catalog present, bundled ids stay available and records append.
   switchDimension(editor, "font-schemes", "georgia");
@@ -455,4 +448,4 @@ assert.deepEqual(summary, ALL_DIMENSIONS);
   reject("purposes", { outcome: 5 }, {}, "invalid-opf-edit");
 }
 
-console.log(`Dimension switches passed: ${summary.length} dimensions (patch, one undo step, undo/redo, preview refresh; slide image preview ${slideImageSupported ? "checked" : "skipped: installed renderer lacks design.slideImage"}; language preview ${languagePreview}).`);
+console.log(`Dimension switches passed: ${summary.length} dimensions (patch, one undo step, undo/redo, preview refresh; slide image preview checked; language preview ${languagePreview}).`);

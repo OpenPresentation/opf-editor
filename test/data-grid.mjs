@@ -2,8 +2,8 @@
 // row, pasting TSV/CSV and number reading. Every operation is one validated patch and one undo step; none of them ever turns a gap
 // into 0 or hides text.
 import assert from "node:assert/strict";
-import { validatePresentation } from "@openpresentation/opf";
-import { renderSvg } from "@openpresentation/opf-render/svg";
+import { validate } from "@openpresentation/opf";
+import { renderSlideSvg } from "@openpresentation/opf-render/svg";
 import * as pptx from "@openpresentation/opf-pptx";
 import { createEditorSession } from "../dist/index.js";
 import * as grid from "../dist/data-grid.js";
@@ -28,7 +28,7 @@ const deck = () => ({
   ],
 });
 const session = (document = deck()) => createEditorSession(document, { rejectInvalid: true });
-const svg = (document) => renderSvg(document, { slideIndex: 0 });
+const svg = (document) => renderSlideSvg(document, 0);
 const body = (row, column) => ({ section: "body", row, column });
 const header = (column) => ({ section: "header", column });
 const dataOf = (editor) => editor.get(`${C}.data`);
@@ -41,7 +41,7 @@ function step(editor, name, action, expectation) {
   const change = action();
   assert.equal(change.changed, true, `${name} changed the document`);
   assert.equal(editor.snapshot().undoDepth, depth + 1, `${name} is one undo step`);
-  assert.equal(validatePresentation(editor.document).valid, true, `${name} leaves valid OPF`);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true, `${name} leaves valid OPF`);
   expectation?.(change);
   const after = editor.document;
   editor.undo();
@@ -463,7 +463,7 @@ const withMerges = () => {
   refuses(editor, "moving a column out of a column merge", () => tables.moveTableColumns(editor, T, 1, 0), "table-merge-conflict");
   step(editor, "move a column", () => tables.moveTableColumns(editor, T, 0, 2), () => assert.equal(editor.get(`${T}.columns.2`).value, "Region"));
   // The table still validates, previews and exports after everything above.
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
   assert.ok(svg(editor.document).includes("<svg"));
 }
 {

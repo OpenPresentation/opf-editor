@@ -3,8 +3,9 @@
 // by default or on one slide with `slideIndex`, exactly like the dimension switches. Every
 // function has a `prepare…` form that returns the patch without touching a session, and a
 // session form that commits it with `meta.source: "design-option"`.
-import { getValueAtPath, opfPathToJsonPointer, validateOpfDocument } from "./index.js";
+import { getValueAtPath, opfPathToJsonPointer } from "./index.js";
 import { checkedDocument, designPatches, fail, same } from "./edit-helpers.js";
+import { checkFormat } from "./checks.js";
 
 /** The `design.logo` variant slots of a LogoSet, in schema order. */
 export const LOGO_VARIANTS = Object.freeze([
@@ -135,7 +136,7 @@ function shadowed(document, keys) {
 }
 
 function finish(document, patches, extra) {
-  const before = validateOpfDocument(document);
+  const before = checkFormat(document);
   const next = checkedDocument(document, patches, before);
   const slideIndex = extra.slideIndex;
   return {

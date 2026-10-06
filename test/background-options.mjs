@@ -1,8 +1,8 @@
 // RR-06 gaps: every background form (theme slot, solid, gradient, image, pattern) with validation,
 // one undo step, scope, removal, and export. The 54 pattern presets all survive a PPTX round trip.
 import assert from "node:assert/strict";
-import { validatePresentation } from "@openpresentation/opf";
-import { renderSvg } from "@openpresentation/opf-render/svg";
+import { validate } from "@openpresentation/opf";
+import { renderSlideSvg } from "@openpresentation/opf-render/svg";
 import * as pptx from "@openpresentation/opf-pptx";
 import { createEditorSession } from "../dist/index.js";
 import {
@@ -28,7 +28,7 @@ const deck = () => ({
   ],
 });
 const session = () => createEditorSession(deck(), { rejectInvalid: true });
-const svg = (document, index = 0) => renderSvg(document, { slideIndex: index });
+const svg = (document, index = 0) => renderSlideSvg(document, index);
 
 // The pattern list is the 54 DrawingML presets, once each, in five families.
 assert.equal(PATTERN_PRESETS.length, 54);
@@ -69,7 +69,7 @@ for (const form of forms) {
   assert.equal(change.changed, true, form.name);
   assert.deepEqual(editor.get("design.background"), form.stored, form.name);
   assert.equal(editor.snapshot().undoDepth, 1, `${form.name}: one undo step`);
-  assert.equal(validatePresentation(editor.document).valid, true, form.name);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true, form.name);
   if (form.draws) assert.notEqual(svg(editor.document), beforeSvg, `${form.name}: the preview draws it`);
   assert.deepEqual(prepareBackground(before, form.spec).patches, change.patches, `${form.name}: prepare is the same patch`);
   assert.ok((await pptx.toPptx(structuredClone(editor.document), { strictAssets: true })).byteLength > 0, `${form.name}: exports`);
@@ -111,7 +111,7 @@ for (const preset of PATTERN_PRESETS) {
   const editor = session();
   setBackground(editor, { type: "pattern", pattern: { preset, foregroundColor: "#112233", backgroundColor: "#EEEEEE" } });
   assert.equal(editor.get("design.background.pattern.preset"), preset);
-  assert.equal(validatePresentation(editor.document).valid, true, preset);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true, preset);
   assert.equal(editor.snapshot().undoDepth, 1, preset);
   const bytes = await pptx.toPptx(structuredClone(editor.document), { strictAssets: true });
   const back = await pptx.fromPptx(bytes);

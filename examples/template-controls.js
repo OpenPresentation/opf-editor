@@ -1,12 +1,12 @@
 // RR-32: the playground's "Fill template" dialog. It mounts the Fill template panel from the package
 // (src/template-panel.js) over the playground's editor session, draws the live preview through the
-// playground's font gate, and fills the deck as one undoable edit.
-import { renderSvg } from '@openpresentation/opf-render/svg';
+// playground's fonts handle, and fills the deck as one undoable edit.
+import { renderSlideSvg } from '@openpresentation/opf-render/svg';
+import { whenFontsReady } from '../src/font-gate.js';
 import { createTemplatePanel } from '../src/template-panel.js';
-import { hasTemplateVariables, previewTemplate, templatesAvailable } from '../src/templates.js';
+import { hasTemplateVariables, previewTemplate } from '../src/templates.js';
 
-export function installTemplateControls({ editor, getCanvas, getSlideIndex, getSelectedPath, setSlideIndex, status, renderOptions, fonts }) {
-  if (!templatesAvailable()) return;
+export function installTemplateControls({ editor, getCanvas, getSlideIndex, getSelectedPath, setSlideIndex, status, fonts }) {
   const button = document.createElement('button');
   button.id = 'fill-template';
   button.textContent = 'Fill template';
@@ -27,9 +27,8 @@ export function installTemplateControls({ editor, getCanvas, getSlideIndex, getS
     const run = ++previewRun;
     return new Promise((resolve, reject) => {
       const filled = previewTemplate(source, variables).presentation;
-      const draw = () => resolve(renderSvg(source, { ...renderOptions, variables, slideIndex, trace: false }));
-      if (fonts) fonts.run(filled, { isCurrent: () => run === previewRun, loading() {}, ready: draw, failed: reject });
-      else draw();
+      const draw = () => resolve(renderSlideSvg(source, slideIndex, { fonts, variables, trace: false }));
+      whenFontsReady(fonts, filled, { isCurrent: () => run === previewRun, loading() {}, ready: draw, failed: reject });
     });
   }
 

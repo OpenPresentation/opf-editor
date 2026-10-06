@@ -67,8 +67,6 @@ export interface PreparedChartOptions {
   document: unknown;
 }
 
-/** True when the installed core knows the chart option fields. */
-export declare function chartOptionsAvailable(): boolean;
 /** The chart path a selection path points at, or undefined. */
 export declare function parseChartPath(path: string): string | undefined;
 /** `combo` is present on a combo chart: its plotted series in data order. Pass the `document` for a dataset-backed chart. */

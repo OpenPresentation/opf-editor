@@ -9,10 +9,11 @@
 //   item      one list item or bullet; `listPath` and `itemIndex` locate it and `level` is 1 plus its nesting level
 //   other     content that is not text, shown by its kind (`label`), never edited here
 // Text that carries formatting (a run array) is shown flattened and is not editable in the outline, so nothing is flattened away.
-import { getValueAtPath, opfPathToJsonPointer, splitOpfPath, validateOpfDocument } from "./index.js";
+import { getValueAtPath, opfPathToJsonPointer, splitOpfPath } from "./index.js";
 import { checkedDocument, fail } from "./edit-helpers.js";
 import { visitContentPayloads } from "./presentation-ids.js";
 import { prepareAddSlide, prepareMoveSlidesBy } from "./slides.js";
+import { checkFormat } from "./checks.js";
 
 const clone = (value) => structuredClone(value);
 const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -251,7 +252,7 @@ export function prepareInsertOutlineSlide(document, slideIndex) {
 
 function finish(document, patches, extra) {
   if (!patches.length) return { document: clone(document), patches: [], changed: false, ...extra };
-  const before = validateOpfDocument(document);
+  const before = checkFormat(document);
   return { document: checkedDocument(document, patches, before), patches, changed: true, ...extra };
 }
 function requireEditor(editor) {

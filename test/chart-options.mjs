@@ -1,13 +1,12 @@
 // RR-35: chart options in the editor. Axis titles, legend position and data labels edit as one validated, undoable
 // patch; only what the chart type can show is offered or written; the preview draws the change and the PPTX export carries it.
 import assert from "node:assert/strict";
-import { validatePresentation, chartOptionSupport, chartOptionTarget } from "@openpresentation/opf";
-import { renderSvg } from "@openpresentation/opf-render/svg";
+import { validate } from "@openpresentation/opf";
+import { chartOptionSupport, chartOptionTarget } from "@openpresentation/opf/composition";
+import { renderSlideSvg } from "@openpresentation/opf-render/svg";
 import * as pptx from "@openpresentation/opf-pptx";
 import { createEditorSession } from "../dist/index.js";
-import { chartOptionsAvailable, parseChartPath, prepareChartOptions, readChartOptions, setChartOptions } from "../dist/chart-options.js";
-
-assert.equal(chartOptionsAvailable(), true, "the linked core knows the chart option fields");
+import { parseChartPath, prepareChartOptions, readChartOptions, setChartOptions } from "../dist/chart-options.js";
 
 const C = "slides.0.blocks.0.chart";
 const data = { columns: ["Quarter", "North", "South"], rows: [["Q1", 10, 5], ["Q2", 20, 8], ["Q3", 15, 12]] };
@@ -17,7 +16,7 @@ const deck = (type = "column") => ({
   slides: [{ id: "chart", title: "Chart", blocks: [{ chart: { type, data } }, { text: "Notes" }] }],
 });
 const session = (type) => createEditorSession(deck(type), { rejectInvalid: true });
-const svg = (document) => renderSvg(document, { trace: true });
+const svg = (document) => renderSlideSvg(document, 0, { trace: true });
 
 // Selection paths.
 assert.equal(parseChartPath(C), C);
@@ -53,7 +52,7 @@ assert.equal(readChartOptions({ type: "treemap", data, dataLabels: false }).stat
   assert.equal(change.changed, true);
   assert.deepEqual(editor.get(`${C}.axisTitles`), { category: "Quarter", value: "Revenue ($M)" });
   assert.equal(editor.snapshot().undoDepth, 1);
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
   assert.notEqual(svg(editor.document), beforeSvg, "the preview draws the titles");
   assert.match(svg(editor.document), /data-opf-path="slides\.0\.blocks\.0\.chart\.axisTitles\.value"/);
   const bytes = await pptx.toPptx(structuredClone(editor.document), { strictAssets: true });
@@ -88,7 +87,7 @@ assert.equal(readChartOptions({ type: "treemap", data, dataLabels: false }).stat
   for (const position of ["top", "bottom", "left", "right", "none"]) {
     assert.equal(setChartOptions(editor, C, { legend: position }).changed, true);
     assert.equal(editor.get(`${C}.legend`), position);
-    assert.equal(validatePresentation(editor.document).valid, true);
+    assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
   }
   assert.equal(setChartOptions(editor, C, { legend: "default" }).changed, true);
   assert.equal(editor.get(`${C}.legend`), undefined, "default removes the field");

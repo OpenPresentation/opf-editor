@@ -19,9 +19,10 @@ import {
   unwrapGroup,
   wrapBlocks,
 } from "@openpresentation/opf/convert";
-import { applyJsonPatch, getValueAtPath, opfPathToJsonPointer, splitOpfPath, validateOpfDocument } from "./index.js";
+import { applyJsonPatch, getValueAtPath, opfPathToJsonPointer, splitOpfPath } from "./index.js";
 import { readBlockContent } from "./block-convert.js";
 import { checkedDocument, fail } from "./edit-helpers.js";
+import { checkFormat } from "./checks.js";
 
 const refuse = (message, details) => fail("content-action-refused", message, details);
 
@@ -65,7 +66,7 @@ function replacePatches(document, parts, next) {
 // validated the changed slide); applying always validates.
 function finish(document, patches, extra, validate = true) {
   if (!validate) return { document: applyJsonPatch(document, patches), patches, ...extra };
-  const before = validateOpfDocument(document);
+  const before = checkFormat(document);
   return { document: checkedDocument(document, patches, before), patches, ...extra };
 }
 function apply(editor, prepared, meta, source) {
@@ -187,7 +188,7 @@ function slidesAction(document, result, extra = {}) {
 export function prepareSplitSlide(document, slideIndex, options = {}) {
   return slidesAction(document, core(() => splitSlide(document, slideIndex, options)));
 }
-/** Split a slide that overflows into pages with the existing pagination (`options`: text measurement, fonts, as for `paginatePresentation`). `pages` maps the new slides back for `prepareUnpaginate`. */
+/** Split a slide that overflows into pages with the existing pagination (`options`: text measurement, fonts, as for core `paginate`). `pages` maps the new slides back for `prepareUnpaginate`. */
 export function prepareSplitSlideOnOverflow(document, slideIndex, options = {}) {
   const result = core(() => splitSlideOnOverflowCore(document, slideIndex, options));
   return slidesAction(document, result, { pages: result.pages });
@@ -196,7 +197,7 @@ export function prepareSplitSlideOnOverflow(document, slideIndex, options = {}) 
 export function prepareMergeSlides(document, start, count = 2) {
   return slidesAction(document, core(() => mergeSlidesCore(document, start, count)));
 }
-/** Put the continuation slides of a pagination back into one slide each. `pages` is the mapping `splitSlideOnOverflow` or `paginatePresentation` returned. */
+/** Put the continuation slides of a pagination back into one slide each. `pages` is the mapping `splitSlideOnOverflow` or core `paginate` returned. */
 export function prepareUnpaginate(document, pages, options = {}) {
   return slidesAction(document, core(() => unpaginate(document, pages, options)));
 }

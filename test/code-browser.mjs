@@ -4,28 +4,28 @@ import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
 import {chromium} from 'playwright';
-import {loadOfficeFontRegistry} from '@openpresentation/opf-render/fonts-node';
+import { loadFonts } from '@openpresentation/opf-render/fonts-node';
 // Keyboard entry (Enter) selects all text; a pointer press places the caret instead (see test/click-entry-browser.mjs).
 const enter=async locator=>{await locator.focus();await locator.page().keyboard.press('Enter');};
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
-const faces=(await loadOfficeFontRegistry()).embeddedFonts.filter(face=>['Roboto','Roboto Mono'].includes(face.family)&&[400,700].includes(face.weight)&&!face.italic);
+const faces=(await loadFonts({ pack: 'office' })).registry.embeddedFonts.filter(face=>['Roboto','Roboto Mono'].includes(face.family)&&[400,700].includes(face.weight)&&!face.italic);
 const bundled=await build({stdin:{resolveDir:fileURLToPath(new URL('../',import.meta.url)),contents:`
   import {createEditorSession} from './dist/index.js';
   import {createCanvasEditor} from './dist/canvas.js';
-  import {loadBrowserFontRegistry} from '@openpresentation/opf-render/fonts-browser';
+  import { loadFonts } from '@openpresentation/opf-render/fonts-browser';
   import {toPptx,fromPptx} from '@openpresentation/opf-pptx';
   window.mountCode=async({deck,faces})=>{
     window.codeCanvas?.destroy();window.fonts?.dispose();window.failures=[];window.lastExport=null;window.lastImport=null;
     // Use the existing playground's explicit fallback policy; import currently
     // loses its original font scheme, which remains a separate fidelity gap.
-    window.fonts=await loadBrowserFontRegistry(faces.map(face=>({...face,data:Uint8Array.from(atob(face.dataUrl.split(',')[1]),c=>c.charCodeAt(0))})),{substitutionPolicy:'visual',fallbackFamily:'Roboto'});
+    window.fonts=await loadFonts({ faces: faces.map(face=>({...face,data:Uint8Array.from(atob(face.dataUrl.split(',')[1]),c=>c.charCodeAt(0))})), substitutionPolicy:'visual',fallbackFamily:'Roboto' });
     window.editor=createEditorSession(deck,{rejectInvalid:true});
-    window.codeCanvas=createCanvasEditor(document.querySelector('#canvas'),{editor,renderOptions:{textMeasurement:fonts.textMeasurement},onError:error=>failures.push(error.message)});
+    window.codeCanvas=createCanvasEditor(document.querySelector('#canvas'),{editor,fonts,onError:error=>failures.push(error.message)});
     await codeCanvas.ready;
     const action=(id,run)=>document.getElementById(id).onclick=async()=>{try{await run();}catch(error){failures.push(error.message);}};
     action('undo',()=>editor.undo());action('redo',()=>editor.redo());
-    action('paginate',()=>{codeCanvas.commit();window.pagination=editor.paginateSlide(0,{minFontSize:24,textMeasurement:fonts.textMeasurement});});
-    action('export',async()=>{codeCanvas.commit();window.accepted=editor.composeSlide(0,{textMeasurement:fonts.textMeasurement});window.lastExport=await toPptx(editor.document,{textMeasurement:fonts.textMeasurement});});
+    action('paginate',()=>{codeCanvas.commit();window.pagination=editor.paginateSlide(0,{minFontSize:24,fonts});});
+    action('export',async()=>{codeCanvas.commit();window.accepted=editor.composeSlide(0,{fonts});window.lastExport=await toPptx(editor.document,{fonts});});
     action('import',async()=>{window.lastImport=await fromPptx(lastExport);editor.set('',lastImport,{rejectInvalid:true});});
   };`},bundle:true,platform:'browser',format:'iife',write:false,minify:true});
 const bundle=bundled.outputFiles[0].text,browser=await chromium.launch({channel:process.platform==='win32'?'msedge':undefined});
@@ -87,7 +87,7 @@ try {
     const blank='\r\n\r\n\n',deck={design:{fontScheme:'roboto',dimensions:{widthInches:dimensions.width/96,heightInches:dimensions.height/96}},slides:[{code:blank}]};
     await page.evaluate(args=>mountCode(args),{faces,deck});
     const body=page.locator('[data-canvas-target][data-opf-path="slides.0.code"]');
-    const accepted=await page.evaluate(()=>editor.composeSlide(0,{textMeasurement:fonts.textMeasurement}).items[0].codeLayout.parts.find(part=>part.role==='body'));
+    const accepted=await page.evaluate(()=>editor.composeSlide(0,{fonts}).items[0].codeLayout.parts.find(part=>part.role==='body'));
     const selection=body.locator(':scope > rect.opf-selection');
     assert.equal(Number(await selection.getAttribute('height')),accepted.box.height+8,'Entire blank code part must remain selectable');
     await enter(body);let input=page.getByRole('textbox',{name:'Edit code inline',exact:true});

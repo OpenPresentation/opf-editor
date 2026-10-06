@@ -2,13 +2,13 @@
 
 Unfinished prepared shaping work is preserved in the [September 15 roadmap](docs/roadmap-shaping-20260915.md); it is not part of the published runtime.
 
-Version 0.11.2 adds the slide-size and purpose switches (additive; same requirements as 0.11.0). Version 0.11.0 requires `@openpresentation/opf` ^0.12.0 (composed font sizes on PowerPoint's 0.01 pt grid, hanging wrap whitespace, promoted regions in reading order, right-to-left decks composed mirrored; install it with renderer 0.12.0 and PPTX 0.12.0 so the canvas, preview and export resolve the same core) and ships the new entry points listed in the changelog. Version 0.10.6 changes no editor source: it requires `@openpresentation/opf` ^0.11.4 (the design fields compose, cover tag and subtitle follow the title alignment, picture bullets and furniture images change geometry; install it with renderer 0.11.9 and PPTX 0.11.7 so the canvas, preview and export resolve the same core). Version 0.10.5 changes no editor source: its playground example loads its base faces through the renderer's `extraLazyFonts` (renderer 0.11.7 or later; the editor package itself runs with the optional peer ^0.11.0 as before). Version 0.10.4 changes no editor behavior: it requires `@openpresentation/opf` ^0.11.3 (the 70 legacy gallery layout ids and their geometry; install it with renderer 0.11.6 and PPTX 0.11.4 so the canvas, preview and export resolve the same core). Version 0.10.3 passes the host's render options (`catalogs`) through the font gate to the registry, so layouts and font schemes that only the host's catalogs know load their faces, and asks the script and vendored-face loaders separately; it keeps the 0.10.2 requirements and gates nothing new on renderers before 0.11.5. Version 0.10.2 adds pointer caret entry on the canvas (one click puts the caret where you click; new `textEntry` option; keyboard entry still selects all) and keeps the 0.10.1 and 0.10.0 requirements. Version 0.10.1 adds the opt-in font gate (`createFontGate`, FF-41) and keeps the 0.10.0 requirements; develop and test it against renderer 0.11.2 and PPTX 0.11.1. Version 0.10.0 requires `@openpresentation/opf` ^0.11.2, renderer ^0.11.0, and PPTX ^0.11.0 (install them together so cover centering resolves the same core everywhere; renderer 0.11.0 also activates the playground's automatic script fonts and lazy Intos fonts). Version 0.9.0 required `@openpresentation/opf` ^0.11.1, renderer ^0.10.0, and PPTX ^0.10.0. Composition and slide transfer fall back to the shared `aptos` font scheme and report unknown scheme ids through `onDiagnostic`; gallery apply keeps every font-scheme role.
+The release after 0.12.1 (RR-55) moves the editor onto core 0.14, renderer 0.14 and PPTX 0.14, which ship together: core's one `validate` and `Finding` format, `resolveSlideContext`, and the renderer's `loadFonts()` handle as the `fonts` option of the canvas, the export and `composeSlide`/`paginateSlide`. See `changes/rr-55-short-verb-api.md` for what was renamed or removed (the font gate, `validateOpfDocument`, `resolveSlideFonts`, `runAudit`, the `*Available` checks). Version 0.11.2 adds the slide-size and purpose switches (additive; same requirements as 0.11.0). Version 0.11.0 requires `@openpresentation/opf` ^0.12.0 (composed font sizes on PowerPoint's 0.01 pt grid, hanging wrap whitespace, promoted regions in reading order, right-to-left decks composed mirrored; install it with renderer 0.12.0 and PPTX 0.12.0 so the canvas, preview and export resolve the same core) and ships the new entry points listed in the changelog. Version 0.10.6 changes no editor source: it requires `@openpresentation/opf` ^0.11.4 (the design fields compose, cover tag and subtitle follow the title alignment, picture bullets and furniture images change geometry; install it with renderer 0.11.9 and PPTX 0.11.7 so the canvas, preview and export resolve the same core). Version 0.10.5 changes no editor source: its playground example loads its base faces through the renderer's `extraLazyFonts` (renderer 0.11.7 or later; the editor package itself runs with the optional peer ^0.11.0 as before). Version 0.10.4 changes no editor behavior: it requires `@openpresentation/opf` ^0.11.3 (the 70 legacy gallery layout ids and their geometry; install it with renderer 0.11.6 and PPTX 0.11.4 so the canvas, preview and export resolve the same core). Version 0.10.3 passes the host's render options (`catalogs`) through the font gate to the registry, so layouts and font schemes that only the host's catalogs know load their faces, and asks the script and vendored-face loaders separately; it keeps the 0.10.2 requirements and gates nothing new on renderers before 0.11.5. Version 0.10.2 adds pointer caret entry on the canvas (one click puts the caret where you click; new `textEntry` option; keyboard entry still selects all) and keeps the 0.10.1 and 0.10.0 requirements. Version 0.10.1 adds the opt-in font gate (`createFontGate`, FF-41) and keeps the 0.10.0 requirements; develop and test it against renderer 0.11.2 and PPTX 0.11.1. Version 0.10.0 requires `@openpresentation/opf` ^0.11.2, renderer ^0.11.0, and PPTX ^0.11.0 (install them together so cover centering resolves the same core everywhere; renderer 0.11.0 also activates the playground's automatic script fonts and lazy Intos fonts). Version 0.9.0 required `@openpresentation/opf` ^0.11.1, renderer ^0.10.0, and PPTX ^0.10.0. Composition and slide transfer fall back to the shared `aptos` font scheme and report unknown scheme ids through `onDiagnostic`; gallery apply keeps every font-scheme role.
 
 Version 0.8.0 required `@openpresentation/opf` ^0.11.0, renderer ^0.9.0, and PPTX ^0.9.0. Named ColorRefs (scheme slots, roles, and `var:<id>`) paint through the published renderer and hex-resolve on export. Payload ids share the slide id namespace for pagination and transfer. Native `schemeClr`, theme write, and `p:hf` remain out of scope.
 
 This checkout supports Node 22 or later (`engines.node` `>=22`; CI tests Node 22, 24 and 26). Versions 0.7.0 to 0.11.2 declared `24.x`, so npm on Node 22 or 26 silently installed an older release instead (RR-20); upgrade past 0.11.2. Use `.nvmrc` (Node 24) for local development. Earlier published versions retain their original engine declarations. Browser entrypoints remain browser-safe; native application compatibility is verified separately.
 
-Version 0.7.0 forwards effective title alignment and shared outline placement options through composition and explicit pagination. Use the same `textMeasurement` and `textRasterPadding` in canvas rendering and export. Accepted rich-text trace origins support selection, caret placement and undo. See the [source contract and limits](https://github.com/OpenPresentation/opf/blob/f94125a1ff95bf0974a055fe1c081d348dad54f2/docs/plans/text-placement.md); native PowerPoint fidelity remains separate.
+Version 0.7.0 forwards effective title alignment and shared outline placement options through composition and explicit pagination. Use the same fonts handle (and `textRasterPadding`) in canvas rendering and export. Accepted rich-text trace origins support selection, caret placement and undo. See the [source contract and limits](https://github.com/OpenPresentation/opf/blob/f94125a1ff95bf0974a055fe1c081d348dad54f2/docs/plans/text-placement.md); native PowerPoint fidelity remains separate.
 
 Embeddable local editor primitives for Open Presentation Format documents. The package turns traced `@openpresentation/opf-render` SVG output into JSON-path-aware edits, validates OPF after each change, and records undo/redo as JSON Patch operations.
 
@@ -74,29 +74,29 @@ import { createCanvasEditor } from '@openpresentation/opf-editor/canvas';
 
 const canvas = createCanvasEditor(container, {
   document: presentation,
-  renderOptions: { textMeasurement: fontRegistry.textMeasurement },
+  fonts, // the renderer's fonts handle: const fonts = await loadFonts({ faces, ... })
   onCommit: ({ editor }) => saveDocument(editor.document),
 });
 await canvas.ready;
 // canvas.destroy() when unmounting.
 ```
 
-Load the same font bytes into the browser using `loadBrowserFontRegistry` from `@openpresentation/opf-render/fonts-browser` before mounting. The host owns font URLs, storage and collaboration. For non-Latin documents, pass the pinned script pack's location as `scriptBaseUrl` and call `fonts.ensureScripts(document)` after edits (renderer with `scripts: 'auto'`, FF-19): only the faces for the scripts a document draws are fetched, once, hash-verified, for example Noto Sans JP for Japanese; a Latin-only document fetches none. The playground does this from `./script-fonts/`, which `npm run build:playground` fills with the pinned faces. `onDraft` provides live document drafts; the session only changes on commit. Escape cancels. Concurrent edits to the selected payload cancel a stale draft.
+Load the same font bytes into the browser with `loadFonts` from `@openpresentation/opf-render/fonts-browser` before mounting; the handle it returns is the one `fonts` option of the canvas, `exportDeck`, `editor.composeSlide` and `editor.paginateSlide`. The host owns font URLs, storage and collaboration. For non-Latin documents, pass the pinned script pack's location as `scriptBaseUrl` and the canvas calls `fonts.ensure(document)` after edits (`scripts: 'auto'`, FF-19): only the faces for the scripts a document draws are fetched, once, hash-verified, for example Noto Sans JP for Japanese; a Latin-only document fetches none. The playground does this from `./script-fonts/`, which `npm run build:playground` fills with the pinned faces. `onDraft` provides live document drafts; the session only changes on commit. Escape cancels. Concurrent edits to the selected payload cancel a stale draft.
 
-Fonts load before pixels (FF-41). A document can need faces the browser registry has not loaded yet: script faces for the languages it draws and vendored preview faces for the font families it resolves (Intos for Aptos, Open Sans, Barlow). Pass a font gate as `fonts` and the canvas never renders such a document early: on every path (editor changes, undo and redo, imports, dimension switches, slide changes, in-progress edits) it shows "Loading fonts…", loads the faces and then renders. A load that fails is reported through `onFonts`/`onError` and offers a retry button; nothing retries by itself, and the failed document is not drawn.
+Fonts load before pixels (FF-41). A document can need faces the browser has not loaded yet: script faces for the languages it draws and vendored preview faces for the font families it resolves (Intos for Aptos, Open Sans, Barlow). The handle knows what is missing (`fonts.pending(document)`) and loads it (`await fonts.ensure(document)`), so the canvas needs no separate gate: with the handle as `fonts` it never renders such a document early: on every path (editor changes, undo and redo, imports, dimension switches, slide changes, in-progress edits) it shows "Loading fonts…", loads the faces and then renders. A load that fails is reported through `onFonts`/`onError` and offers a retry button; nothing retries by itself, and the failed document is not drawn.
 
 ```js
-import { createCanvasEditor, createFontGate } from '@openpresentation/opf-editor/canvas';
+import { createCanvasEditor, whenFontsReady } from '@openpresentation/opf-editor/canvas';
+import { loadFonts } from '@openpresentation/opf-render/fonts-browser';
 
-const fonts = createFontGate(fontRegistry); // a registry without the lazy loaders gates nothing
-// The canvas gives the gate its current renderOptions (catalogs, ...), so layouts and font schemes only your catalogs know
-// resolve in the registry too (renderer 0.11.5+). For your own gate calls: fonts.pending(document, renderOptions), or
-// createFontGate(fontRegistry, { renderOptions: () => currentRenderOptions }).
-const canvas = createCanvasEditor(container, { document, fonts, renderOptions: { textMeasurement: fontRegistry.textMeasurement } });
-// Other renders of your own: fonts.run(document, { ready: draw, failed: showError, loading: showSpinner })
+const fonts = await loadFonts({ faces, scriptBaseUrl, lazyFontsBaseUrl }); // a handle with no faces to load gates nothing
+// The canvas hands the handle its current renderOptions (catalogs, ...), so font schemes only your catalogs know resolve in the
+// registry too. Defaults for your own calls: loadFonts({ renderOptions: { catalogs } }).
+const canvas = createCanvasEditor(container, { document, fonts, renderOptions: { catalogs } });
+// Other renders of your own: whenFontsReady(fonts, document, { ready: draw, failed: showError, loading: showSpinner })
 ```
 
-Note that `session.composeSlide()` and `session.paginateSlide()` measure with the plain `textMeasurement` you pass, which is strict: for a document with a script the design font lacks (Japanese under Aptos) pass `createScriptTextMeasurement(fontRegistry.textMeasurement, resolveScriptFonts(document, { slideIndex }))` from `@openpresentation/opf-render/fonts`, as `renderSvg` does internally.
+`session.composeSlide(index, { fonts })` and `session.paginateSlide(index, { fonts })` take the same handle and resolve the slide's canvas, layout, theme, colour scheme and font families with core's `resolveSlideContext` (slide design, then deck design, then theme, then the default: the order the renderer and the PowerPoint export use), so the editor composes what is drawn and exported. An unknown layout, theme, colour scheme or font-scheme id never throws: the slide composes with no layout record, `minimal`, `cool-horizon` or `aptos`, and `onDiagnostic` hears `unresolved-layout`, `unresolved-theme`, `unresolved-color-scheme` and `unresolved-font-scheme`. The handle's `textMeasurement` is strict: for a document with a script the design font lacks (Japanese under Aptos) pass `{ fonts: { textMeasurement: createScriptTextMeasurement(fonts.textMeasurement, resolveScriptFonts(document, { slideIndex })) } }` (`createScriptTextMeasurement` is from `@openpresentation/opf-render/fonts`, `resolveScriptFonts` from `@openpresentation/opf/composition`), as `renderSvg` does internally.
 
 These APIs were introduced in 0.1.0. Version 0.7.0 requires core 0.10.0 and renderer 0.8.0 for the canvas, including shared accepted geometry, styled/merged cells, rich table values, headers and content-aware row heights. See the OPF repository’s `docs/live-editor.md` for setup, the support matrix and roadmap. `pnpm pack:ecosystem` in that repository also prepares local preview tarballs for coordinated development.
 
@@ -148,10 +148,10 @@ import {
   createEditorSession,
   createSvgTraceBinding
 } from "@openpresentation/opf-editor";
-import { renderSvg } from "@openpresentation/opf-render";
+import { renderSlideSvg } from "@openpresentation/opf-render";
 
 const editor = createEditorSession(opfDocument, { rejectInvalid: true });
-const svg = renderSvg(editor.document, { trace: true });
+const svg = renderSlideSvg(editor.document, 0, { trace: true, fonts });
 
 preview.innerHTML = svg;
 const binding = createSvgTraceBinding(preview.querySelector("svg"), editor, {
@@ -236,7 +236,7 @@ const { patches, document } = prepareDimensionSwitch(editor.document, "themes", 
 | `slide-sizes` | `/design/dimensions` | One of the schema's ten presets (`SLIDE_SIZE_PRESETS`: `16:9`, `4:3`, `16:10`, the social-feed ratios `1:1`, `4:5` and `9:16`, `letter`, `a4`, `widescreen`, `standard`). Deck only (`slideIndex` is refused: a presentation has one slide size). The preview recomposes at the new canvas and the PowerPoint export writes the matching `p:sldSz`; a custom size (inches) is replaced by the preset. `listSwitchOptions` labels each preset with its inches; `currentSwitchValue` reads `design.dimensions`, else the theme's size. A slide's design cannot set `dimensions`, so nothing shadows the deck's size. A deck-scope theme switch still writes its own size; a slide-scope one does not. |
 | `purposes` | `/purpose` | A `purposes` catalog id, any free-form goal text (not checked against the catalog), or a Purpose object. `record` adds a gallery item's purpose record inline. Authoring metadata: the preview does not change. |
 
-A deck-level design switch cannot reach a slide that carries its own value for that key. The result lists those slides in `shadowed`; `clearSlideOverrides: true` removes the overrides in the same transaction. `record` adds a gallery item's catalog record inline in the same transaction when neither the document nor the bundled catalog defines its id (a gallery-only layout or font scheme). Every switch is validated: an unknown catalog id, an invalid value or an invalid resulting document throws before anything changes, and switching to the current value commits nothing. The editor session emits the usual `patch`, `undo` and `redo` events with `meta.source: "dimension-switch"` and `meta.dimension`, so the canvas and any host preview recompose from the switched document. `resolveSlideFonts(document, slideIndex)` returns the heading, body and code families the preview measures and the export names.
+A deck-level design switch cannot reach a slide that carries its own value for that key. The result lists those slides in `shadowed`; `clearSlideOverrides: true` removes the overrides in the same transaction. `record` adds a gallery item's catalog record inline in the same transaction when neither the document nor the bundled catalog defines its id (a gallery-only layout or font scheme). Every switch is validated: an unknown catalog id, an invalid value or an invalid resulting document throws before anything changes, and switching to the current value commits nothing. The editor session emits the usual `patch`, `undo` and `redo` events with `meta.source: "dimension-switch"` and `meta.dimension`, so the canvas and any host preview recompose from the switched document. `resolveSlideContext(document, slideIndex).options.fontFamilies` (core) returns the heading, body and code families the preview measures and the export names.
 
 ### Content-type conversion (RR-06, RR-26)
 
@@ -392,7 +392,7 @@ Sections are OPF's `section` label on each slide: consecutive slides with the sa
 import { createSlideManager } from "@openpresentation/opf-editor/slide-manager";
 const manager = createSlideManager(document.querySelector("#slide-list"), {
   editor, getSlideIndex: () => current, setSlideIndex: (index) => { current = index; redraw(); },
-  renderThumbnail: (deck, index) => renderSvg(deck, { slideIndex: index, trace: false }), toolbar: document.querySelector("#slide-toolbar"),
+  renderThumbnail: (deck, index) => renderSlideSvg(deck, index, { fonts, trace: false }), toolbar: document.querySelector("#slide-toolbar"),
   contentActions, // optional: { splitSlideByBlocks, mergeSlides } from "@openpresentation/opf-editor/content-actions"
 });
 editor.subscribe(() => manager.render());
@@ -419,12 +419,12 @@ Chart columns and table headers may be `DataColumn` objects (`{ name, format }`;
 
 ```js
 import { setGridColumnFormat, setChartMapping, detachGridDataset } from "@openpresentation/opf-editor/data-grid";
-import { prepareDatasetImport, createDataContent } from "@openpresentation/opf-editor/data";
+import { prepareDatasetImport, importData } from "@openpresentation/opf-editor/data";
 
 setGridColumnFormat(editor, "slides.3.blocks.0.chart", 1, "$#,##0.0");   // header "Revenue" becomes { name: "Revenue", format }; null clears it
 setChartMapping(editor, "slides.3.blocks.0.chart", { category: "Region", series: ["Revenue"] });
 detachGridDataset(editor, "slides.3.blocks.1.table");                   // its own copy instead of the shared dataset
-const stored = prepareDatasetImport(editor.document, createDataContent(csv, { as: "chart" }), { id: "revenue" });
+const stored = prepareDatasetImport(editor.document, importData(csv, { as: "chart" }), { id: "revenue" });
 editor.applyPatch([...stored.patches, { op: "add", path: "/slides/-", value: { id: "rev", title: "Revenue", ...stored.content } }]);
 ```
 
@@ -465,7 +465,7 @@ Run `npm run test:design-controls-browser` (after `npm run build:playground`) fo
 
 ### What a switch does not establish
 
-A switch changes the document; it does not change what the engines support. Language changes recompose fonts only as far as the installed core, renderer and PPTX packages implement the language and script model (FF-18, FF-19); the editor's own composition measures the Latin families. `image-treatments` previews only where the installed renderer draws `design.slideImage`. `test/switches.mjs` checks the patch, one undo step, undo/redo, and preview refresh for all 16 dimensions (the 14 gallery dimensions, slide sizes and purposes), and for every slide-size preset the composed canvas and the preview viewBox. `test/switches-export.mjs` exports after each switch, undo and redo, checks that every slide-size preset writes the matching `p:sldSz` and re-imports as that preset, and applies opf-pptx's FF-08 typeface check (`checkPptxTypefaces`) when the installed package has it; set `OPF_REQUIRE_FF08=1` to fail instead of skip when it does not. Published opf-pptx 0.9.1 does not include it.
+A switch changes the document; it does not change what the engines support. Language changes recompose fonts only as far as the installed core, renderer and PPTX packages implement the language and script model (FF-18, FF-19); the editor's own composition measures the Latin families. `image-treatments` previews the `design.slideImage` the renderer draws. `test/switches.mjs` checks the patch, one undo step, undo/redo, and preview refresh for all 16 dimensions (the 14 gallery dimensions, slide sizes and purposes), and for every slide-size preset the composed canvas and the preview viewBox. `test/switches-export.mjs` exports after each switch, undo and redo, checks that every slide-size preset writes the matching `p:sldSz` and re-imports as that preset, and applies opf-pptx's FF-08 typeface check (`checkTypefaces`) to every package it writes.
 
 ## Autosave and restore (RR-22)
 
@@ -498,12 +498,12 @@ A template is an OPF file with variables (`{{id}}` tokens and `var:id` reference
 
 ```js
 import { createTemplatePanel } from '@openpresentation/opf-editor/template-panel';
-import { renderSvg } from '@openpresentation/opf-render/svg';
+import { renderSlideSvg } from '@openpresentation/opf-render/svg';
 
 const panel = createTemplatePanel(container, {
   editor,
   // The live preview: the template drawn with the values typed so far (unfilled variables show their example).
-  renderPreview: ({ document, variables, slideIndex }) => renderSvg(document, { ...layoutOptions, variables, slideIndex }),
+  renderPreview: ({ document, variables, slideIndex }) => renderSlideSvg(document, slideIndex, { fonts, variables }),
   getTarget: () => ({ path: selectedPath, start, end }), // the text field a token is inserted into; omit to hide that section
   onApply: () => redraw(),
 });
@@ -533,7 +533,9 @@ At 900px and narrower the playground is one screen: the slide strip on top, the 
 
 ## Review panel (RR-29)
 
-`@openpresentation/opf-editor/review-panel` mounts the audit's findings next to the document: contrast, text that does not fit, missing alt text, reading order, fonts, links and more, from core's `auditPresentation` (the same rules as `opf audit`; see the [audit guide](https://github.com/OpenPresentation/opf/blob/main/docs/audit.md)). It needs a core release after 0.11.4 and reports `audit-unavailable` on an older one.
+`@openpresentation/opf-editor/review-panel` mounts the findings of core's `validate(presentation)` next to the document, grouped by category (format, references, policy, accessibility, layout, content): contrast, text that does not fit, missing alt text, reading order, fonts, links and more (the same rules as `opf validate`; see the [validate guide](https://github.com/OpenPresentation/opf/blob/main/docs/validate.md)). A finding is core's `Finding` (rule id, severity, category, JSON Pointer path, message, `fixes`), so a hosted reviewer that returns a `FindingReport`, such as pptx.dev's review, lists its findings in the same panel.
+
+The session itself checks only the `format` category per edit (`validate(document, { only: ["format"] })`, no layout is built), and `editor.validation` is that report: `valid`, `findings`, `counts`. The panel runs the full check once the document has been quiet for a moment (`delay`, 300 ms), never per keystroke.
 
 ```js
 import { createReviewPanel } from "@openpresentation/opf-editor/review-panel";
@@ -542,14 +544,16 @@ const panel = createReviewPanel(container, {
   editor,
   getSlideIndex: () => slideIndex,
   // the host's measured fonts, per slide, so overflow is judged like the preview
-  getAuditOptions: (deck) => ({ textMeasurement: (index) => measurementFor(deck, index) }),
+  getValidateOptions: (deck) => ({ fonts: { textMeasurement: (index) => measurementFor(deck, index) } }),
+  // optional: a hosted reviewer; its findings join core's, kept per Finding.source (a finding with no source is listed under "review")
+  review: async (presentation, { signal, report }) => (await fetch("/review", { method: "POST", body: JSON.stringify(presentation), signal })).json(),
   onGoTo: ({ finding, target }) => select(target.slide, target.path), // target.path: the nearest existing field
   onFocusField: ({ finding, fix, target }) => focusTextField(target.path), // a title, text, link, language or size
 });
 panel.refresh(); // after the host has redrawn (set autoRefresh: false) or after anything the session did not see
 ```
 
-Findings show a severity word, the slide and the rule id. **Go to** selects the content. A fix is a single undoable session edit and is refused when the document has changed since the finding (the list is refreshed instead): switching a failing colour to the readable one is a one-click safe fix; **Write alt text** opens a field in the panel (an `asset:` reference stores the text on the asset so every use has it); **Mark as decorative** (an empty alt) is an explicit choice flagged as one that changes meaning. A check can be hidden in the panel and shown again, and the list can be limited to errors and warnings or to the current slide. The list re-audits after every session change and follows Undo and Redo; arrow keys, Home and End move between findings, Escape cancels the alt-text field and focus stays on a finding after a fix. The headless `/review` entry (`runAudit`, `reviewFindings`, `applyReviewFix`, `setReviewAltText`, `markDecorative`) needs no DOM.
+Findings show a severity word, the slide, the rule id and, for a hosted reviewer, its source. **Go to** selects the content. A fix (core's `FindingFix`: a `title` and an RFC 6902 `patch`) is a single undoable session edit and is refused when the document has changed since the finding (the list is refreshed instead): switching a failing colour to the readable one is a one-click safe fix; **Write alt text** opens a field in the panel (an `asset:` reference stores the text on the asset so every use has it); **Mark as decorative** (an empty alt) is an explicit choice flagged as one that changes meaning. `deckStats(editor, options)` from the root entry returns core's `stats` of the open presentation (slide, layout and section counts, words and notes coverage, images and alt text, charts, tables, speaking time) for a deck-info view: neutral facts, never severities, read from the JSON only. A check can be hidden in the panel and shown again, and the list can be limited to errors and warnings or to the current slide. The list re-checks after changes and follows Undo and Redo; arrow keys, Home and End move between findings, Escape cancels the alt-text field and focus stays on a finding after a fix. The `review` hook runs when the author presses its button (`reviewLabel`), or after every re-check with `autoReview: true`: a hosted review can be slow or metered. Its findings stay listed, marked as possibly out of date, until the next run; a failing hook shows its message and leaves core's findings in place. The headless `/review` entry (`mergeFindingReports`, `reviewFindings`, `groupFindings`, `applyReviewFix`, `setReviewAltText`, `markDecorative`) needs no DOM; call core's `validate` for the report itself. `ReviewFinding` is core's `Finding` plus `id`, `dottedPath` and a `slide` that is `null` for the whole presentation.
 
 ## PDF, PNG and SVG downloads (RR-23)
 
@@ -561,14 +565,15 @@ const result = await exportDeck(editor.document, {
   format: "pdf",              // "pdf" | "png" | "svg"
   slides: "all",              // or "current" with slideIndex, or [slide numbers]; hidden slides only with includeHidden
   pdfMode: "vector",          // or "raster" (an image per slide); PNG and raster density: scale 1 to 4
-  renderOptions, fonts: fontGate, registry: fontRegistry,
+  fonts,                      // the renderer's fonts handle (loadFonts): measures, loads the faces the deck needs, supplies the faces to embed
+  renderOptions,              // catalogs, date, ...
   signal, onProgress, onDiagnostic,
 });
 // result.download = { name, type, bytes }: one file, or a ZIP of the slides; result.diagnostics lists what to review.
 ```
 
-- **Same drawing as the preview.** The slides are drawn by `renderSvgDeck` with the host's `renderOptions` (the same `textMeasurement`), so a PNG or SVG is the preview, and the PDF is converted from those SVGs rather than laid out again.
-- **Fonts.** The font gate loads the faces the deck needs before anything is drawn (a failure rejects with `fonts-unavailable`). Only faces the registry holds are embedded (bundled or hash-pinned, never a system font), only where a slide draws them, as `@font-face` data in each SVG and as subsets in the PDF. A face whose own license text is not OFL, Apache, MIT or UFL is left out and reported (`export-font-license`).
+- **Same drawing as the preview.** The slides are drawn by `renderSvg` with the same fonts handle as the preview (its `textMeasurement`), so a PNG or SVG is the preview, and the PDF is converted from those SVGs rather than laid out again.
+- **Fonts.** The fonts handle loads the faces the deck needs before anything is drawn (a failure rejects with `fonts-unavailable`). Only faces the handle's registry holds are embedded (bundled or hash-pinned, never a system font), only where a slide draws them, as `@font-face` data in each SVG and as subsets in the PDF. A face whose own license text is not OFL, Apache, MIT or UFL is left out and reported (`export-font-license`).
 - **PDF** is the renderer's vector PDF (selectable text, vector shapes, embedded subsets, tagged structure), `mode: "raster"` is the image-only form. **PNG** is drawn on a canvas from the same SVG (within anti-aliasing of the renderer's resvg PNG) and is limited to 40 megapixels. **SVG** files are standalone (XML header, fonts embedded, no external references). Several files are packed in a ZIP (`createZip`, no dependency).
 - **Names.** `exportFileName(deck, ext, suffix)` uses the deck's `filename` (a trailing .pptx/.pdf/.png/.svg dropped), else the slugified `name`, else `presentation`; slides are `name-01.png`, archives `name-png.zip`.
 - **Progress and cancel.** `onProgress({ stage, done, total, message })` reports fonts, drawing, per-page conversion and packing; an aborted `signal` rejects with `export-aborted` between pages and slides.
@@ -633,7 +638,7 @@ Nested content groups expose their bounds through `editor.composeSlide(index).gr
 
 `editor.paginateSlide(index, {minFontSize:24})` splits a crowded draft into ordinary OPF slides as one undoable transaction. It returns the change and source mappings; failed pagination leaves the document unchanged. The playground’s Split overflow action demonstrates the workflow.
 
-`composeSlide(index, {textMeasurement})` and `paginateSlide(index, {textMeasurement})` accept the same font provider as preview and export. The local playground now uses bundled, embedded fonts and reports substitutions. The font a user selects (for example Calibri or Aptos) is the source of truth and stays in the document; because license-restricted (proprietary) fonts are never bundled, the canvas draws an open look-alike (a metric-compatible one such as Carlito for Calibri where it exists, a visual-only fallback for Aptos today) and the substitution report says so. Release caveat: the published editor depends on opf-pptx `^0.9.0`, which resolves 0.9.1 and still writes the substitute into the PPTX; selected-name export arrives with the next opf-pptx release. See the [OPF font policy](https://github.com/OpenPresentation/opf/blob/main/docs/font-fidelity.md#font-policy-ff-31).
+`composeSlide(index, { fonts })` and `paginateSlide(index, { fonts })` accept the same fonts handle as preview and export. The local playground now uses bundled, embedded fonts and reports substitutions. The font a user selects (for example Calibri or Aptos) is the source of truth and stays in the document; because license-restricted (proprietary) fonts are never bundled, the canvas draws an open look-alike (a metric-compatible one such as Carlito for Calibri where it exists, a visual-only fallback for Aptos today) and the substitution report says so. Release caveat: the published editor depends on opf-pptx `^0.9.0`, which resolves 0.9.1 and still writes the substitute into the PPTX; selected-name export arrives with the next opf-pptx release. See the [OPF font policy](https://github.com/OpenPresentation/opf/blob/main/docs/font-fidelity.md#font-policy-ff-31).
 
 
 ## Copy, paste, and gallery imports

@@ -1,6 +1,6 @@
 // RR-21: the outline view's model and edits. Each edit is one validated patch and one undo step; nothing is flattened away.
 import assert from "node:assert/strict";
-import { validatePresentation } from "@openpresentation/opf";
+import { validate } from "@openpresentation/opf";
 import { createEditorSession } from "../dist/index.js";
 import {
   applyOutlineChange, prepareAddOutlineBullet, prepareInsertOutlineItem, prepareInsertOutlineSlide, prepareMoveOutlineItem, prepareMoveOutlineSlide, prepareOutlineDemoteSlide,
@@ -21,7 +21,7 @@ const deck = () => ({
 const session = (document = deck()) => createEditorSession(document, { rejectInvalid: true });
 const rowOf = (editor, key) => readOutline(editor.document).rows.find((row) => row.key === key);
 const view = (editor) => readOutline(editor.document).rows.map((row) => `${row.slideIndex}:${row.kind}:${row.level}:${row.kind === "other" ? row.label : row.text}`);
-const valid = (document) => assert.equal(validatePresentation(document).valid, true, JSON.stringify(validatePresentation(document).errors?.slice?.(0, 2)));
+const valid = (document) => assert.equal(validate(document, { only: ["format"] }).valid, true, JSON.stringify(validate(document, { only: ["format"] }).findings.slice(0, 2)));
 
 function oneStep(editor, run) {
   const before = editor.document, depth = editor.snapshot().undoDepth, events = [];

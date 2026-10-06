@@ -1,7 +1,7 @@
 // RR-25: image crop and focal point, the model: rectangle maths with aspect lock and bounds, and the one-patch change that
 // applies a crop (a new asset plus the image pointing at it), restores the original, and keeps the document valid.
 import assert from "node:assert/strict";
-import { validatePresentation } from "@openpresentation/opf";
+import { validate } from "@openpresentation/opf";
 import { createEditorSession } from "../dist/index.js";
 import {
   CROP_ASPECTS,
@@ -149,7 +149,7 @@ const session = () => createEditorSession(deck(), { rejectInvalid: true });
   assert.equal(after.assets["photo-crop"].alt, "Block alt");
   assert.equal(after.assets["photo-crop"].mediaType, "image/png");
   assert.equal(after.assets.photo.src, PNG, "the original asset stays");
-  assert.equal(validatePresentation(after).valid, true, JSON.stringify(validatePresentation(after).errors));
+  assert.equal(validate(after, { only: ["format"] }).valid, true, JSON.stringify(validate(after, { only: ["format"] }).findings));
   editor.undo();
   assert.deepEqual(editor.document, before, "one undo restores the document");
 
@@ -167,7 +167,7 @@ const session = () => createEditorSession(deck(), { rejectInvalid: true });
   assert.equal(restored.origin, "photo");
   assert.equal(editor.document.slides[0].blocks[0].image.src, "asset:photo");
   assert.equal(editor.document.assets["photo-crop-2"], undefined);
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
   assert.equal(restoreOriginal(editor, "slides.0.blocks.0.image"), null, "nothing to restore on an original");
   editor.undo();
   assert.equal(editor.document.slides[0].blocks[0].image.src, "asset:photo-crop-2", "restore is one undo step");
@@ -198,7 +198,7 @@ const session = () => createEditorSession(deck(), { rejectInvalid: true });
   assert.deepEqual(editor.document.slides[3].design.slideImage, { src: "asset:photo-crop", position: "right", size: 0.4 }, "slide image placement is kept");
   editor.applyPatch(prepareCrop(editor.document, "slides.4.design.slideImage", cropped()).patches, { rejectInvalid: true });
   assert.equal(typeof editor.document.slides[4].design.slideImage, "string");
-  assert.equal(validatePresentation(editor.document).valid, true, JSON.stringify(validatePresentation(editor.document).errors));
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true, JSON.stringify(validate(editor.document, { only: ["format"] }).findings));
   const bare = createEditorSession({ slides: [{ title: "x", image: { src: PNG } }] }, { rejectInvalid: true });
   bare.applyPatch(prepareCrop(bare.document, "slides.0.image", cropped()).patches, { rejectInvalid: true });
   assert.ok(bare.document.assets["image-crop"], "a deck without assets gets the map");

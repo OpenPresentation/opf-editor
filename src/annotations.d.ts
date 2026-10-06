@@ -65,7 +65,7 @@ export declare function unciteRun(editor: EditorSession, runPath: string | strin
 export declare function prepareFootnote(document: unknown, runPath: string | string[], text: RichText | null): PreparedAnnotationChange;
 export declare function setFootnote(editor: EditorSession, runPath: string | string[], text: RichText | null, meta?: Record<string, unknown>): AnnotationChange;
 
-/** The deck numbering the engines draw (core `collectCitations`). Throws `annotations-unavailable` on a core without it. */
+/** The deck numbering the engines draw (core `collectCitations`). */
 export declare function listCitations(document: unknown): CitationState;
 /** An ordinary list slide of the cited references (core `referencesSlide`). */
 export declare function referencesSlideFor(document: unknown, options?: { title?: string }): Record<string, unknown>;

@@ -9,7 +9,7 @@ const FORMAT_HELP = {
   svg: 'Scalable slides with their fonts embedded, one file per slide. All slides arrive as a ZIP.',
 };
 
-export function installDownloadControls({ editor, getCanvas, getSlideIndex, renderOptions, status, fonts, registry, convert }) {
+export function installDownloadControls({ editor, getCanvas, getSlideIndex, status, fonts, convert }) {
   const header = document.querySelector('.header-actions');
   if (!header) return;
   const button = document.createElement('button');
@@ -119,7 +119,7 @@ export function installDownloadControls({ editor, getCanvas, getSlideIndex, rend
         includeHidden: $('#download-hidden').checked,
         pdfMode: format === 'pdf' ? value('download-pdf-mode') : undefined,
         scale: Number($('#download-scale').value),
-        renderOptions, fonts, registry, convert,
+        fonts, convert,
         signal: controller.signal,
         onProgress: ({ stage, done, total, message }) => {
           if (id !== token) return;

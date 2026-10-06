@@ -2,10 +2,11 @@
 // patch, one undo step, the right scope (deck or slide), and the preview and the PPTX export
 // follow the document.
 import assert from "node:assert/strict";
-import { schemas, validatePresentation } from "@openpresentation/opf";
-import { renderSvg } from "@openpresentation/opf-render/svg";
+import { schemas, validate } from "@openpresentation/opf";
+import { renderSlideSvg } from "@openpresentation/opf-render/svg";
 import * as pptx from "@openpresentation/opf-pptx";
-import { createEditorSession, resolveSlideFonts } from "../dist/index.js";
+import { resolveSlideContext } from "@openpresentation/opf";
+import { createEditorSession } from "../dist/index.js";
 import { switchDimension } from "../dist/switches.js";
 import {
   DESIGN_OPTIONS,
@@ -35,7 +36,7 @@ const deck = () => ({
   ],
 });
 const session = (document = deck()) => createEditorSession(document, { rejectInvalid: true });
-const svg = (document, slideIndex = 0) => renderSvg(document, { slideIndex });
+const svg = (document, slideIndex = 0) => renderSlideSvg(document, slideIndex);
 
 // The descriptor list is the documented set, and every enum matches the installed schema.
 {
@@ -64,12 +65,6 @@ const cases = [
   // listBullet "image" needs a logo to draw; the fixture sets one first.
   { option: "listBullet", value: "image", slide: 1, setup: (editor) => setDesignOption(editor, "logo", "asset:logo"), patch: { op: "add", path: "/design/listBullet", value: "image" }, preview: true },
 ];
-const slideImageDrawn = (() => {
-  const document = deck();
-  const plain = svg(document);
-  document.slides[0].design = { slideImage: { src: "asset:photo", position: "right" } };
-  return svg(document) !== plain;
-})();
 for (const entry of cases) {
   const editor = session();
   entry.setup?.(editor);
@@ -84,7 +79,7 @@ for (const entry of cases) {
   assert.deepEqual(change.patches, [entry.patch], `${entry.option} patch`);
   assert.equal(change.scope, "deck");
   assert.equal(editor.validation.valid, true, `${entry.option} valid`);
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
   assert.equal(editor.snapshot().undoDepth, baseline + 1, `${entry.option} is one undo step`);
   assert.equal(events.length, 1);
   assert.equal(events[0].meta.source, "design-option");
@@ -113,12 +108,12 @@ for (const entry of cases) {
   assert.equal(read.scope, "deck");
 }
 
-// A slide image on a slide is drawn where the installed renderer supports design.slideImage.
+// A slide image on a slide is drawn by the renderer (design.slideImage).
 {
   const editor = session();
   const before = svg(editor.document, 0);
   setDesignOption(editor, "slideImage", { src: "asset:photo", position: "right", size: 0.4 }, { slideIndex: 0 });
-  if (slideImageDrawn) assert.notEqual(svg(editor.document, 0), before, "slideImage: the preview changes");
+  assert.notEqual(svg(editor.document, 0), before, "slideImage: the preview changes");
   assert.deepEqual(editor.get("slides.0.design.slideImage"), { src: "asset:photo", position: "right", size: 0.4 });
 }
 
@@ -175,19 +170,17 @@ for (const entry of cases) {
 
 // Accent font: object-form font scheme overrides, collapsing back to the bare id.
 {
-  // The accent font reaches the resolved fonts and the export names it (FF-08 typeface check when the installed opf-pptx has it).
+  // The accent font reaches the resolved fonts and the export names it (the FF-08 typeface check).
   {
     // The accent font draws the cover tag.
     const editor = session({ ...deck(), slides: [{ id: "cover", title: "Quarterly review", tag: "New", subtitle: "Design options" }] });
     setDesignOption(editor, "accentFont", "Georgia");
-    const fonts = resolveSlideFonts(editor.document, 0);
+    const fonts = resolveSlideContext(editor.document, 0).options.fontFamilies;
     assert.equal(fonts.accent, "Georgia");
     const bytes = await pptx.toPptx(structuredClone(editor.document), { strictAssets: true });
-    if (typeof pptx.checkPptxTypefaces === "function") {
-      const result = pptx.checkPptxTypefaces(bytes, { fonts: Object.values(fonts), monospace: [fonts.code] });
-      assert.deepEqual(result.violations, [], "the export names only the chosen fonts");
-      assert.ok(result.fontsUsed.includes("Georgia"), "the export uses the accent font");
-    } else assert.notEqual(process.env.OPF_REQUIRE_FF08, "1", "OPF_REQUIRE_FF08=1 but opf-pptx has no checkPptxTypefaces");
+    const result = pptx.checkTypefaces(bytes, { families: Object.values(fonts), monospace: [fonts.code] });
+    assert.deepEqual(result.violations, [], "the export names only the chosen fonts");
+    assert.ok(result.fontsUsed.includes("Georgia"), "the export uses the accent font");
   }
   const editor = session();
   setDesignOption(editor, "accentFont", "Georgia");

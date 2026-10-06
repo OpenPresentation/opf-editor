@@ -5,9 +5,10 @@
 // transaction around them: it finds the block, turns the converted payload into one guarded patch, validates
 // the document, and applies it as one undoable step.
 import { CONTENT_CONVERSIONS, CONTENT_KIND_LABELS, OPFConversionError, contentConversionTargets, convertContent, readContent } from "@openpresentation/opf/convert";
-import { applyJsonPatch, getValueAtPath, opfPathToJsonPointer, splitOpfPath, validateOpfDocument } from "./index.js";
+import { applyJsonPatch, getValueAtPath, opfPathToJsonPointer, splitOpfPath } from "./index.js";
 import { listBlockContainers } from "./blocks.js";
 import { fail } from "./edit-helpers.js";
+import { firstErrorMessage, errorFindings, checkFormat } from "./checks.js";
 
 /** Every content kind a block can hold, with its display label. */
 export const BLOCK_KIND_LABELS = CONTENT_KIND_LABELS;
@@ -104,7 +105,7 @@ export function metricGroupForSelection(document, selectedPath) {
 export function blockConversionTargets(document, path, options = {}) {
   const found = readBlockContent(document, path);
   // RR-54: a table that shows a shared dataset needs the document's datasets to convert to anything but a chart.
-  return found ? contentConversionTargets(found.owner, { document, ...options }) : [];
+  return found ? contentConversionTargets(found.owner, { presentation: document, ...options }) : [];
 }
 
 /**
@@ -117,15 +118,15 @@ export function prepareBlockConversion(document, path, kind, options = {}) {
   if (!found) throw refuse(CHOOSE, { path });
   const pointer = opfPathToJsonPointer(found.path);
   const from = found.kind;
-  const result = convertOwner(found.owner, kind, { document, ...options });
+  const result = convertOwner(found.owner, kind, { presentation: document, ...options });
   if (!result.changed) return { document: structuredClone(document), patches: [], path: found.path.join("."), changed: false, lossless: true, loss: [], from, to: kind };
   const patches = [
     { op: "test", path: pointer, value: structuredClone(found.owner) },
     { op: "replace", path: pointer, value: result.payload },
   ];
   const next = applyJsonPatch(document, patches);
-  const validation = validateOpfDocument(next);
-  if (!validation.valid) throw fail("invalid-opf-edit", validation.errors[0]?.message ?? "The converted block is not valid OPF.", { issues: validation.errors, patches });
+  const validation = checkFormat(next);
+  if (!validation.valid) throw fail("invalid-opf-edit", firstErrorMessage(validation, "The converted block is not valid OPF."), { issues: errorFindings(validation), patches });
   return { document: next, patches, path: found.path.join("."), changed: true, lossless: result.lossless, loss: result.loss, from, to: kind };
 }
 

@@ -2,12 +2,11 @@ import {
   createEditorSession,
   opfPathToJsonPointer,
   applyJsonPatch,
-  validateOpfDocument,
   getValueAtPath,
   splitOpfPath,
 } from "./index.js";
 import {
-  renderSvg,
+  renderSlideSvg,
   resolvePresentation,
 } from "@openpresentation/opf-render/svg";
 import {
@@ -23,9 +22,10 @@ import { createRichTextInput } from "./rich-text-input.js";
 import { textInputOffsetAtPoint } from "./text-pointer.js";
 import { createRichTextToolbar } from "./rich-text-toolbar.js";
 import { createImageCropper } from "./image-cropper.js";
-import { FONTS_PENDING, fontsPendingError, whenFontsReady } from "./font-gate.js";
+import { FONTS_PENDING, fontGate, fontsPendingError, whenFontsReady } from "./font-gate.js";
+import { checkFormat, firstErrorMessage } from "./checks.js";
 export { getEditableFields } from "./canvas-fields.js";
-export { createFontGate, whenFontsReady, FONTS_PENDING, FONTS_UNAVAILABLE } from "./font-gate.js";
+export { whenFontsReady, FONTS_PENDING, FONTS_UNAVAILABLE } from "./font-gate.js";
 
 /** Allocated placeholder or internal-part bounds for the selection outline, not glyph ink. */
 export function allocatedSelectionBox(node, item) {
@@ -68,9 +68,11 @@ export function createCanvasEditor(container, options = {}) {
   const editor =
     options.editor ??
     createEditorSession(options.document, { rejectInvalid: true });
-  // `options.fonts` is a font gate (createFontGate): a document whose faces are not loaded yet is never rendered. The canvas
-  // loads them first and shows "Loading fonts…" meanwhile; without a gate every document renders at once, as before.
-  const fonts = options.fonts;
+  // `options.fonts` is the renderer's fonts handle (`loadFonts()`): it measures the text and draws the faces. A document whose faces
+  // are not loaded yet is never rendered: the canvas has the handle load them first and shows "Loading fonts…" meanwhile. Without a
+  // handle every document renders at once, with core's portable text estimate.
+  const handle = options.fonts, fonts = fontGate(handle);
+  const drawOptions = (extra) => ({ ...renderOptions, fonts: handle, ...extra });
   let slideIndex = options.slideIndex ?? 0,
     // RR-32: the canvas edits the document as authored, so a template's {{tokens}} stay visible and an inline edit never
     // overwrites one with its resolved text. The Fill template panel previews the resolved deck. Pass `variables` to override.
@@ -190,7 +192,7 @@ export function createCanvasEditor(container, options = {}) {
   }
   function validateRender(document) {
     requireFonts(document);
-    return renderSvg(document, {...renderOptions, slideIndex});
+    return renderSlideSvg(document, slideIndex, drawOptions());
   }
   function fontsState(kind, detail) {
     fontsShown = true;
@@ -246,17 +248,13 @@ export function createCanvasEditor(container, options = {}) {
     showToken++;
     const slides = document.slides ?? [];
     slideIndex = Math.max(0, Math.min(slideIndex, slides.length - 1));
-    const svgText = renderSvg(document, {
-      ...renderOptions,
-      slideIndex,
-      trace: true,
-    });
+    const svgText = renderSlideSvg(document, slideIndex, drawOptions({ trace: true }));
     preview.innerHTML = svgText;
     const svg = preview.querySelector("svg");
     svg.setAttribute("role", "group");
     svg.setAttribute("aria-label", "Editable slide");
     svg.removeAttribute("aria-labelledby");
-    const geometry = resolvePresentation(document, renderOptions).slides[
+    const geometry = resolvePresentation(document, drawOptions()).slides[
       slideIndex
     ].geometry;
     const candidates = [...svg.querySelectorAll("[data-opf-path]")];
@@ -432,7 +430,7 @@ export function createCanvasEditor(container, options = {}) {
       fontSize = parseFloat(font.fontSize),
       geometry = resolvePresentation(
         active.draft ?? editor.document,
-        renderOptions,
+        drawOptions(),
       ).slides[slideIndex].geometry;
     const item = geometry.items.find((item) => item.path === active.path);
     const metricLayout=geometry.items.find(item=>item.metricLayout?.parts.some(part=>part.path===active.path))?.metricLayout;
@@ -686,10 +684,10 @@ export function createCanvasEditor(container, options = {}) {
   }
   function propertyDraft(edit) {
     const draft = applyJsonPatch(editor.document, propertyPatches(edit)),
-      validation = validateOpfDocument(draft);
+      validation = checkFormat(draft);
     if (!validation.valid)
       throw new Error(
-        validation.errors[0]?.message ?? "This change is not valid OPF.",
+        firstErrorMessage(validation, "This change is not valid OPF."),
       );
     return draft;
   }

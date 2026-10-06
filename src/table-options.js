@@ -5,8 +5,9 @@
 // Cells are addressed by `{ section: "header" | "body", row, column }`; `row` is ignored for the
 // header section. Nothing here invents text: merging cells that hold text refuses unless you pass
 // `join: true`, which keeps every word in the merged cell.
-import { getValueAtPath, opfPathToJsonPointer, splitOpfPath, validateOpfDocument } from "./index.js";
+import { getValueAtPath, opfPathToJsonPointer, splitOpfPath } from "./index.js";
 import { checkedDocument, fail } from "./edit-helpers.js";
+import { checkFormat } from "./checks.js";
 
 /**
  * Table styles. A style is `{ header, banding, borders }`. The renderers' table defaults are a header
@@ -170,7 +171,7 @@ function transaction(document, tablePath, change, extra = {}) {
   const pointer = opfPathToJsonPointer(parts);
   const changed = JSON.stringify(table) !== JSON.stringify(next);
   const patches = changed ? [{ op: "test", path: pointer, value: clone(table) }, { op: "replace", path: pointer, value: next }] : [];
-  const before = validateOpfDocument(document);
+  const before = checkFormat(document);
   const result = changed ? checkedDocument(document, patches, before) : document;
   return { ...extra, ...info, tablePath: parts.join("."), document: clone(result), patches, changed };
 }

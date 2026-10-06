@@ -1,5 +1,5 @@
 import type { RenderSvgOptions } from "@openpresentation/opf-render";
-import type { FontGate } from "./canvas.js";
+import type { EditorFonts } from "./canvas.js";
 
 export type ExportFormat = "pdf" | "png" | "svg";
 export declare const EXPORT_FORMATS: Readonly<Record<ExportFormat, { extension: string; type: string; label: string }>>;
@@ -44,12 +44,10 @@ export interface ExportOptions {
   pdfMode?: "vector" | "raster";
   /** PNG pixel density (and the raster PDF's), 1 to 4; default 2. */
   scale?: number;
-  /** The options the host draws its preview with (`textMeasurement`, `catalogs`, ...). */
+  /** The options the host draws its preview with (`catalogs`, `date`, ...); the fonts go in `fonts`. */
   renderOptions?: RenderSvgOptions;
-  /** A font gate: the faces the deck needs load before anything is drawn. */
-  fonts?: Pick<FontGate, "pending" | "ensure">;
-  /** The browser font registry; its faces are what gets embedded. */
-  registry?: object;
+  /** The renderer's fonts handle (`loadFonts()`): it measures the text, loads the faces the deck needs before anything is drawn, and its registry's faces are what gets embedded. */
+  fonts?: EditorFonts;
   /** Faces to embed instead of the registry's. */
   embeddedFonts?: Array<Record<string, unknown>>;
   /** PDF document properties beyond the title and subject taken from the deck. */

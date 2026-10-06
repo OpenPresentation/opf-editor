@@ -8,14 +8,12 @@ import {
   NUMBERING_SUFFIX_OPTIONS,
   findNumberableLists,
   listPayloadAt,
-  numberingAvailable,
   numberingState,
   numberingValue,
   setEntryStart,
   setNumbering,
 } from "../dist/numbering.js";
 
-assert.equal(numberingAvailable(), true);
 assert.deepEqual(NUMBERING_STYLE_OPTIONS.map((option) => option.value), ["arabic", "roman-upper", "roman-lower", "alpha-upper", "alpha-lower"]);
 assert.deepEqual(NUMBERING_SUFFIX_OPTIONS.map((option) => option.value), ["period", "paren", "paren-both"]);
 

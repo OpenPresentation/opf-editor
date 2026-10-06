@@ -3,14 +3,14 @@
 // number format and a chart's series mapping, each as one undoable patch. Documents without the new fields behave as before.
 import assert from "node:assert/strict";
 import * as core from "@openpresentation/opf";
-import { validatePresentation } from "@openpresentation/opf";
+import { validate } from "@openpresentation/opf";
 import { createEditorSession } from "../dist/index.js";
 import * as grid from "../dist/data-grid.js";
 import * as chart from "../dist/chart-data.js";
 import * as tables from "../dist/table-options.js";
 import * as findReplace from "../dist/find-replace.js";
 import * as switches from "../dist/switches.js";
-import { DATASET_ID_PATTERN, createDataContent, prepareDatasetImport } from "../dist/data.js";
+import { DATASET_ID_PATTERN, importData, prepareDatasetImport } from "../dist/data.js";
 import { prepareOpfImport } from "../dist/transfer.js";
 
 const C_INLINE = "slides.0.blocks.0.chart";
@@ -56,7 +56,7 @@ function step(editor, name, action, expectation) {
   const change = action();
   assert.equal(change.changed, true, `${name} changed the document`);
   assert.equal(editor.snapshot().undoDepth, depth + 1, `${name} is one undo step`);
-  assert.equal(validatePresentation(editor.document).valid, true, `${name} leaves valid OPF`);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true, `${name} leaves valid OPF`);
   expectation?.(change);
   const after = editor.document;
   editor.undo();
@@ -75,7 +75,7 @@ const refuses = (editor, name, action, code) => {
   assert.equal(editor.snapshot().undoDepth, depth, `${name} records no undo step`);
 };
 
-assert.equal(validatePresentation(deck()).valid, true, "the fixture is valid OPF");
+assert.equal(validate(deck(), { only: ["format"] }).valid, true, "the fixture is valid OPF");
 assert.equal(typeof core.chartNumber, "function", "core exports chartNumber (RR-54)");
 
 // --- documents without the new fields behave exactly as before ---------------------------------------------
@@ -440,7 +440,7 @@ assert.equal(typeof core.chartNumber, "function", "core exports chartNumber (RR-
 // --- import as a shared dataset ------------------------------------------------------------------------------------
 {
   const csv = "Quarter,Revenue,Costs\nQ1,12,8\nQ2,18,11\n";
-  const content = createDataContent(csv, { as: "chart", chartType: "column" });
+  const content = importData(csv, { as: "chart", chartType: "column" });
   const editor = session({ name: "Import", design: { theme: "minimal", fontScheme: "aptos" }, slides: [{ id: "a", title: "A", text: "Hello" }] });
   const stored = prepareDatasetImport(editor.document, content, { id: "revenue", source: { src: "./revenue.csv", retrieved: "2026-10-05" } });
   assert.deepEqual(stored.content, { chart: { type: "column", data: { dataset: "revenue" } } });
@@ -449,7 +449,7 @@ assert.equal(typeof core.chartNumber, "function", "core exports chartNumber (RR-
   editor.applyPatch([...stored.patches, { op: "add", path: "/slides/1", value: { id: "data", title: "Data", ...stored.content } }], { label: "Import data" });
   assert.equal(editor.snapshot().undoDepth, 1, "the dataset and the slide are one undo step");
   assert.deepEqual(editor.get("datasets.revenue"), { columns: ["Quarter", "Revenue", "Costs"], rows: [["Q1", 12, 8], ["Q2", 18, 11]], source: { src: "./revenue.csv", retrieved: "2026-10-05" } });
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
   assert.equal(grid.resolveDataGridTarget(editor.document, "slides.1.chart").dataset.count, 1);
   assert.equal(core.unusedDatasets(editor.document).length, 0);
   editor.undo();
@@ -457,13 +457,13 @@ assert.equal(typeof core.chartNumber, "function", "core exports chartNumber (RR-
   editor.redo();
 
   // Importing into an existing id replaces its columns and rows and keeps its title and source.
-  const again = prepareDatasetImport(editor.document, createDataContent("Quarter,Revenue,Costs\nQ1,1,2\n", { as: "table" }), { id: "revenue" });
+  const again = prepareDatasetImport(editor.document, importData("Quarter,Revenue,Costs\nQ1,1,2\n", { as: "table" }), { id: "revenue" });
   assert.equal(again.replaced, true);
   assert.deepEqual(again.content, { table: { dataset: "revenue" } });
   editor.applyPatch([...again.patches, { op: "add", path: "/slides/2", value: { id: "t", title: "T", ...again.content } }]);
   assert.deepEqual(editor.get("datasets.revenue.rows"), [["Q1", "1", "2"]], "a CSV table keeps its cells as text");
   assert.deepEqual(editor.get("datasets.revenue.source"), { src: "./revenue.csv", retrieved: "2026-10-05" });
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
 
   for (const bad of ["", "-x", "a b", "a/b", undefined]) assert.throws(() => prepareDatasetImport(editor.document, content, { id: bad }), (error) => error.code === "dataset-id-invalid", `id ${JSON.stringify(bad)}`);
   assert.ok(DATASET_ID_PATTERN.test("pipeline-2026"));
@@ -482,7 +482,7 @@ assert.equal(typeof core.chartNumber, "function", "core exports chartNumber (RR-
   assert.equal(matches.matches.length, 1);
   findReplace.replaceAll(editor, "first", "opening");
   assert.equal(editor.get("datasets.revenue.rows.0.3"), "opening");
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
 
   // chart type compatibility reads the resolved data (dataset, fields and mapping).
   const ids = (path) => switches.compatibleChartTypes(editor.document, { path }).map((entry) => entry.id);
@@ -552,7 +552,7 @@ assert.equal(typeof core.chartNumber, "function", "core exports chartNumber (RR-
     slides: [{ id: "d", title: "D", blocks: [{ chart: { type: "scatter", data: { columns: ["L", "X", "Y", "Z"], rows: [["a", 1, 2, 3]] }, mapping: { x: "Z", series: ["Y"] } } }] }],
   });
   const editor = session(scatter());
-  const warnings = () => (validatePresentation(editor.document).warnings ?? []).map((entry) => entry.params?.code ?? entry.code);
+  const warnings = () => (validate(editor.document, { only: ["format"] }).warnings ?? []).map((entry) => entry.params?.code ?? entry.code);
   step(editor, "switch a scatter chart with mapping.x to column", () => switches.switchDimension(editor, "charts", "column", { slideIndex: 0, path: "slides.0.blocks.0" }), () => {
     assert.deepEqual(editor.get("slides.0.blocks.0.chart.mapping"), { series: ["Y"] }, "x leaves the mapping");
     assert.ok(!warnings().includes("chart-mapping-adapted"), "no chart-mapping-adapted warning is left behind");
@@ -574,7 +574,7 @@ assert.equal(typeof core.chartNumber, "function", "core exports chartNumber (RR-
   const current = deck();
   // Different rows under a name the deck already uses: the incoming dataset is stored under a new id and the slide follows it.
   const merged = prepareOpfImport(current, { document: incoming([["Q1", 1]]) }, { mode: "insert", slideIndex: 0 });
-  assert.equal(validatePresentation(merged.document).valid, true, "the merged deck is valid OPF");
+  assert.equal(validate(merged.document, { only: ["format"] }).valid, true, "the merged deck is valid OPF");
   assert.deepEqual(merged.document.datasets.revenue, current.datasets.revenue, "the deck's own dataset is untouched");
   assert.deepEqual(merged.document.datasets["revenue-2"].rows, [["Q1", 1]], "the incoming dataset is kept under a free id");
   assert.equal(merged.document.datasets.spare, undefined, "a dataset no inserted slide uses is not copied");
@@ -587,7 +587,7 @@ assert.equal(typeof core.chartNumber, "function", "core exports chartNumber (RR-
   // A deck with no datasets takes the incoming ones as they are.
   const bare = prepareOpfImport({ name: "Bare", design: { theme: "minimal", fontScheme: "aptos" }, slides: [{ id: "b", title: "B", blocks: [{ text: "x" }] }] }, { document: incoming([["Q1", 1]]) }, { mode: "insert", slideIndex: 0 });
   assert.deepEqual(Object.keys(bare.document.datasets), ["revenue"]);
-  assert.equal(validatePresentation(bare.document).valid, true);
+  assert.equal(validate(bare.document, { only: ["format"] }).valid, true);
 }
 
 // --- numbers show formatted in the grid; the raw value is what editing and copying use ------------------------------------

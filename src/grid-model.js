@@ -16,13 +16,14 @@
 // Both are read as "lines": the header line (when there is one) followed by the body rows. The operations below
 // change lines and columns, keep merged cells whole or refuse with a reason, and return a `{ document, patches,
 // changed }` description like table-options.js does. Nothing here touches a DOM.
-import * as core from "@openpresentation/opf";
-import { getValueAtPath, opfPathToJsonPointer, splitOpfPath, validateOpfDocument } from "./index.js";
+import { chartNumber, formatDataNumber, inlineChartData, inlineTableData, isXYChartType, numberFormatError } from "@openpresentation/opf";
+import { getValueAtPath, opfPathToJsonPointer, splitOpfPath } from "./index.js";
 import { checkedDocument, fail, same } from "./edit-helpers.js";
 import { datasetUsage, isDatasetRef, walkDatasetItems } from "./dataset-refs.js";
 import { richTextContent, updateRichTextInput } from "./rich-text.js";
 import { formatGridNumber, isCanonicalNumber, parseDelimited, parseGridNumber, resolveNumberFormat, toDelimited } from "./grid-text.js";
 import { applyTableStyleToTable, readTableStyleOfTable } from "./table-options.js";
+import { checkFormat } from "./checks.js";
 
 const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const isStyled = (cell) => isObject(cell) && Object.hasOwn(cell, "value");
@@ -295,13 +296,6 @@ export function cellText(raw, kind, decimal = ".") {
 
 const isScatter = (type) => typeof type === "string" && /^(scatter|bubble)/.test(type);
 
-// RR-54: core's strict chart number and XY test. A core that predates them (the installed range still allows one) keeps the
-// editor working on documents that use none of the new fields: numbers and scatter-like type ids read as the editor always read them.
-const chartNumber = (value) =>
-  typeof core.chartNumber === "function" ? core.chartNumber(value) : typeof value === "number" ? (Number.isFinite(value) ? value : null) : typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value)) ? Number(value) : null;
-/** Whether the installed core has the RR-54 chart and table data contract (number formats, datasets, `chartNumber`); an older core edits documents that use none of it. */
-export const supportsChartTableData = ["chartNumber", "numberFormatError", "inlineChartData", "inlineTableData", "isXYChartType"].every((name) => typeof core[name] === "function");
-const isXYType = (type) => (typeof core.isXYChartType === "function" ? core.isXYChartType(type) : isScatter(type));
 
 /**
  * A number as the slide draws it: the column's format (a table body cell's own format wins) through core's `formatDataNumber`, or undefined when
@@ -310,15 +304,14 @@ const isXYType = (type) => (typeof core.isXYChartType === "function" ? core.isXY
  * replaced: editing and copying use it.
  */
 function displayText(model, raw, column, role, text) {
-  if (!supportsChartTableData || typeof core.formatDataNumber !== "function") return undefined;
   const format = (model.kind === "table" ? formatOf(raw) : undefined) ?? (model.hasHeader ? formatOf(model.lines[0]?.[column]) : undefined);
-  if (format === undefined || core.numberFormatError(format) !== undefined) return undefined;
+  if (format === undefined || numberFormatError(format) !== undefined) return undefined;
   const value = valueOf(raw);
   let number = null;
   if (model.kind === "chart") number = isNumericRole(role) && (typeof value === "number" || typeof value === "string") ? chartNumber(value) : null;
   else if (typeof value === "number" && Number.isFinite(value)) number = value;
   if (number === null) return undefined;
-  const shown = core.formatDataNumber(number, format);
+  const shown = formatDataNumber(number, format);
   return shown === text ? undefined : shown;
 }
 
@@ -366,7 +359,7 @@ function mappingColumns(count, xy, mapping, names) {
  */
 export function chartColumnRoles(columnCount, chartType, mapping, names) {
   if (isObject(mapping) && Array.isArray(names) && columnCount > 0) {
-    const xy = isXYType(chartType);
+    const xy = isXYChartType(chartType);
     const { category, x, series } = mappingColumns(columnCount, xy, mapping, names);
     const roles = Array(columnCount).fill("other");
     for (const index of series) roles[index] = "series";
@@ -661,7 +654,7 @@ function transact(document, path, action, mutate, extra = {}) {
   const changes = found.dataset ? datasetChanges(document, found, model) : inlineChanges(found, model, style);
   const patches = changes.flatMap((entry) => valuePatches(entry.parts, entry.before, entry.after));
   const changed = patches.length > 0;
-  const before = validateOpfDocument(document);
+  const before = checkFormat(document);
   const result = changed ? checkedDocument(document, patches, before) : document;
   // `restyle`, `touchesStructure` and `what` steer this function only; the rest of what the operation reports is the caller's.
   const { restyle: _restyle, touchesStructure: _structure, what: _what, ...summary } = info;
@@ -1130,8 +1123,7 @@ export function prepareTranspose(document, path) {
 /** Why `format` is not a valid number format ("#,##0", "0.0%", "$#,##0.00"), or undefined when it is valid or empty (empty clears the format). */
 export function columnFormatError(format) {
   if (format === undefined || format === null || format === "") return undefined;
-  if (!supportsChartTableData) return "This version of OPF has no number formats; update @openpresentation/opf.";
-  return core.numberFormatError(format);
+  return numberFormatError(format);
 }
 
 /** The header `raw` with `format` set, or cleared (`undefined`). A string header becomes `{ name, format }` and goes back to a string when the format is cleared. */
@@ -1185,7 +1177,7 @@ export function describeChartMapping(document, path) {
   const model = toModel(found);
   padLines(model);
   const names = namesOfModel(model);
-  const xy = isXYType(found.chartType);
+  const xy = isXYChartType(found.chartType);
   const { category, x, series } = mappingColumns(names.length, xy, model.mapping, names);
   const roles = chartColumnRoles(names.length, found.chartType, { ...(model.mapping ?? {}) }, names);
   return {
@@ -1210,7 +1202,7 @@ export function prepareChartMapping(document, path, wanted = {}) {
   const model = toModel(found);
   padLines(model);
   const names = namesOfModel(model);
-  const xy = isXYType(found.chartType);
+  const xy = isXYChartType(found.chartType);
   const current = mappingColumns(names.length, xy, model.mapping, names);
   const pick = (name, what) => {
     const index = typeof name === "string" ? names.indexOf(name) : -1;
@@ -1233,7 +1225,7 @@ export function prepareChartMapping(document, path, wanted = {}) {
   if (xy && x !== undefined && x !== defaultX(category, names.length)) next.x = names[x];
   if (series.length !== defaultSeries.length || series.some((index, position) => index !== defaultSeries[position])) next.series = series.map((index) => names[index]);
   const after = Object.keys(next).length ? next : undefined;
-  const before = validateOpfDocument(document);
+  const before = checkFormat(document);
   const patches = valuePatches([...found.parts, "mapping"], found.owner.mapping, after);
   const changed = patches.length > 0;
   const result = changed ? checkedDocument(document, patches, before) : document;
@@ -1250,11 +1242,10 @@ export function prepareChartMapping(document, path, wanted = {}) {
 export function prepareDetachDataset(document, path) {
   const found = locateGridData(document, path);
   if (!found.dataset) throw fail("grid-not-dataset", "This chart or table does not use a shared dataset.", { path });
-  if (!supportsChartTableData) throw fail("grid-core-too-old", "This version of OPF cannot copy a shared dataset; update @openpresentation/opf.", { path });
-  const inline = found.kind === "chart" ? core.inlineChartData(found.owner, document).data : core.inlineTableData(found.owner, document);
+  const inline = found.kind === "chart" ? inlineChartData(found.owner, document).data : inlineTableData(found.owner, document);
   const pointer = opfPathToJsonPointer(found.dataset.refParts);
   const patches = [{ op: "test", path: pointer, value: clone(found.dataset.ref) }, { op: "replace", path: pointer, value: clone(inline) }];
-  const result = checkedDocument(document, patches, validateOpfDocument(document));
+  const result = checkedDocument(document, patches, checkFormat(document));
   return { action: "detach-dataset", kind: found.kind, path: found.parts.join("."), dataset: found.dataset.id, document: clone(result), patches, changed: true };
 }
 

@@ -8,7 +8,6 @@ import {
   NUMBERING_STYLE_OPTIONS,
   NUMBERING_SUFFIX_OPTIONS,
   findNumberableLists,
-  numberingAvailable,
   numberingState,
   numberingValue,
   setEntryStart,
@@ -36,7 +35,6 @@ function h(doc, tag, attributes = {}, ...children) {
  * `onStatus(message, {error})`.
  */
 export function createNumberingPanel(container, options) {
-  if (!numberingAvailable()) throw new Error("The numbering control needs a core release that ships numbering.");
   const { editor, getTarget, getSlideIndex, onStatus } = options;
   const doc = container.ownerDocument;
   const id = `opf-numbering-${++panelCounter}`;

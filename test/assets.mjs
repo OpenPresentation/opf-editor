@@ -1,7 +1,7 @@
 // RR-06 gaps: image upload. A local file becomes an `assets` entry (or goes to the host's onAddAsset)
 // and is used by a logo, watermark, slide image, background or header/footer zone in one undo step.
 import assert from "node:assert/strict";
-import { validatePresentation } from "@openpresentation/opf";
+import { validate } from "@openpresentation/opf";
 import * as pptx from "@openpresentation/opf-pptx";
 import { createEditorSession } from "../dist/index.js";
 import {
@@ -95,7 +95,7 @@ for (const [index, entry] of uploads.entries()) {
   assert.equal(asset.title, name);
   assert.equal(asset.mediaType, type);
   assert.equal(editor.snapshot().undoDepth, 1, `${entry.name}: one undo step`);
-  assert.equal(validatePresentation(editor.document).valid, true, entry.name);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true, entry.name);
   assert.equal(change.patches[0].path.startsWith("/assets"), true);
   if (index === 0) assert.ok((await pptx.toPptx(structuredClone(editor.document), { strictAssets: true })).byteLength > 0, "an uploaded logo exports");
   editor.undo();

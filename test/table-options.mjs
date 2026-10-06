@@ -2,8 +2,8 @@
 // draws the styled and merged table, text is never hidden by a merge, and the PPTX export carries
 // merges and fills.
 import assert from "node:assert/strict";
-import { validatePresentation } from "@openpresentation/opf";
-import { renderSvg } from "@openpresentation/opf-render/svg";
+import { validate } from "@openpresentation/opf";
+import { renderSlideSvg } from "@openpresentation/opf-render/svg";
 import * as pptx from "@openpresentation/opf-pptx";
 import { createEditorSession } from "../dist/index.js";
 import {
@@ -45,7 +45,7 @@ const deck = () => ({
   ],
 });
 const session = (document = deck()) => createEditorSession(document, { rejectInvalid: true });
-const svg = (document) => renderSvg(document, { slideIndex: 0 });
+const svg = (document) => renderSlideSvg(document, 0);
 const body = (row, column) => ({ section: "body", row, column });
 const header = (column) => ({ section: "header", column });
 
@@ -65,7 +65,7 @@ assert.equal(parseTableCellPath("slides.0.blocks.0.table"), undefined, "the tabl
   assert.deepEqual(change.patches.map((patch) => patch.op), ["test", "replace"], "guarded by a test of the table");
   assert.deepEqual(editor.get(`${T}.rows.1`), ["South", { value: "", colSpan: 2 }, null, 8]);
   assert.equal(editor.snapshot().undoDepth, 1);
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
   assert.notEqual(svg(editor.document), beforeSvg, "the preview draws the merge");
   assert.deepEqual(tableMerges(editor.get(T)), [{ section: "body", row: 1, column: 1, rowSpan: 1, colSpan: 2 }]);
   const state = describeTableCell(editor.get(T), body(1, 2));
@@ -154,7 +154,7 @@ assert.equal(parseTableCellPath("slides.0.blocks.0.table"), undefined, "the tabl
     assert.equal(change.changed, true, preset);
     assert.equal(readTableStyle(editor.document, T).preset, preset, `${preset} reads back`);
     assert.notEqual(svg(editor.document), beforeSvg, `${preset}: the preview draws the style`);
-    assert.equal(validatePresentation(editor.document).valid, true);
+    assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
     const bytes = await pptx.toPptx(structuredClone(editor.document), { strictAssets: true });
     assert.ok(bytes.byteLength > 0, `${preset} exports`);
   }

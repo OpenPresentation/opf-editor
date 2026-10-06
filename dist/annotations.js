@@ -6,10 +6,10 @@
 // canvas redraws and Undo restores the document. Nothing here invents text or ids: a reference is
 // what the caller supplies, and removing a cited reference refuses unless `force` also removes its
 // cites. Numbering comes from core (`collectCitations`), so the panel shows what the engines draw.
-import { getValueAtPath, opfPathToJsonPointer, splitOpfPath, validateOpfDocument } from "./index.js";
+import { getValueAtPath, opfPathToJsonPointer, splitOpfPath } from "./index.js";
 import { checkedDocument, fail } from "./edit-helpers.js";
-// Namespace import: a core published before RR-34 has no citation helpers; the verbs then throw annotations-unavailable.
-import * as opfCore from "@openpresentation/opf";
+import { captionSettings, collectCitations, referencesSlide, walkCitationRuns } from "@openpresentation/opf/composition";
+import { checkFormat } from "./checks.js";
 
 export const CAPTION_POSITIONS = Object.freeze(["below", "above"]);
 export const CAPTION_ALIGNMENTS = Object.freeze(["left", "center", "right"]);
@@ -37,7 +37,7 @@ function transaction(document, parts, next, extra) {
   const pointer = opfPathToJsonPointer(parts);
   const changed = JSON.stringify(current) !== JSON.stringify(next);
   const patches = changed ? [{ op: "test", path: pointer, value: clone(current) }, { op: "replace", path: pointer, value: clone(next) }] : [];
-  const before = validateOpfDocument(document);
+  const before = checkFormat(document);
   const result = changed ? checkedDocument(document, patches, before) : document;
   return { ...extra, path: parts.join("."), document: clone(result), patches, changed };
 }
@@ -57,11 +57,7 @@ function captionHost(document, blockPath) {
 
 /** Normalize a caption value to `{ text, position, align }`, or undefined. */
 export function normalizeCaption(value) {
-  if (typeof opfCore.captionSettings === "function") return opfCore.captionSettings(value);
-  if (value === undefined || value === null) return undefined;
-  if (typeof value === "string" || Array.isArray(value)) return { text: value, position: "below", align: "left" };
-  if (!isObject(value) || value.text === undefined) return undefined;
-  return { text: value.text, position: value.position === "above" ? "above" : "below", align: CAPTION_ALIGNMENTS.includes(value.align) ? value.align : "left" };
+  return captionSettings(value);
 }
 
 /** Every block (and one-payload slide root) that can carry a caption, with its current caption. */
@@ -112,10 +108,6 @@ export function setCaption(editor, blockPath, caption, meta = {}) {
 
 // --- references ---------------------------------------------------------------------------------
 
-function citationsOf(document) {
-  if (typeof opfCore.collectCitations !== "function") throw fail("annotations-unavailable", "The installed @openpresentation/opf has no citation helpers (needs the core that ships RR-34).");
-  return opfCore.collectCitations(document);
-}
 function referenceList(document) {
   return Array.isArray(document?.references) ? document.references : [];
 }
@@ -132,9 +124,9 @@ function checkReference(reference, existing, { allowExisting = false } = {}) {
 /** The deck's references with their marker numbers and whether a run cites them. */
 export function listReferences(document) {
   const list = referenceList(document);
-  const citations = typeof opfCore.collectCitations === "function" ? opfCore.collectCitations(document) : undefined;
+  const citations = collectCitations(document);
   return list.map((reference, index) => {
-    const note = citations?.references.find((item) => item.id === reference?.id);
+    const note = citations.references.find((item) => item.id === reference?.id);
     return { index, id: reference?.id, text: reference?.text, url: reference?.url, cited: Boolean(note), ...(note ? { number: note.number } : {}) };
   });
 }
@@ -167,7 +159,7 @@ export function prepareReferenceRemoval(document, id, { force = false } = {}) {
   const list = referenceList(document), index = list.findIndex((item) => item?.id === id);
   if (index < 0) throw fail("unknown-reference", `No reference '${id}'.`, { id });
   const citing = [];
-  if (typeof opfCore.walkCitationRuns === "function") (document.slides ?? []).forEach((slide, slideIndex) => opfCore.walkCitationRuns(slide, `slides.${slideIndex}`, (entry) => { if (entry.cite.includes(id)) citing.push(entry.path); }));
+  (document.slides ?? []).forEach((slide, slideIndex) => walkCitationRuns(slide, `slides.${slideIndex}`, (entry) => { if (entry.cite.includes(id)) citing.push(entry.path); }));
   if (citing.length && !force) throw fail("reference-cited", `Reference '${id}' is cited by ${citing.length} run${citing.length === 1 ? "" : "s"}; pass force to remove the citations too.`, { id, runs: citing });
   const next = clone(document);
   next.references = list.filter((_, position) => position !== index);
@@ -180,7 +172,7 @@ export function prepareReferenceRemoval(document, id, { force = false } = {}) {
   const pointer = "";
   const changed = JSON.stringify(document) !== JSON.stringify(next);
   const patches = changed ? [{ op: "test", path: pointer, value: clone(document) }, { op: "replace", path: pointer, value: clone(next) }] : [];
-  const before = validateOpfDocument(document);
+  const before = checkFormat(document);
   const result = changed ? checkedDocument(document, patches, before) : document;
   return { action: "remove-reference", id, removedCites: citing, path: "references", document: clone(result), patches, changed };
 }
@@ -267,7 +259,7 @@ export function setFootnote(editor, runPath, text, meta = {}) {
 
 /** The deck numbering the engines draw: notes in number order, cited references, per-slide markers, unused ids. */
 export function listCitations(document) {
-  const citations = citationsOf(document);
+  const citations = collectCitations(document);
   return {
     notes: citations.notes.map((note) => ({ ...note })),
     references: citations.references.map((note) => ({ ...note })),
@@ -277,6 +269,5 @@ export function listCitations(document) {
 }
 /** An ordinary list slide of the cited references (core `referencesSlide`), ready for `prepareBlockInsert` or a slide insert. */
 export function referencesSlideFor(document, options = {}) {
-  if (typeof opfCore.referencesSlide !== "function") throw fail("annotations-unavailable", "The installed @openpresentation/opf has no referencesSlide (needs the core that ships RR-34).");
-  return opfCore.referencesSlide(document, options);
+  return referencesSlide(document, options);
 }

@@ -55,8 +55,6 @@ export interface TemplatePreview {
   complete: boolean;
 }
 
-/** True when the core this editor runs on can resolve template variables. */
-export declare function templatesAvailable(): boolean;
 export declare function isTemplateDocument(document: unknown): boolean;
 /** True when the document is a template or declares a variable that is not a color. */
 export declare function hasTemplateVariables(document: unknown): boolean;

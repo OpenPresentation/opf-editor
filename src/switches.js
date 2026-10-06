@@ -2,21 +2,13 @@
 // dimension that turns "switch this dimension to X" into a validated JSON Patch, and applies
 // it to an editor session as one undoable transaction. The preview recomposes and the PPTX
 // export follows from the same document, so no dimension needs a special refresh path.
-import * as core from "@openpresentation/opf";
-import { catalogSchemaNames, catalogs as bundledCatalogs, schemas } from "@openpresentation/opf";
-import {
-  OPFEditorError,
-  createValuePatch,
-  applyJsonPatch,
-  getValueAtPath,
-  opfPathToJsonPointer,
-  splitOpfPath,
-  validateOpfDocument,
-} from "./index.js";
+import { catalogSchemaNames, catalogs as bundledCatalogs, isXYChartType, resolveChartData, schemas } from "@openpresentation/opf";
+import { OPFEditorError, createValuePatch, applyJsonPatch, getValueAtPath, opfPathToJsonPointer, splitOpfPath } from "./index.js";
 import { createContentBlock, prepareBlockReplace } from "./blocks.js";
 import { checkedDocument, designPatches, fail, same } from "./edit-helpers.js";
 import { populateLayoutPlaceholders } from "./layout-placeholders.js";
 import { blockConversionTargets, prepareBlockConversion } from "./block-convert.js";
+import { checkFormat } from "./checks.js";
 
 /** The schema's DimensionPreset values (RR-41, FA-13: with the social-feed ratios), the values of the slide-sizes switch. */
 export const SLIDE_SIZE_PRESETS = Object.freeze(["16:9", "4:3", "16:10", "1:1", "4:5", "9:16", "letter", "a4", "widescreen", "standard"]);
@@ -201,7 +193,7 @@ export function prepareDimensionSwitch(document, dimension, value, options = {})
     if (!CATALOG_KIND[dimension] || !ids.includes(options.record.id))
       throw fail("record-id-mismatch", `The supplied record id must equal a switched ${dimension} id.`, { dimension, id: options.record.id });
   }
-  const before = validateOpfDocument(document);
+  const before = checkFormat(document);
   const scopeIndex = options.slideIndex;
   let patches = [];
   let scope = "deck";
@@ -401,7 +393,7 @@ const DISTRIBUTION_ELEMENTS = new Set(["histogramChart", "boxWhiskerChart", "map
 function staleMappingPatches(document, owner, chart, type) {
   const mapping = chart.mapping;
   if (!mapping || typeof mapping !== "object" || Array.isArray(mapping) || mapping.x === undefined) return [];
-  if (typeof core.isXYChartType !== "function" || core.isXYChartType(type)) return [];
+  if (isXYChartType(type)) return [];
   const { x: _x, ...rest } = mapping;
   const parts = [...owner, "chart", "mapping"];
   return Object.keys(rest).length ? createValuePatch(document, parts, rest) : [{ op: "remove", path: opfPathToJsonPointer(parts) }];
@@ -424,11 +416,7 @@ function staleComboPatches(document, owner, chart, type) {
 function chartDataShape(chart, document) {
   // RR-54: inline data, a dataset reference and a series mapping all resolve to the columns the renderers read: the first column labels
   // the categories and every further column is a series.
-  if (typeof core.resolveChartData !== "function") {
-    const data = chart?.data;
-    return data && Array.isArray(data.columns) && Array.isArray(data.rows) ? { series: Math.max(0, data.columns.length - 1), categories: data.rows.length } : undefined;
-  }
-  const resolved = core.resolveChartData(chart, document);
+  const resolved = resolveChartData(chart, document);
   if (!resolved.ok) return undefined;
   return { series: Math.max(0, resolved.columns.length - 1), categories: resolved.rows.length };
 }

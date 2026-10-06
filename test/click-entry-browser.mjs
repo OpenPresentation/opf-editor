@@ -2,22 +2,22 @@ import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
 import {chromium} from 'playwright';
-import {loadOfficeFontRegistry} from '@openpresentation/opf-render/fonts-node';
+import { loadFonts } from '@openpresentation/opf-render/fonts-node';
 
 // Real-browser check of the text entry gestures: a single press on editable text enters editing with the caret at the
 // pressed character (PowerPoint / Google Slides), a press-drag selects a range, keyboard entry selects all, and
 // `textEntry: "dblclick"` keeps the older gesture but still places the caret at the pointer.
-const faces = (await loadOfficeFontRegistry()).embeddedFonts.filter((face) => face.family === 'Roboto' && [400, 700].includes(face.weight) && !face.italic);
+const faces = (await loadFonts({ pack: 'office' })).registry.embeddedFonts.filter((face) => face.family === 'Roboto' && [400, 700].includes(face.weight) && !face.italic);
 const bundled = await build({stdin: {resolveDir: fileURLToPath(new URL('../', import.meta.url)), contents: `
   import {createEditorSession} from './dist/index.js';
   import {createCanvasEditor} from './dist/canvas.js';
-  import {loadBrowserFontRegistry} from '@openpresentation/opf-render/fonts-browser';
+  import { loadFonts } from '@openpresentation/opf-render/fonts-browser';
   window.mountClickEntry = async ({deck, faces, options = {}}) => {
     window.cv?.destroy(); window.fonts?.dispose();
     window.events = {selects: [], errors: [], commits: [], cancels: []};
-    window.fonts = await loadBrowserFontRegistry(faces.map((face) => ({...face, data: Uint8Array.from(atob(face.dataUrl.split(',')[1]), (c) => c.charCodeAt(0))})), {substitutionPolicy: 'visual', fallbackFamily: 'Roboto'});
+    window.fonts = await loadFonts({ faces: faces.map((face) => ({...face, data: Uint8Array.from(atob(face.dataUrl.split(',')[1]), (c) => c.charCodeAt(0))})), substitutionPolicy: 'visual', fallbackFamily: 'Roboto' });
     window.editor = createEditorSession(deck, {rejectInvalid: true});
-    window.cv = createCanvasEditor(document.querySelector('#canvas'), {editor, renderOptions: {textMeasurement: fonts.textMeasurement}, ...options,
+    window.cv = createCanvasEditor(document.querySelector('#canvas'), {editor, fonts, ...options,
       onSelect: (event) => events.selects.push(event.path), onError: (error) => events.errors.push(error.message),
       onCommit: (event) => events.commits.push(event.path), onCancel: (event) => events.cancels.push(event.path)});
     await cv.ready;

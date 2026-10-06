@@ -1,9 +1,8 @@
 // List numbering (RR-33): the headless model behind the numbering control. A list payload (`items` or `bullets`) can
 // carry `numbering`: a style name, a { style, start, suffix } object, or an array with one entry per list level. Every
 // write goes through the session as a validated JSON Patch edit, so each change is one undoable edit. Importing this
-// module needs no DOM. Core is read from the namespace so an older core still loads this module; the writes then
-// throw "numbering-unavailable".
-import * as core from "@openpresentation/opf";
+// module needs no DOM.
+import { listNumbers } from "@openpresentation/opf/composition";
 import { OPFEditorError, getValueAtPath, opfPathToJsonPointer, splitOpfPath } from "./index.js";
 
 /** The number styles and how each draws, in the order a picker lists them. */
@@ -39,15 +38,6 @@ function checkEditor(editor) {
   if (!editor || typeof editor.applyPatch !== "function" || typeof editor.subscribe !== "function") {
     throw fail("invalid-editor", "Expected an editor session created by createEditorSession.");
   }
-}
-
-/** True when the core this editor runs on composes numbered lists (the core that ships `numbering`). */
-export function numberingAvailable() {
-  return typeof core.listNumbers === "function" && typeof core.formatListNumber === "function";
-}
-
-function requireCore() {
-  if (!numberingAvailable()) throw fail("numbering-unavailable", "List numbering needs a core release that ships numbering (@openpresentation/opf after 0.11.4).");
 }
 
 /**
@@ -147,9 +137,9 @@ export function numberingState(document, path) {
   const levels = numbered ? resolveLevels(numbering) : [{ ...DEFAULT_LEVEL }];
   const depth = Math.min(MAX_NUMBERING_LEVELS, maxLevelOf(items) + 1);
   let markers = [];
-  if (numbered && numberingAvailable()) {
+  if (numbered) {
     try {
-      markers = core.listNumbers(items, numbering).map((number) => ({ index: number.index, level: number.level, text: number.text, value: number.value, adapted: number.adapted }));
+      markers = listNumbers(items, numbering).map((number) => ({ index: number.index, level: number.level, text: number.text, value: number.value, adapted: number.adapted }));
     } catch {
       markers = [];
     }
@@ -180,7 +170,6 @@ function numberingPointer(target) {
  * the entry `start` values, which mean nothing without it. `path` addresses the list or anything inside it.
  */
 export function setNumbering(editor, path, value, meta = {}) {
-  requireCore();
   checkEditor(editor);
   const target = listPayloadAt(editor.document, path);
   if (!target) throw fail("not-a-list", "Select a list (items or bullets) to number.", { path });
@@ -203,7 +192,6 @@ export function setNumbering(editor, path, value, meta = {}) {
  * removes the restart. A plain entry (a string or runs) becomes the object form to carry it. One undoable validated edit.
  */
 export function setEntryStart(editor, itemPath, start, meta = {}) {
-  requireCore();
   checkEditor(editor);
   const target = listPayloadAt(editor.document, itemPath);
   if (!target || target.entry === undefined) throw fail("not-an-entry", "Select a list entry to restart its numbering.", { path: itemPath });

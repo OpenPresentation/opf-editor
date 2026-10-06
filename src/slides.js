@@ -8,10 +8,10 @@
 // the same label form a section (see `listSections`). Slides without a label form an unnamed run. `hidden`
 // is a boolean on the slide. Slide order is the `slides` array, so a move is a remove plus an add of the same
 // slide (removing and re-adding keeps every other slide's patch path stable).
-import { validateOpfDocument } from "./index.js";
 import { checkedDocument, fail, same } from "./edit-helpers.js";
 import { collectReservedPresentationIds, remapSlideTreeIds } from "./presentation-ids.js";
 import { prepareDimensionSwitch } from "./switches.js";
+import { checkFormat } from "./checks.js";
 
 const isIndex = (value) => Number.isInteger(value) && value >= 0;
 const clone = (value) => structuredClone(value);
@@ -39,7 +39,7 @@ function unchanged(document, extra = {}) {
 /** Validate the candidate the way every switch does (a valid deck must stay valid) and package the result. */
 function finish(document, patches, extra) {
   if (!patches.length) return unchanged(document, extra);
-  const before = validateOpfDocument(document);
+  const before = checkFormat(document);
   const next = checkedDocument(document, patches, before);
   return { document: next, patches, changed: true, ...extra };
 }

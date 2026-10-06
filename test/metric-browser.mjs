@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import {build} from 'esbuild';
 import {chromium} from 'playwright';
-import {loadOfficeFontRegistry} from '@openpresentation/opf-render/fonts-node';
+import { loadFonts } from '@openpresentation/opf-render/fonts-node';
 
 // Keyboard entry (Enter) selects all text; a pointer press places the caret instead (see test/click-entry-browser.mjs).
 const enter=async locator=>{await locator.focus();await locator.page().keyboard.press('Enter');};
@@ -21,23 +21,23 @@ const fingerprint=async()=>{
   return runtime;
 };
 const runtime=await fingerprint();
-const faces=(await loadOfficeFontRegistry()).embeddedFonts.filter(face=>/^Roboto(?: Medium| SemiBold| ExtraBold)?$/.test(face.family)&&!face.italic);
+const faces=(await loadFonts({ pack: 'office' })).registry.embeddedFonts.filter(face=>/^Roboto(?: Medium| SemiBold| ExtraBold)?$/.test(face.family)&&!face.italic);
 assert.deepEqual(faces.map(face=>face.weight).sort((a,b)=>a-b),[400,500,600,700,800]);
 const bundled=await build({stdin:{resolveDir:fileURLToPath(new URL('../',import.meta.url)),contents:`
   import {createEditorSession} from './dist/index.js';
   import {createCanvasEditor} from './dist/canvas.js';
-  import {loadBrowserFontRegistry} from '@openpresentation/opf-render/fonts-browser';
+  import { loadFonts } from '@openpresentation/opf-render/fonts-browser';
   import {toPptx,fromPptx} from '@openpresentation/opf-pptx';
   window.mountMetric=async({deck,faces})=>{
     window.metricCanvas?.destroy();window.fonts?.dispose();window.failures=[];window.lastExport=null;window.lastImport=null;window.diagnostics=[];
-    window.fonts=await loadBrowserFontRegistry(faces.map(face=>({...face,data:Uint8Array.from(atob(face.dataUrl.split(',')[1]),c=>c.charCodeAt(0))})),{substitutionPolicy:'visual',fallbackFamily:'Roboto'});
+    window.fonts=await loadFonts({ faces: faces.map(face=>({...face,data:Uint8Array.from(atob(face.dataUrl.split(',')[1]),c=>c.charCodeAt(0))})), substitutionPolicy:'visual',fallbackFamily:'Roboto' });
     window.editor=createEditorSession(deck,{rejectInvalid:true});
-    window.metricCanvas=createCanvasEditor(document.querySelector('#canvas'),{editor,renderOptions:{textMeasurement:fonts.textMeasurement},onError:error=>failures.push(error.message)});
+    window.metricCanvas=createCanvasEditor(document.querySelector('#canvas'),{editor,fonts,onError:error=>failures.push(error.message)});
     await metricCanvas.ready;
     const action=(id,run)=>document.getElementById(id).onclick=async()=>{try{await run();}catch(error){failures.push(error.message);}};
     action('undo',()=>editor.undo());action('redo',()=>editor.redo());
-    action('paginate',()=>{metricCanvas.commit();window.pagination=editor.paginateSlide(0,{minFontSize:24,textMeasurement:fonts.textMeasurement});});
-    action('export',async()=>{metricCanvas.commit();window.accepted=editor.composeSlide(0,{textMeasurement:fonts.textMeasurement});window.lastExport=await toPptx(editor.document,{textMeasurement:fonts.textMeasurement});});
+    action('paginate',()=>{metricCanvas.commit();window.pagination=editor.paginateSlide(0,{minFontSize:24,fonts});});
+    action('export',async()=>{metricCanvas.commit();window.accepted=editor.composeSlide(0,{fonts});window.lastExport=await toPptx(editor.document,{fonts});});
     action('import',async()=>{window.lastImport=await fromPptx(lastExport,{onDiagnostic:d=>diagnostics.push(d)});editor.set('',lastImport,{rejectInvalid:true});});
   };`},bundle:true,platform:'browser',format:'iife',write:false,minify:true});
 const bundle=bundled.outputFiles[0].text;
@@ -61,8 +61,8 @@ try {
     const metric={value:42,unit:'ms',label:'Left\tRight  ',description:'Exact\r\n\r\ncontext',delta:0,trend:'flat'};
     const deck={design:{fontScheme:'roboto',...(cards?{contentBox:true}:{}),contentAlignment:alignment,dimensions:{widthInches:dimensions.width/96,heightInches:dimensions.height/96}},slides:[{metric}]};
     await page.evaluate(args=>mountMetric(args),{deck,faces});
-    const geometry=await page.evaluate(()=>editor.composeSlide(0,{textMeasurement:fonts.textMeasurement}).items[0].metricLayout);
-    assert.equal(await page.evaluate(()=>Boolean(editor.composeSlide(0,{textMeasurement:fonts.textMeasurement}).items[0].frameBox)),cards);
+    const geometry=await page.evaluate(()=>editor.composeSlide(0,{fonts}).items[0].metricLayout);
+    assert.equal(await page.evaluate(()=>Boolean(editor.composeSlide(0,{fonts}).items[0].frameBox)),cards);
     assert.equal(geometry.alignment,alignment);
     for(const part of geometry.parts){
       assert.equal(await target(part.path).count(),1);
@@ -121,7 +121,7 @@ try {
     const deck={design:{fontScheme:'roboto',contentAlignment:'right',dimensions:{widthInches:dimensions.width/96,heightInches:dimensions.height/96}},slides:[{metric}]};
     await page.evaluate(args=>mountMetric(args),{deck,faces});
     const body=target('slides.0.metric');assert.equal(await body.count(),1);assert.equal(await body.getAttribute('data-opf-metric-role'),'value');
-    const part=await page.evaluate(()=>editor.composeSlide(0,{textMeasurement:fonts.textMeasurement}).items[0].metricLayout.parts[0]);
+    const part=await page.evaluate(()=>editor.composeSlide(0,{fonts}).items[0].metricLayout.parts[0]);
     if(typeof metric==='string'&&!metric.trim())assert.equal(Number(await body.locator(':scope > rect.opf-selection').getAttribute('height')),part.box.height+8);
     await edit('slides.0.metric');assert.deepEqual(await document(),deck);assert.equal(await page.evaluate(()=>editor.canUndo),false);
     await edit('slides.0.metric',typeof metric==='number'?'1':'Visible metric');

@@ -1,38 +1,20 @@
 import { paginateSlide } from "@openpresentation/opf/pagination";
-import { PatchError, applyPatch as applyCorePatch, applyPatchWithInverse, formatPointer, invertPatch, jsonEqual, parsePointer, readPointer } from "@openpresentation/opf/patch";
+import { OPFPatchError, applyPatch as applyCorePatch, applyPatchWithInverse, formatPointer, invertPatch, jsonEqual, parsePointer, readPointer } from "@openpresentation/opf/patch";
 import { collectReservedPresentationIds } from "./presentation-ids.js";
-import { DEFAULT_FONT_SCHEME, resolveFontSchemeReference } from "./font-defaults.js";
-import { composeSlide, resolveCanvasDimensions, resolveFontFamilies } from "@openpresentation/opf/composition";
-import {
-  catalogKinds,
-  catalogs as bundledCatalogs,
-  validatePresentation
-} from "@openpresentation/opf";
+import { composeSlide } from "@openpresentation/opf/composition";
+import { catalogKinds, catalogs as bundledCatalogs, resolveSlideContext, stats } from "@openpresentation/opf";
+import { checkFormat, errorFindings } from "./checks.js";
 
-function resolveCompositionOptions(document, slideIndex, { onDiagnostic, ...options } = {}) {
-      const slide = document.slides?.[slideIndex];
-      if (!Number.isInteger(slideIndex) || !slide) throw new OPFEditorError("slide-index-out-of-range", "Slide index is out of range.");
-      const inline = document.catalogs?.layouts?.records ?? [];
-      const layout = options.layout ?? inline.find(record => record.id === slide.layout)
-        ?? bundledCatalogs.layouts.find(record => record.id === slide.layout);
-      const themeReference = slide.design?.theme ?? document.design?.theme ?? "minimal";
-      const themeId = typeof themeReference === "string" ? themeReference : themeReference.id;
-      const theme = document.catalogs?.themes?.records?.find(record => record.id === themeId)
-        ?? bundledCatalogs.themes.find(record => record.id === themeId);
-      const reference = slide.design?.fontScheme ?? document.design?.fontScheme ?? theme?.fontScheme ?? DEFAULT_FONT_SCHEME;
-      const fontPath = slide.design?.fontScheme !== undefined ? `slides.${slideIndex}.design.fontScheme` : document.design?.fontScheme !== undefined ? "design.fontScheme" : slide.design?.theme !== undefined ? `slides.${slideIndex}.design.theme` : "design.theme";
-      const { scheme: fontScheme, diagnostic } = resolveFontSchemeReference(reference, id => document.catalogs?.fontSchemes?.records?.find(record=>record.id===id) ?? bundledCatalogs.fontSchemes.find(record=>record.id===id), fontPath);
-      if (diagnostic) onDiagnostic?.(diagnostic);
-      return { ...resolveCanvasDimensions(slide.design?.dimensions ?? document.design?.dimensions ?? theme?.dimensions), fonts:resolveFontFamilies(fontScheme), presentation:document, ...options, layout, slideIndex };
-}
-
-/**
- * The font families a slide resolves to (`heading`, `body`, `code`), by the same slide, deck,
- * theme, default order that composition, pagination and export use. Hosts read this after a
- * font-scheme or theme switch to show the fonts the preview now uses.
- */
-export function resolveSlideFonts(document, slideIndex = 0, options = {}) {
-  return resolveCompositionOptions(document, slideIndex, options).fonts;
+// The options `composeSlide` and `paginateSlide` take for one slide of the open deck. Core's `resolveSlideContext` resolves the
+// slide's canvas, layout, theme, colour scheme and font families the one way every engine does (slide design, deck design,
+// theme, default), so the editor measures and composes what the renderer draws and the exporter writes. `options.fonts` is the
+// renderer's fonts handle (its `textMeasurement` measures); `options.onDiagnostic` hears each `unresolved-*` diagnostic;
+// any other option overrides the resolved one (`layout`, ...).
+function slideContext(document, slideIndex, { fonts, catalogs, onDiagnostic, ...overrides } = {}) {
+  if (!Number.isInteger(slideIndex) || !document.slides?.[slideIndex]) throw new OPFEditorError("slide-index-out-of-range", "Slide index is out of range.");
+  const { options, diagnostics } = resolveSlideContext(document, slideIndex, { fonts, catalogs });
+  for (const diagnostic of diagnostics) onDiagnostic?.(diagnostic);
+  return { ...options, ...overrides };
 }
 
 export const packageName = "@openpresentation/opf-editor";
@@ -128,20 +110,20 @@ export function invertJsonPatch(document, operations) {
   }
 }
 
-export function validateOpfDocument(document, validator = validatePresentation) {
-  const result = validator(document);
-  const valid = Boolean(result?.valid);
-  return {
-    valid,
-    errors: Array.isArray(result?.errors) ? result.errors : [],
-    warnings: Array.isArray(result?.warnings) ? result.warnings : [],
-    result
-  };
+/**
+ * Facts about the open presentation, from core's `stats`: slide, layout and section counts, payload kinds, words and notes coverage,
+ * images and their alt text, charts, tables, citations, fonts and an estimated speaking time (`options`: `perSlide`, `values`,
+ * `wordsPerMinute`). They are facts, never findings: no severities and no judgment about whether a number is too high, so a deck-info
+ * view can show them next to the Review panel. It reads the JSON only, so it also works on a document that fails validation.
+ */
+export function deckStats(editor, options) {
+  assertEditorSession(editor);
+  return stats(editor.document, options);
 }
 
 export function createEditorSession(input, options = {}) {
   let document = parseInput(input);
-  let validation = validateOpfDocument(document, options.validate ?? validatePresentation);
+  let validation = checkFormat(document);
   const undoStack = [];
   const redoStack = [];
   const listeners = new Set();
@@ -160,15 +142,15 @@ export function createEditorSession(input, options = {}) {
     const before = document;
     let next, inversePatches;
     try {
-      ({ document: next, inverse: inversePatches } = applyPatchWithInverse(before, patches));
+      ({ presentation: next, inverse: inversePatches } = applyPatchWithInverse(before, patches));
     } catch (error) {
       throw editorPatchError(error);
     }
-    const nextValidation = validateOpfDocument(next, options.validate ?? validatePresentation);
+    const nextValidation = checkFormat(next);
 
     if ((meta.rejectInvalid ?? rejectInvalid) && !nextValidation.valid) {
       throw new OPFEditorError("invalid-opf-edit", "OPF edit produced an invalid document.", {
-        issues: nextValidation.errors,
+        issues: errorFindings(nextValidation),
         patches
       });
     }
@@ -236,12 +218,14 @@ export function createEditorSession(input, options = {}) {
       });
     },
     composeSlide(slideIndex, options = {}) {
-      return composeSlide(document.slides?.[slideIndex], resolveCompositionOptions(document, slideIndex, options));
+      return composeSlide(document.slides?.[slideIndex], slideContext(document, slideIndex, options));
     },
     paginateSlide(slideIndex, options = {}, meta = {}) {
-      const resolved = resolveCompositionOptions(document, slideIndex, options);
+      // Core pagination reads the measurement from `fonts`, so the resolved context hands it over that way.
+      const { textMeasurement, ...resolved } = slideContext(document, slideIndex, options);
       const pagination = paginateSlide(document.slides[slideIndex], {
         ...resolved,
+        fonts: options.fonts ?? (textMeasurement ? { textMeasurement } : undefined),
         reservedIds: collectReservedPresentationIds(document),
       });
       // Pagination can persist a readability policy without adding a page. Commit
@@ -283,9 +267,9 @@ export function createEditorSession(input, options = {}) {
     restoreState(state, meta = {}) {
       if (!state || typeof state !== "object") throw new OPFEditorError("invalid-state", "restoreState needs { document, undo?, redo? }.");
       const next = parseInput(state.document);
-      const nextValidation = validateOpfDocument(next, options.validate ?? validatePresentation);
+      const nextValidation = checkFormat(next);
       if ((meta.rejectInvalid ?? rejectInvalid) && !nextValidation.valid) {
-        throw new OPFEditorError("invalid-opf-edit", "The restored document is not valid OPF.", { issues: nextValidation.errors });
+        throw new OPFEditorError("invalid-opf-edit", "The restored document is not valid OPF.", { issues: errorFindings(nextValidation) });
       }
       const undo = state.undo ?? [], redo = state.redo ?? [];
       const wellFormed = (entries) => Array.isArray(entries) && entries.every((item) => item && Array.isArray(item.patches) && Array.isArray(item.inversePatches));
@@ -320,7 +304,7 @@ export function createEditorSession(input, options = {}) {
       const entry = undoStack.pop();
       if (!entry) return null;
       document = applyJsonPatch(document, entry.inversePatches);
-      validation = validateOpfDocument(document, options.validate ?? validatePresentation);
+      validation = checkFormat(document);
       redoStack.push(entry);
       emit({
         type: "undo",
@@ -340,7 +324,7 @@ export function createEditorSession(input, options = {}) {
       const entry = redoStack.pop();
       if (!entry) return null;
       document = applyJsonPatch(document, entry.patches);
-      validation = validateOpfDocument(document, options.validate ?? validatePresentation);
+      validation = checkFormat(document);
       undoStack.push(entry);
       emit({
         type: "redo",
@@ -636,12 +620,12 @@ function normalizeOperation(operation) {
 
 // Core patch errors keep their stable codes; the editor reports them as OPFEditorError.
 function editorPatchError(error) {
-  if (!(error instanceof PatchError)) return error;
+  if (!(error instanceof OPFPatchError)) return error;
   const details = {};
   if (error.path !== undefined) details.path = error.path;
   if (error.operation !== undefined) details.operation = error.operation;
   if (error.index !== undefined) details.index = error.index;
-  if (error.validation) details.issues = error.validation.errors;
+  if (error.validation) details.issues = errorFindings(error.validation);
   return new OPFEditorError(error.code, error.message, details);
 }
 

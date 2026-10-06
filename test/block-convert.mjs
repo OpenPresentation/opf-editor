@@ -1,8 +1,8 @@
 // RR-06: safe content-type conversion. A conversion keeps the block's text, never adds content,
 // reports what it cannot carry, refuses pairs with no meaning, and is one undoable patch.
 import assert from "node:assert/strict";
-import { validatePresentation } from "@openpresentation/opf";
-import { renderSvg } from "@openpresentation/opf-render/svg";
+import { validate } from "@openpresentation/opf";
+import { renderSlideSvg } from "@openpresentation/opf-render/svg";
 import { createEditorSession } from "../dist/index.js";
 import { BLOCK_CONVERSIONS, BLOCK_KIND_LABELS, blockConversionTargets, blockPathForSelection, convertBlock, metricGroupForSelection, prepareBlockConversion, readBlockContent } from "../dist/block-convert.js";
 import { switchDimension } from "../dist/switches.js";
@@ -82,7 +82,7 @@ assert.equal(BLOCK_KIND_LABELS.list, "List");
   editor.undo();
   editor.undo();
   assert.deepEqual(editor.document, before);
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
 }
 
 // Rich text keeps its runs per line; plain lines stay plain strings.
@@ -209,7 +209,7 @@ function readValue(document, path) {
   assert.deepEqual(editor.get("slides.1"), { id: "inline", title: "Implicit", items: ["Only text"] });
   convertBlock(editor, "slides.2.blocks.0", "list");
   assert.deepEqual(editor.get("slides.2.blocks.0"), { type: "list", items: ["Typed text"] }, "an explicit type follows the new kind");
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
 }
 
 // Converting to the current kind commits nothing; an unchanged repeat is no history entry.
@@ -248,9 +248,9 @@ function readValue(document, path) {
 // The preview follows: the converted list renders its items.
 {
   const editor = session();
-  const before = renderSvg(editor.document, { slideIndex: 0 });
+  const before = renderSlideSvg(editor.document, 0);
   convertBlock(editor, at(0), "list");
-  const after = renderSvg(editor.document, { slideIndex: 0 });
+  const after = renderSlideSvg(editor.document, 0);
   assert.notEqual(after, before, "the preview redraws the converted block");
   for (const word of ["One", "Two", "Three"]) assert.ok(after.includes(word), `${word} survives in the preview`);
 }
@@ -323,7 +323,7 @@ function readValue(document, path) {
   const nested = convertBlock(editor, "slides.4.blocks.0", "table");
   assert.deepEqual(editor.get("slides.4.blocks.0"), { table: { columns: ["Value"], rows: [[1], [2]] } });
   assert.equal(nested.lossless, true);
-  assert.equal(validatePresentation(editor.document).valid, true);
+  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
 }
 
 // Conversion options reach core: a delimiter reads comma separated text as a table.

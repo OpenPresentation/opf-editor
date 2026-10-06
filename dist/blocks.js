@@ -1,4 +1,5 @@
-import {splitOpfPath,opfPathToJsonPointer,getValueAtPath,applyJsonPatch,validateOpfDocument} from './index.js';
+import { splitOpfPath, opfPathToJsonPointer, getValueAtPath, applyJsonPatch } from './index.js';
+import { firstErrorMessage, checkFormat } from "./checks.js";
 const prefix=(a,b)=>a.length<=b.length&&a.every((part,i)=>part===b[i]);
 
 /** Move one complete block. The insertion index refers to the destination before removal. */
@@ -25,8 +26,8 @@ export function prepareBlockMove(document,fromPath,toContainerPath,toIndex) {
   const patches=[...guards.map(path=>({op:'test',path:opfPathToJsonPointer(path),value:structuredClone(getValueAtPath(document,path))})),
     {op:'remove',path:opfPathToJsonPointer(from)},
     {op:'add',path:opfPathToJsonPointer(target),value:structuredClone(source[sourceIndex])}];
-  const next=applyJsonPatch(document,patches),validation=validateOpfDocument(next);
-  if(!validation.valid)throw new Error(validation.errors[0]?.message??'The moved document is not valid OPF.');
+  const next=applyJsonPatch(document,patches),validation=checkFormat(next);
+  if(!validation.valid)throw new Error(firstErrorMessage(validation, 'The moved document is not valid OPF.'));
   return {document:next,patches,path:opfPathToJsonPointer(target),changed:true};
 }
 
@@ -57,8 +58,8 @@ function preparedChange(document,container,next,path) {
   const pointer=opfPathToJsonPointer(container);
   const patches=[{op:'test',path:pointer,value:structuredClone(getValueAtPath(document,container))},
     {op:'replace',path:pointer,value:next}];
-  const result=applyJsonPatch(document,patches),validation=validateOpfDocument(result);
-  if(!validation.valid)throw new Error(validation.errors[0]?.message??'The changed document is not valid OPF.');
+  const result=applyJsonPatch(document,patches),validation=checkFormat(result);
+  if(!validation.valid)throw new Error(firstErrorMessage(validation, 'The changed document is not valid OPF.'));
   return {document:result,patches,path:opfPathToJsonPointer(path),changed:true};
 }
 /** Insert into a slide, existing group or named region. Implicit payloads become blocks. */
@@ -112,8 +113,8 @@ export function prepareBlockReplace(document,path,block) {
     Object.assign(next,payload);
   }
   const patches=[{op:'test',path:pointer,value:structuredClone(old)},{op:'replace',path:pointer,value:next}];
-  const result=applyJsonPatch(document,patches),validation=validateOpfDocument(result);
-  if(!validation.valid)throw new Error(validation.errors[0]?.message??'The replaced block is not valid OPF.');
+  const result=applyJsonPatch(document,patches),validation=checkFormat(result);
+  if(!validation.valid)throw new Error(firstErrorMessage(validation, 'The replaced block is not valid OPF.'));
   return {document:result,patches,path:pointer,changed:JSON.stringify(old)!==JSON.stringify(next)};
 }
 /** Duplicate the entire block immediately after itself, preserving formatting and asset references. */

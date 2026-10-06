@@ -9,11 +9,12 @@ import {installCropControls} from './crop-controls.js';
 import {installMobileControls} from './mobile-controls.js';
 import {installTransferControls} from './transfer-controls.js';
 import { createEditorSession } from '../src/index.js';
-import {createCanvasEditor,createFontGate} from '../src/canvas.js';
+import {createCanvasEditor} from '../src/canvas.js';
+import { whenFontsReady } from '../src/font-gate.js';
 import * as browserFonts from '@openpresentation/opf-render/fonts-browser';
-import { renderSvg } from '@openpresentation/opf-render/svg';
+import { renderSlideSvg } from '@openpresentation/opf-render/svg';
 import * as renderFontCore from '@openpresentation/opf-render/fonts';
-import { resolveScriptFonts } from '@openpresentation/opf';
+import { resolveScriptFonts } from '@openpresentation/opf/composition';
 import { installPptxExport } from './pptx-controls.js';
 import { installDownloadControls } from './download-controls.js';
 import { createDesignControls } from '../src/design-controls.js';
@@ -33,23 +34,24 @@ const fontFaces = await fetch('./fonts.json').then(response => {
   if (!response.ok) throw new Error('Bundled fonts are unavailable. Rebuild the editor demo.');
   return response.json();
 });
-const fontRegistry = await browserFonts.loadBrowserFontRegistry(fontFaces.map(face=>({family:face.family,weight:face.weight,italic:face.italic,license:face.license,data:Uint8Array.from(atob(face.dataUrl.split(',')[1]),character=>character.charCodeAt(0))})),{substitutionPolicy:'visual',fallbackFamily:'Roboto',scriptBaseUrl:'./script-fonts/',lazyFontsBaseUrl:new URL('./',document.baseURI).href,extraLazyFonts:baseFaces.map(face=>({family:face.family,weight:face.weight,italic:face.italic,license:face.license,sha256:face.sha256,url:new URL(face.file,document.baseURI).href}))});
+const fonts = await browserFonts.loadFonts({faces:fontFaces.map(face=>({family:face.family,weight:face.weight,italic:face.italic,license:face.license,data:Uint8Array.from(atob(face.dataUrl.split(',')[1]),character=>character.charCodeAt(0))})),substitutionPolicy:'visual',fallbackFamily:'Roboto',scriptBaseUrl:'./script-fonts/',lazyFontsBaseUrl:new URL('./',document.baseURI).href,extraLazyFonts:baseFaces.map(face=>({family:face.family,weight:face.weight,italic:face.italic,license:face.license,sha256:face.sha256,url:new URL(face.file,document.baseURI).href}))});
+const fontRegistry = fonts.registry;
 // Script faces (Japanese, Arabic, Thai, ...) load lazily, once a document draws that script, and so do the vendored preview
 // faces (Intos for the Aptos scheme, the open families): they are not in fonts.json but separate hash-pinned files the
-// registry adds to the document and itself together. Older renderers have no pendingScripts/ensureScripts or
-// pendingLazyFonts/ensureLazyFonts, and the playground then keeps the fonts it has.
+// registry adds to the document and itself together. `fonts` is the renderer's handle: its textMeasurement lays slides out, and its
+// pending and ensure are what the canvas gates on.
 // FF-41: nothing renders or measures a document before this gate has loaded the faces it needs. Every path that sets a new
 // document or draws a slide (initial load, Source Apply and the gallery handoff, import, undo and redo, font and language
-// switches, slide navigation, thumbnails, previews and export) goes through fontGate.run or the canvas's own gate.
-const fontGate = createFontGate(fontRegistry);
-const layoutOptions = {textMeasurement:fontRegistry.textMeasurement};
+// switches, slide navigation, thumbnails, previews and export) goes through whenFontsReady(fonts, ...) or the canvas's own gate.
+// The faces a document needs that are not loaded yet; a document the renderer cannot resolve reports none and fails when it renders.
+const pendingFonts = deck => { try { return fonts.pending(deck); } catch { return []; } };
 // renderSvg measures each script with its own face and falls back per glyph (Japanese under Aptos draws with Noto Sans JP where
-// Intos Display has no glyph), but the session's composeSlide and paginateSlide take a plain measurement, and that one is strict:
+// Intos Display has no glyph), but the session's composeSlide and paginateSlide take the handle's plain measurement, and that one is strict:
 // it throws "Font 'Intos Display' cannot display U+65E5" even with every face loaded. Give them the same per-document, script-aware
 // measurement (opf-render README: createScriptTextMeasurement(registry.textMeasurement, resolveScriptFonts(presentation))).
 const layoutFor = (deck,index) => {
-  try { return {...layoutOptions,textMeasurement:renderFontCore.createScriptTextMeasurement(fontRegistry.textMeasurement,resolveScriptFonts(deck,{slideIndex:index}))}; }
-  catch { return layoutOptions; }
+  try { return {fonts:{textMeasurement:renderFontCore.createScriptTextMeasurement(fonts.textMeasurement,resolveScriptFonts(deck,{slideIndex:index}))}}; }
+  catch { return {fonts}; }
 };
 const editor = createEditorSession({
   name: 'A presentation you can work on',
@@ -143,7 +145,7 @@ const thumbnailKey = (deck, index) => JSON.stringify([index, deck.slides.length,
 function thumbnailHtml(deck, index) {
   const key = thumbnailKey(deck, index);
   if (!thumbnailCache.has(key)) {
-    try { thumbnailCache.set(key, renderSvg(deck, {...layoutOptions, slideIndex:index, trace: false})); }
+    try { thumbnailCache.set(key, renderSlideSvg(deck, index, {fonts, trace: false})); }
     catch { thumbnailCache.set(key, 'Preview unavailable'); }
   }
   return thumbnailCache.get(key);
@@ -241,7 +243,7 @@ function render() {
   if (!element('source-dialog').open) element('json').value = viewSource(deck);
   const diagnostics = [];
   if (!canvas) canvas=createCanvasEditor(element('preview'),{
-    editor,slideIndex,renderOptions:layoutOptions,propertiesContainer:element('canvas-properties'),fonts:fontGate,
+    editor,slideIndex,propertiesContainer:element('canvas-properties'),fonts,
     onFonts:event=>{
       if(event.state==='loading')status('Loading fonts…');
       else if(event.state==='error'){fontsFailure=event.error;status(event.error.message);}
@@ -256,7 +258,7 @@ function render() {
   });
   else canvas.setSlide(slideIndex);
   diagnostics.push(...geometry.diagnostics);
-  diagnostics.push(...fontRegistry.substitutions.filter((change,index,all)=>all.findIndex(other=>other.requestedFamily===change.requestedFamily && other.requestedWeight===change.requestedWeight && other.italic===change.italic)===index).map(change=>({path:change.path ?? 'design.fontScheme',message:describeFontChange(change)})));
+  diagnostics.push(...fonts.substitutions.filter((change,index,all)=>all.findIndex(other=>other.requestedFamily===change.requestedFamily && other.requestedWeight===change.requestedWeight && other.italic===change.italic)===index).map(change=>({path:change.path ?? 'design.fontScheme',message:describeFontChange(change)})));
   element('diagnostics').replaceChildren(...diagnostics.map(issue => { const item = document.createElement('li'); item.textContent = issue.message; item.title = issue.path; return item; }));
   element('diagnostics-section').hidden = diagnostics.length === 0;
   element('diagnostic-count').textContent = diagnostics.length;
@@ -265,7 +267,7 @@ function render() {
   if (selectedPath.startsWith(`slides.${slideIndex}.`) && editor.get(selectedPath) === undefined) { const owner = /^(.*[.](?:table|chart))[.]/.exec(selectedPath)?.[1]; if (owner && editor.get(owner) !== undefined) selectedPath = owner; }
   if (!selectedPath.startsWith(`slides.${slideIndex}.`) || editor.get(selectedPath) === undefined) selectedPath = `slides.${slideIndex}.title`;
   select(selectedPath);
-  review?.refresh();
+  review?.schedule();
   if (pendingContentFocus) { pendingContentFocus = false; showPanel('content'); element('value').focus(); }
 }
 function renderSafely() { try { render(); } catch (error) { renderError = error.message; canvas?.destroy(); canvas=undefined; element('preview').textContent = 'Preview unavailable for this document. Use Undo or revise the JSON.'; status(renderError); } }
@@ -274,11 +276,11 @@ let refreshToken = 0;
 // handoff, import, undo and redo, font and language switches, edits), slide navigation and thumbnails. The document renders at
 // once when the faces it needs are loaded; otherwise "Loading fonts…" shows, the faces load, and only then it renders. A document
 // whose faces cannot be loaded is not rendered (not even to an error): the failure is reported and nothing retries by itself.
-// The canvas gates its own renders with the same fontGate, so it cannot draw ahead of this.
+// The canvas gates its own renders with the same fonts handle, so it cannot draw ahead of this.
 function refresh() {
   const token = ++refreshToken;
   let loaded = false;
-  return fontGate.run(editor.document, {
+  return whenFontsReady(fonts, editor.document, {
     isCurrent: () => token === refreshToken,
     loading: () => { loaded = true; status('Loading fonts…'); if (!canvas) element('preview').textContent = 'Loading fonts…'; element('undo').disabled = !editor.canUndo; element('redo').disabled = !editor.canRedo; },
     ready: () => { fontsFailure = undefined; if (loaded) { thumbnailCache.clear(); if (/Loading fonts/.test(element('status').textContent)) status('Ready to edit'); } renderSafely(); },
@@ -322,10 +324,10 @@ element('apply-json').onclick = async event => {
     if (duplicate) { element('json-error').textContent = duplicate; return; }
   } catch(error) { element('json-error').textContent = error.issues?.[0]?.message ?? error.message; return; }
   // The faces the source needs load before it becomes the document, so the canvas, the thumbnails and the layout never see it early.
-  if (fontGate.pending(deck).length) {
+  if (pendingFonts(deck).length) {
     applying = true;
     element('json-error').textContent = 'Loading fonts for this document…';
-    try { await fontGate.ensure(deck); }
+    try { await fonts.ensure(deck); }
     catch (error) { element('json-error').textContent = error.message; return; }
     finally { applying = false; }
     if (!element('source-dialog').open || element('json').value !== applied) return;
@@ -354,13 +356,13 @@ function previewSource() {
     const duplicate=duplicateKeyMessage(element('json').value);
     if(duplicate)throw new Error(duplicate);
   } catch(error) {fail(error);return;}
-  fontGate.run(deck,{
+  whenFontsReady(fonts,deck,{
     isCurrent:()=>token===previewToken,
     // Apply stays enabled while the preview's faces load: it loads what the source needs itself before applying it, and a host that
     // clicks it the moment the page is ready (the gallery handoff) must not hit a disabled button because the starting deck's faces are still loading.
     loading:()=>{element('json-error').textContent='Loading fonts for this document…';},
     ready:()=>{
-      const svg=renderSvg(deck,{...layoutOptions,slideIndex:Math.min(slideIndex,(deck.slides?.length ?? 1)-1)});
+      const svg=renderSlideSvg(deck,Math.min(slideIndex,(deck.slides?.length ?? 1)-1),{fonts});
       element('source-preview').innerHTML=svg;element('json-error').textContent='';element('apply-json').disabled=false;
     },
     failed:fail,
@@ -412,10 +414,10 @@ if (hostPersistence) {
 }
 
 const galleryConfig=await fetch('./galleries.json').then(response=>{if(!response.ok)throw new Error('Gallery configuration unavailable');return response.json();}).catch(()=>[{name:'PPTX.gallery',url:'https://www.pptx.gallery/registry.json'}]);
-installTransferControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,renderOptions:layoutOptions,galleries:galleryConfig,fonts:fontGate});
-installPptxExport({editor,getCanvas:()=>canvas,renderOptions:layoutOptions,status,fonts:fontGate,measurementFor:deck=>layoutFor(deck,0).textMeasurement});
+installTransferControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,galleries:galleryConfig,fonts});
+installPptxExport({editor,getCanvas:()=>canvas,status,fonts,measurementFor:deck=>layoutFor(deck,0).fonts.textMeasurement});
 // RR-23: PDF, PNG and SVG downloads from the same drawing as the preview, with the faces the registry holds.
-installDownloadControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,renderOptions:layoutOptions,status,fonts:fontGate,registry:fontRegistry});
+installDownloadControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,status,fonts});
 
 let propertiesInspector,propertiesPreviewToken=0;
 const propertiesDialog=element('properties-dialog');
@@ -424,7 +426,7 @@ element('open-properties').onclick=()=>{
  propertiesDialog.showModal();
  propertiesInspector?.destroy();
  propertiesInspector=createSchemaInspector(element('schema-properties'),{editor,path:`/slides/${slideIndex}`,
-  onDraft:({document:deck})=>{const token=++propertiesPreviewToken;fontGate.run(deck,{isCurrent:()=>token===propertiesPreviewToken,loading:()=>{element('properties-preview-status').textContent='Loading fonts for this document…';},ready:()=>{element('properties-preview').innerHTML=renderSvg(deck,{...layoutOptions,trace:true,slideIndex:Math.min(slideIndex,deck.slides.length-1)});element('properties-preview-status').textContent='Click slide content to find its field. Metadata is stored with the deck.';},failed:error=>{element('properties-preview-status').textContent='Preview unavailable: '+error.message;}});},
+  onDraft:({document:deck})=>{const token=++propertiesPreviewToken;whenFontsReady(fonts,deck,{isCurrent:()=>token===propertiesPreviewToken,loading:()=>{element('properties-preview-status').textContent='Loading fonts for this document…';},ready:()=>{element('properties-preview').innerHTML=renderSlideSvg(deck,Math.min(slideIndex,deck.slides.length-1),{fonts,trace:true});element('properties-preview-status').textContent='Click slide content to find its field. Metadata is stored with the deck.';},failed:error=>{element('properties-preview-status').textContent='Preview unavailable: '+error.message;}});},
   onCommit:()=>status('Presentation properties updated'),onError:error=>status(error.message)
  });
 };
@@ -437,14 +439,14 @@ for(const [id,path]of [['deck',''],['slide',()=>`/slides/${slideIndex}`],['selec
 };
 element('properties-preview').onclick=event=>{const target=event.target.closest('[data-opf-path]');if(target)propertiesInspector?.navigate(target.getAttribute('data-opf-path'));};
 
-installDataControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,renderOptions:layoutOptions,fonts:fontGate});
+installDataControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,fonts});
 pictureTools=installCropControls({editor,getCanvas:()=>canvas,getSelectedPath:()=>selectedPath,getSlideIndex:()=>slideIndex,status});
 installFindControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,goToSlide:index=>{if(index===slideIndex)return;slideIndex=index;return refresh();},status,showPanel});
 installMobileControls();
-installTemplateControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,renderOptions:layoutOptions,fonts:fontGate});
-// RR-29: the Review tab. A finding's go-to selects the slide and the content; the panel re-audits after every redraw (render()).
+installTemplateControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,setSlideIndex:value=>{slideIndex=value;},status,fonts});
+// RR-29: the Review tab. A finding's go-to selects the slide and the content; the panel re-checks after every redraw (render()).
 const openPropertiesAt = pointer => { element('open-properties').click(); propertiesInspector?.navigate(pointer); };
-review = installReviewControls({editor,getSlideIndex:()=>slideIndex,goTo:(index,path)=>{slideIndex=index;selectedPath=path;refresh();},openProperties:openPropertiesAt,focusContentField:()=>{pendingContentFocus=true;refresh();},status,measurementFor:(deck,index)=>layoutFor(deck,index).textMeasurement});
+review = installReviewControls({editor,getSlideIndex:()=>slideIndex,goTo:(index,path)=>{slideIndex=index;selectedPath=path;refresh();},openProperties:openPropertiesAt,focusContentField:()=>{pendingContentFocus=true;refresh();},status,measurementFor:(deck,index)=>layoutFor(deck,index).fonts.textMeasurement});
 review?.refresh();
 installChartControls({editor,getSelectedPath:()=>selectedPath,status});
 installNumberingControls({editor,getCanvas:()=>canvas,getSlideIndex:()=>slideIndex,getSelectedPath:()=>selectedPath,status});

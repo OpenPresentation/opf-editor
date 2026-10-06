@@ -2,9 +2,8 @@
 // with variables; filling it resolves the variables to a concrete deck (core resolveVariables).
 // Everything here reads and writes the document through the session, so a fill, a declaration
 // and a token insertion are validated, undoable JSON Patch edits like any other. Importing this
-// module needs no DOM. Core is read from the namespace so an older core still loads this module;
-// the functions then throw "templates-unavailable".
-import * as core from "@openpresentation/opf";
+// module needs no DOM.
+import { coerceVariableValue, hasContentVariables, listVariables, resolveVariables, variableDeclarations } from "@openpresentation/opf";
 import { OPFEditorError, getValueAtPath, opfPathToJsonPointer } from "./index.js";
 
 const VARIABLE_ID = /^[a-z][a-z0-9-]*$/;
@@ -27,12 +26,6 @@ function fail(code, message, details) {
   return new OPFEditorError(code, message, details);
 }
 
-function requireCore() {
-  if (typeof core.resolveVariables !== "function" || typeof core.listVariables !== "function") {
-    throw fail("templates-unavailable", "Templates need a core release that ships resolveVariables (@openpresentation/opf after 0.11.4).");
-  }
-}
-
 function checkEditor(editor) {
   if (!editor || typeof editor.applyPatch !== "function" || typeof editor.subscribe !== "function") {
     throw fail("invalid-editor", "Expected an editor session created by createEditorSession.");
@@ -41,11 +34,6 @@ function checkEditor(editor) {
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
-/** True when the core this editor runs on can resolve template variables. */
-export function templatesAvailable() {
-  return typeof core.resolveVariables === "function" && typeof core.listVariables === "function";
-}
-
 /** True when the document is marked as a template (`template: true`). */
 export function isTemplateDocument(document) {
   return isObject(document) && document.template === true;
@@ -53,7 +41,7 @@ export function isTemplateDocument(document) {
 
 /** True when the document is a template or declares a variable that is not a color. */
 export function hasTemplateVariables(document) {
-  return templatesAvailable() && core.hasContentVariables(document);
+  return hasContentVariables(document);
 }
 
 /**
@@ -91,10 +79,9 @@ export function valueToFieldText(kind, value) {
  * applies again). Returns `{ ok: true, value }` (value undefined when cleared) or `{ ok: false, message }`.
  */
 export function fieldTextToValue(kind, text) {
-  requireCore();
   if (typeof text !== "string") return { ok: false, message: "Expected text." };
   if (text.trim() === "") return { ok: true, value: undefined };
-  const coerced = core.coerceVariableValue(kind, kind === "text" ? text : text.trim());
+  const coerced = coerceVariableValue(kind, kind === "text" ? text : text.trim());
   return coerced.ok ? { ok: true, value: coerced.value } : { ok: false, message: `${coerced.message}.` };
 }
 
@@ -104,9 +91,8 @@ export function fieldTextToValue(kind, text) {
  * (required, no value) or "optional" (not required, no value).
  */
 export function listTemplateFields(document, values = {}) {
-  requireCore();
-  const declared = new Map(core.variableDeclarations(document).map((declaration) => [declaration.id, declaration]));
-  return core.listVariables(document, values).map((info) => {
+  const declared = new Map(variableDeclarations(document).map((declaration) => [declaration.id, declaration]));
+  return listVariables(document, values).map((info) => {
     const declaration = declared.get(info.id);
     const supplied = Object.hasOwn(values, info.id) && values[info.id] !== undefined && values[info.id] !== null;
     const defaultValue = declaration?.value;
@@ -152,8 +138,7 @@ export function templateStatus(document, values = {}) {
  * token when it has none). Never throws for missing values; the diagnostics say what was unfilled.
  */
 export function previewTemplate(document, values = {}) {
-  requireCore();
-  return core.resolveVariables(document, values, { examples: true, partial: true });
+  return resolveVariables(document, values, { examples: true, partial: true });
 }
 
 /**
@@ -162,15 +147,14 @@ export function previewTemplate(document, values = {}) {
  * document, `subscribe` notifies listeners (a panel redraws on it).
  */
 export function createTemplateFill(editor, options = {}) {
-  requireCore();
   checkEditor(editor);
   let values = {};
   const listeners = new Set();
   const emit = () => {
     for (const listener of listeners) listener(api);
   };
-  const declared = () => new Set(core.variableDeclarations(editor.document).map((declaration) => declaration.id));
-  const kindOf = (id) => core.variableDeclarations(editor.document).find((declaration) => declaration.id === id)?.kind;
+  const declared = () => new Set(variableDeclarations(editor.document).map((declaration) => declaration.id));
+  const kindOf = (id) => variableDeclarations(editor.document).find((declaration) => declaration.id === id)?.kind;
   const api = {
     get values() {
       return structuredClone(values);
@@ -189,7 +173,7 @@ export function createTemplateFill(editor, options = {}) {
       if (value === undefined || value === null) {
         delete values[id];
       } else {
-        const coerced = core.coerceVariableValue(kindOf(id), value);
+        const coerced = coerceVariableValue(kindOf(id), value);
         if (!coerced.ok) throw fail("invalid-variable-value", `Value for '${id}': ${coerced.message}.`, { id });
         values[id] = coerced.value;
       }
@@ -230,7 +214,7 @@ export function createTemplateFill(editor, options = {}) {
      */
     apply({ partial = false, meta = {} } = {}) {
       const document = editor.document;
-      const result = core.resolveVariables(document, values, { partial, template: false });
+      const result = resolveVariables(document, values, { partial, template: false });
       const errors = result.diagnostics.filter((entry) => entry.severity === "error");
       if (errors.length) {
         const unfilled = errors.some((entry) => entry.code === "variable-unfilled");
@@ -280,7 +264,6 @@ function declarationPatches(document, id, declaration) {
 
 /** Declare a variable as one undoable edit. The resulting document must validate (a required variable with no value needs `template: true`). */
 export function declareVariable(editor, id, declaration, meta = {}) {
-  requireCore();
   checkEditor(editor);
   return editor.applyPatch(declarationPatches(editor.document, id, declaration), { source: "template-variable", rejectInvalid: true, ...meta });
 }
@@ -306,7 +289,6 @@ export function setTemplate(editor, enabled, meta = {}) {
  * the declaration, and both changes commit together.
  */
 export function insertVariableToken(editor, path, id, { start, end, runIndex, format, declare, meta = {} } = {}) {
-  requireCore();
   checkEditor(editor);
   const document = editor.document;
   const token = variableToken(id, format);

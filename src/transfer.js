@@ -1,19 +1,15 @@
-import {
-  applyJsonPatch,
-  createValuePatch,
-  getValueAtPath,
-  validateOpfDocument,
-} from "./index.js";
-import { catalogs } from "@openpresentation/opf";
+import { applyJsonPatch, createValuePatch, getValueAtPath } from "./index.js";
+import { catalogs, resolveSlideContext } from "@openpresentation/opf";
 import { collectReservedPresentationIds, remapSlideTreeIds } from "./presentation-ids.js";
-import { DEFAULT_FONT_SCHEME } from "./font-defaults.js";
+import { DEFAULT_FONT_SCHEME } from "@openpresentation/opf/composition";
+import { checkFormat, firstErrorMessage } from "./checks.js";
 export const MAX_OPF_BYTES = 20 * 1024 * 1024;
 const clone = (value) => structuredClone(value);
 export function assertOpf(document) {
   bounded(document);
-  const result = validateOpfDocument(document);
+  const result = checkFormat(document);
   if (!result.valid)
-    throw new Error(result.errors[0]?.message ?? "Invalid OPF document.");
+    throw new Error(firstErrorMessage(result, "Invalid OPF document."));
   return document;
 }
 function bounded(value, depth = 0, budget = { remaining: 250000 }) {
@@ -66,7 +62,7 @@ export function parseOpfTransfer(text) {
     return { kind: "presentation", value, document: clone(value) };
   }
   const document = { slides: Array.isArray(value) ? value : [value] };
-  if (validateOpfDocument(document).valid)
+  if (checkFormat(document).valid)
     return { kind: "slides", value, document };
   return { kind: "selection", value };
 }
@@ -98,13 +94,6 @@ const catalogKeys = {
   purposes: "purpose",
   socialPlatforms: "platform",
 };
-function themeFor(document, reference) {
-  const id = typeof reference === "string" ? reference : reference?.id;
-  const record =
-    document.catalogs?.themes?.records?.find((item) => item.id === id) ??
-    catalogs.themes.find((item) => item.id === id);
-  return { ...record, ...(typeof reference === "object" ? reference : {}) };
-}
 export function prepareOpfImport(
   current,
   transfer,
@@ -128,10 +117,11 @@ export function prepareOpfImport(
   const incoming = clone(transfer.document),
     document = clone(current);
   // Freeze the source deck defaults on inserted slides before changing their catalog ids.
-  incoming.slides = incoming.slides.map((slide) => {
+  incoming.slides = incoming.slides.map((slide, index) => {
     // A slide's design cannot set dimensions (a PPTX has one slide size): the inserted slide takes the host deck's.
     const { dimensions: _deckSize, ...design } = { ...incoming.design, ...slide.design };
-    const theme = themeFor(incoming, design.theme ?? "minimal");
+    // The theme record the slide resolves to, as core resolves it for every engine (an unknown id falls back to `minimal`).
+    const theme = resolveSlideContext(incoming, index).resolved.theme;
     return {
       ...slide,
       design: {

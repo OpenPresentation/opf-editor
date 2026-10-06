@@ -1,8 +1,8 @@
 // RR-21: slide management. Every operation is one validated patch, one undo step, exact undo and redo, valid OPF,
 // unique ids, and the right section; a dry run (prepare*) never touches a session.
 import assert from "node:assert/strict";
-import { validatePresentation } from "@openpresentation/opf";
-import { renderSvg } from "@openpresentation/opf-render/svg";
+import { validate } from "@openpresentation/opf";
+import { renderSlideSvg } from "@openpresentation/opf-render/svg";
 import { createEditorSession } from "../dist/index.js";
 import { collectReservedPresentationIds } from "../dist/presentation-ids.js";
 import {
@@ -24,7 +24,7 @@ const deck = () => ({
 const session = (document = deck()) => createEditorSession(document, { rejectInvalid: true });
 const ids = (editor) => editor.document.slides.map((slide) => slide.id);
 const sections = (editor) => editor.document.slides.map((slide) => slide.section ?? "-");
-const valid = (document) => assert.equal(validatePresentation(document).valid, true, JSON.stringify(validatePresentation(document).errors?.slice?.(0, 2)));
+const valid = (document) => assert.equal(validate(document, { only: ["format"] }).valid, true, JSON.stringify(validate(document, { only: ["format"] }).findings.slice(0, 2)));
 const unique = (document) => {
   const all = collectReservedPresentationIds(document);
   assert.equal(new Set(all).size, all.length, `ids are unique: ${all}`);
@@ -112,7 +112,7 @@ function oneStep(editor, run) {
   assert.ok(Array.isArray(last.blocks) || last.items, "list placeholders exist");
   assert.throws(() => addSlide(editor, { layout: "no-such-layout" }), { code: "unknown-catalog-id" });
   // The preview draws the new slide.
-  assert.ok(renderSvg(editor.document, { slideIndex: 1 }).includes("<svg"));
+  assert.ok(renderSlideSvg(editor.document, 1).includes("<svg"));
 }
 
 // --- duplicate -------------------------------------------------------------------------------------
@@ -253,7 +253,7 @@ function oneStep(editor, run) {
   assert.equal(setHidden(stored, [0], true).patches[0].op, "replace");
   assert.equal(setHidden(stored, [0], false).patches[0].op, "remove");
   // Hidden slides still render for the editor (they are only skipped when presenting).
-  assert.ok(renderSvg(editor.document, { slideIndex: 3 }).includes("<svg"));
+  assert.ok(renderSlideSvg(editor.document, 3).includes("<svg"));
 }
 
 // --- sections --------------------------------------------------------------------------------------

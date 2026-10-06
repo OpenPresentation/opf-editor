@@ -11,7 +11,6 @@ import {
   listBuiltins,
   setTemplate,
   suggestVariableId,
-  templatesAvailable,
 } from "./templates.js";
 import { slideTitle } from "./slides.js";
 
@@ -49,7 +48,6 @@ function h(doc, tag, attributes = {}, ...children) {
  * {error})`, `onApply(result)`, `readFile(file)` (default: FileReader as a data URL) for image uploads.
  */
 export function createTemplatePanel(container, options) {
-  if (!templatesAvailable()) throw new Error("The Fill template panel needs a core release that ships resolveVariables.");
   const { editor, renderPreview, getTarget, onStatus, onApply } = options;
   const doc = container.ownerDocument;
   const fill = createTemplateFill(editor);

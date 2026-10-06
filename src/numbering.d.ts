@@ -12,8 +12,6 @@ export declare const NUMBERING_SUFFIX_OPTIONS: readonly { value: NumberingSuffix
 export declare const MAX_NUMBERING_LEVELS: 9;
 export declare const MAX_NUMBERING_START: 32767;
 
-/** True when the core this editor runs on composes numbered lists. */
-export declare function numberingAvailable(): boolean;
 
 export interface ListPayloadLocation {
   /** The payload that owns the list ("" for a document-level path is not possible; a slide, region or block). */
