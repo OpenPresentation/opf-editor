@@ -65,6 +65,8 @@ The new `@openpresentation/opf-editor/canvas` entry provides a framework-indepen
 
 Chart options (RR-35): `@openpresentation/opf-editor/chart-options` edits a chart's `axisTitles`, `legend` and `dataLabels` as one undoable patch (`setChartOptions(editor, chartPath, { legend: "bottom", dataLabels: { position: "inside-end" } })`), and `@openpresentation/opf-editor/chart-options-panel` mounts the control panel (`createChartOptionsPanel(host, { editor, getSelectedPath })`). The panel offers only what the chart type can show.
 
+Chart highlight (FA-14): the same module edits `chart.highlight`: `setChartOptions(editor, chartPath, { highlight: { series: ["Revenue"], categories: ["Q3"] } })` replaces each listed part (an empty list removes it, `null` removes the field), refuses a name the chart does not have, and writes only what the chart type can highlight (core `chartOptionSupport(...).highlight`). `readChartOptions(chart, document)` returns the `choices` (plotted series and category labels, resolved through the document for a dataset chart), and the panel lists them as two groups of checkboxes ("Highlight series", "Highlight categories").
+
 ```js
 import { createCanvasEditor } from '@openpresentation/opf-editor/canvas';
 

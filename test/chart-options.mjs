@@ -29,11 +29,12 @@ assert.equal(parseChartPath("not a path ["), undefined);
 // The offered fields follow core's support table for every chart type.
 for (const type of ["column", "bar", "stacked-column-3x", "line", "area", "pie", "doughnut", "scatter", "radar", "histogram", "pareto", "waterfall", "funnel", "treemap", "box-and-whisker", "world"]) {
   const { fields } = readChartOptions({ type, data });
-  assert.deepEqual(fields, (({ axisTitles, legend, dataLabels }) => ({ axisTitles, legend, dataLabels }))(chartOptionSupport(chartOptionTarget(type))), `${type}: the fields are core's support table`);
+  assert.deepEqual(fields, (({ axisTitles, legend, dataLabels, highlight }) => ({ axisTitles, legend, dataLabels, highlight }))(chartOptionSupport(chartOptionTarget(type))), `${type}: the fields are core's support table`);
 }
 assert.deepEqual(readChartOptions({ type: "column", data }).state, {
   axisTitles: { category: "", value: "" }, legend: "default",
   dataLabels: { on: false, explicit: false, content: ["value"], position: "auto", separator: ", " },
+  highlight: { series: [], categories: [] },
 });
 // A chart type outside the catalog offers everything.
 assert.equal(readChartOptions({ type: "mystery", data }).fields.dataLabels.positions.includes("outside-end"), true);
