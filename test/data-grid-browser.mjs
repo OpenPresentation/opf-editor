@@ -47,7 +47,6 @@ const source = {
         ['West', null, null],
       ] } },
     ] },
-    { id: 'sourced', title: 'Missing dataset', blocks: [{ chart: { type: 'column', data: { dataset: 'gone' } } }] },
   ],
 };
 
@@ -490,19 +489,7 @@ try {
   assert.deepEqual(await doc(), mergeBefore);
   mark('merged cells draw with spans, keyboard steps over them, and operations keep them whole or say why not');
 
-  // --- a chart with no inline data -----------------------------------------------------------------------------------------------
-  await slide(3);
-  await closeGrid();
-  await page.locator('#preview [data-canvas-target][data-opf-path^="slides.3.blocks.0.chart"]').first().click();
-  // Once opened, the grid stays open as the selection moves between charts and tables.
-  if ((await edit.getAttribute('aria-expanded')) !== 'true') await edit.click();
-  await dock.locator('.opf-grid-help[role="note"]').waitFor();
-  assert.match(await dock.locator('.opf-grid-help[role="note"]').textContent(), /which the document does not hold/);
-  assert.equal(await dock.getByRole('grid').count(), 0, 'no grid for a chart whose shared dataset is missing');
-  await slide(0);
-  assert.equal(await dock.isHidden(), true, 'selecting something else hides the grid');
-  assert.equal(await edit.isHidden(), true, 'and the Edit data button');
-  mark('a chart whose dataset is missing explains why there is no grid, and the grid hides when the selection leaves');
+  // A chart whose shared dataset is missing is an invalid document (FA-07), so it cannot be loaded here; test/data-grid.mjs covers its explanation.
 
   // --- accessibility -------------------------------------------------------------------------------------------------------------------
   await slide(1);
