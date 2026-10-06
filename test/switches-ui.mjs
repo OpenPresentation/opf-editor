@@ -105,9 +105,8 @@ for (const [dimension, kind] of [
   assert.deepEqual(currentSwitchValue(sized("a4"), "slide-sizes"), { value: "a4", scope: "deck" });
   assert.deepEqual(currentSwitchValue(sized({ preset: "letter" }), "slide-sizes"), { value: "letter", scope: "deck" }, "{preset} reads as the preset");
   assert.deepEqual(currentSwitchValue(sized({ preset: "a4", widthInches: 12 }), "slide-sizes").value, { preset: "a4", widthInches: 12 }, "a custom size reads as the object");
-  const own = sized("4:3");
-  own.slides = [{ ...own.slides[0] }, { ...own.slides[1], design: { dimensions: "letter" } }];
-  assert.deepEqual(currentSwitchValue(own, "slide-sizes", { slideIndex: 1 }), { value: "letter", scope: "slide" });
+  // A slide cannot set its own size (FA-07): a slideIndex reads the deck's size.
+  assert.deepEqual(currentSwitchValue(sized("4:3"), "slide-sizes", { slideIndex: 1 }), { value: "4:3", scope: "deck" });
   assert.deepEqual(currentSwitchValue({ slides: [] }, "slide-sizes"), { value: undefined, scope: "deck" }, "unset");
   assert.deepEqual(at("purposes"), { value: undefined, scope: "deck" });
   assert.deepEqual(currentSwitchValue({ ...document, purpose: "decide" }, "purposes"), { value: "decide", scope: "deck" });

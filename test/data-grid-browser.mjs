@@ -47,7 +47,7 @@ const source = {
         ['West', null, null],
       ] } },
     ] },
-    { id: 'sourced', title: 'Sourced', blocks: [{ chart: { type: 'column', data: { src: './data/revenue.csv' } } }] },
+    { id: 'sourced', title: 'Missing dataset', blocks: [{ chart: { type: 'column', data: { dataset: 'gone' } } }] },
   ],
 };
 
@@ -497,12 +497,12 @@ try {
   // Once opened, the grid stays open as the selection moves between charts and tables.
   if ((await edit.getAttribute('aria-expanded')) !== 'true') await edit.click();
   await dock.locator('.opf-grid-help[role="note"]').waitFor();
-  assert.match(await dock.locator('.opf-grid-help[role="note"]').textContent(), /reads its data from a source/);
-  assert.equal(await dock.getByRole('grid').count(), 0, 'no grid for a chart that reads its data from a source');
+  assert.match(await dock.locator('.opf-grid-help[role="note"]').textContent(), /which the document does not hold/);
+  assert.equal(await dock.getByRole('grid').count(), 0, 'no grid for a chart whose shared dataset is missing');
   await slide(0);
   assert.equal(await dock.isHidden(), true, 'selecting something else hides the grid');
   assert.equal(await edit.isHidden(), true, 'and the Edit data button');
-  mark('a sourced chart explains why there is no grid, and the grid hides when the selection leaves');
+  mark('a chart whose dataset is missing explains why there is no grid, and the grid hides when the selection leaves');
 
   // --- accessibility -------------------------------------------------------------------------------------------------------------------
   await slide(1);
