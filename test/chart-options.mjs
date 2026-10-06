@@ -32,6 +32,7 @@ for (const type of ["column", "bar", "stacked-column", "line", "area", "pie", "d
   assert.deepEqual(fields, (({ axisTitles, legend, dataLabels }) => ({ axisTitles, legend, dataLabels }))(chartOptionSupport(chartOptionTarget(type))), `${type}: the fields are core's support table`);
 }
 assert.deepEqual(readChartOptions({ type: "column", data }).state, {
+  alt: "", decorative: false,
   axisTitles: { category: "", value: "" }, legend: "default",
   dataLabels: { on: false, explicit: false, content: ["value"], position: "auto", separator: ", " },
 });

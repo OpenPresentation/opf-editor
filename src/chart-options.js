@@ -1,5 +1,5 @@
-// Chart options (RR-35): axis titles, legend position and data labels. A chart is
-// `{ type, data, axisTitles?, legend?, dataLabels? }`. These helpers read the three fields as form
+// Chart options (RR-35): axis titles, legend position and data labels, plus (FA-09) the chart's text alternative `alt`.
+// A chart is `{ type, data, alt?, axisTitles?, legend?, dataLabels? }`. These helpers read the three fields as form
 // state and edit them as one validated, undoable patch (a few add / replace / remove operations
 // on the chart, one undo step), so the canvas redraws the legend, titles and labels and Undo
 // restores the chart. Which fields a chart offers follows core's support table
@@ -64,6 +64,9 @@ export function readChartOptions(chart) {
       dataLabels: { ...support.dataLabels, content: [...support.dataLabels.content], positions: [...support.dataLabels.positions] },
     },
     state: {
+      // FA-09: the text alternative. `decorative` is the empty alt, a reviewed choice, not a missing one.
+      alt: typeof chart?.alt === "string" ? chart.alt : "",
+      decorative: chart?.alt === "",
       axisTitles: { category: typeof titles.category === "string" ? titles.category : "", value: typeof titles.value === "string" ? titles.value : "" },
       legend: typeof chart?.legend === "string" ? chart.legend : "default",
       dataLabels: {
@@ -90,6 +93,9 @@ function desired(chart, change, support) {
     }
     out.axisTitles = Object.keys(titles).length ? titles : undefined;
   }
+  if (change.decorative === true) out.alt = "";
+  else if (change.alt !== undefined) out.alt = typeof change.alt === "string" && change.alt.trim() ? change.alt.trim() : undefined;
+  else if (change.decorative === false && chart.alt === "") out.alt = undefined;
   if (change.legend !== undefined) {
     if (change.legend !== "default" && !CHART_LEGEND_POSITIONS.includes(change.legend)) throw fail("invalid-chart-option", `'${change.legend}' is not a legend position.`, { legend: change.legend });
     out.legend = change.legend === "default" || !support.legend ? undefined : change.legend;
@@ -117,7 +123,8 @@ function desired(chart, change, support) {
 
 /**
  * Prepare one validated patch for a change to the chart's options. `change` is
- * `{ axisTitles?: { category?, value? }, legend?, dataLabels? }`: `axisTitles` entries are strings (empty removes a title),
+ * `{ alt?, decorative?, axisTitles?: { category?, value? }, legend?, dataLabels? }`: `alt` is the text alternative (trimmed; empty or `null`
+ * removes it), `decorative: true` writes the empty alt (and wins over `alt`), `decorative: false` removes an empty alt; `axisTitles` entries are strings (empty removes a title),
  * `legend` is `"default"` (remove the field), `"none"`, `"top"`, `"bottom"`, `"left"` or `"right"`, and `dataLabels` is
  * `true`, `false` (or `null`, which removes the field), or `{ content?, position?, separator? }` merged over the current labels.
  * Fields the chart type cannot show are never written. The document is not modified.
