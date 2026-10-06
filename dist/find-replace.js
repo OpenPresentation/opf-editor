@@ -104,6 +104,7 @@ function payloadFields(fields, state, base, payload, prefix = "") {
       if (typeof value === "string") field(fields, state, at("chart", "data", "rows", String(r), String(c)), value, `${prefix}Chart row ${r + 1}, column ${c + 1}`, "chart");
     }));
   }
+  if (isObject(payload.chart)) field(fields, state, at("chart", "alt"), payload.chart.alt, `${prefix}Chart alt text`, "alt");
   const table = payload.table;
   if (isObject(table)) {
     if (Array.isArray(table.columns)) table.columns.forEach((cell, c) => (isObject(cell) && !("value" in cell) ? field(fields, state, at("table", "columns", String(c), "name"), cell.name, `${prefix}Table header ${c + 1}`, "table") : cellFields(fields, state, at("table", "columns", String(c)), cell, `${prefix}Table header ${c + 1}`)));

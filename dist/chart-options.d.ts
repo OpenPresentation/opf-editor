@@ -23,11 +23,19 @@ export interface ChartOptionFields {
 }
 /** The three fields as form state. */
 export interface ChartOptionState {
+  /** The chart's text alternative (empty when absent or decorative). */
+  alt: string;
+  /** True when the chart is marked decorative (alt is the empty string). */
+  decorative: boolean;
   axisTitles: { category: string; value: string };
   legend: ChartLegendChoice;
   dataLabels: { on: boolean; explicit: boolean; content: ChartLabelContent[]; position: ChartLabelPosition | "auto"; separator: string };
 }
 export interface ChartOptionChange {
+  /** The text alternative: what the data shows. Trimmed; an empty string or null removes it. */
+  alt?: string | null;
+  /** true marks the chart decorative (alt ""); false removes an empty alt. */
+  decorative?: boolean;
   axisTitles?: { category?: string; value?: string };
   legend?: ChartLegendChoice;
   dataLabels?: boolean | null | { content?: ChartLabelContent[]; position?: ChartLabelPosition | "auto"; separator?: string };

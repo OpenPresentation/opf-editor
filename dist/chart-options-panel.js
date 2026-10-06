@@ -1,4 +1,4 @@
-// The chart options panel (RR-35): axis titles, legend position and data labels for the selected chart.
+// The chart options panel (RR-35): axis titles, legend position and data labels for the selected chart, plus (FA-09) its alt text.
 // It mounts into any host element over an editor session; every control commits one undoable change through
 // `setChartOptions` (src/chart-options.js), the canvas redraws, and Undo restores the chart. The panel shows only what
 // the selected chart type can show (core's support table), and hides itself when no chart is selected.
@@ -24,6 +24,10 @@ export function createChartOptionsPanel(host, { editor, getSelectedPath, onStatu
   root.hidden = true;
   root.innerHTML = `
     <h3 class="opf-co-title">Chart options</h3>
+    <div class="opf-co-group" data-group="alt">
+      <label class="opf-co-row"><span>Alt text</span><input type="text" id="${id}-alt" aria-label="Chart alt text" data-opf-chart-option="alt" autocomplete="off" placeholder="What the chart shows"></label>
+      <label class="opf-co-row opf-co-check"><input type="checkbox" id="${id}-decorative" aria-label="Decorative chart" data-opf-chart-option="alt.decorative"><span>Decorative (no alt text)</span></label>
+    </div>
     <div class="opf-co-group" data-group="axisTitles">
       <label class="opf-co-row" data-axis="category"><span>Category axis title</span><input type="text" id="${id}-category" aria-label="Category axis title" data-opf-chart-option="axisTitles.category" autocomplete="off"></label>
       <label class="opf-co-row" data-axis="value"><span>Value axis title</span><input type="text" id="${id}-value" aria-label="Value axis title" data-opf-chart-option="axisTitles.value" autocomplete="off"></label>
@@ -40,7 +44,7 @@ export function createChartOptionsPanel(host, { editor, getSelectedPath, onStatu
   host.append(root);
   const $ = (selector) => root.querySelector(selector);
   const fields = {
-    category: $(`#${id}-category`), value: $(`#${id}-value`), legend: $(`#${id}-legend`), labels: $(`#${id}-labels`),
+    alt: $(`#${id}-alt`), decorative: $(`#${id}-decorative`), category: $(`#${id}-category`), value: $(`#${id}-value`), legend: $(`#${id}-legend`), labels: $(`#${id}-labels`),
     position: $(`#${id}-position`), separator: $(`#${id}-separator`), contents: [...root.querySelectorAll("[data-opf-chart-option^='dataLabels.content.']")],
   };
   let chartPath;
@@ -58,6 +62,9 @@ export function createChartOptionsPanel(host, { editor, getSelectedPath, onStatu
     const { fields: support, state } = readChartOptions(chart);
     root.hidden = false;
     const setValue = (input, value) => { if (input !== document.activeElement && input.value !== value) input.value = value; };
+    setValue(fields.alt, state.alt);
+    fields.decorative.checked = state.decorative;
+    fields.alt.disabled = state.decorative;
     for (const axis of ["category", "value"]) {
       $(`[data-axis="${axis}"]`).hidden = !support.axisTitles[axis];
       setValue(fields[axis], state.axisTitles[axis]);
@@ -99,6 +106,8 @@ export function createChartOptionsPanel(host, { editor, getSelectedPath, onStatu
 
   const selectedContent = () => fields.contents.filter((input) => input.checked && !input.closest("label").hidden).map((input) => input.value);
   const listeners = [
+    [fields.alt, "change", () => commit({ alt: fields.alt.value }, "Changed the chart's alt text. Undo restores it.")],
+    [fields.decorative, "change", () => commit({ decorative: fields.decorative.checked }, fields.decorative.checked ? "Marked the chart decorative. Undo restores it." : "The chart is no longer decorative. Undo restores it.")],
     [fields.category, "change", () => commit({ axisTitles: { category: fields.category.value } }, "Changed the category axis title. Undo restores it.")],
     [fields.value, "change", () => commit({ axisTitles: { value: fields.value.value } }, "Changed the value axis title. Undo restores it.")],
     [fields.legend, "change", () => commit({ legend: fields.legend.value }, "Changed the legend. Undo restores it.")],
