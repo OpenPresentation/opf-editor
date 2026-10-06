@@ -851,8 +851,10 @@ export function createDesignControls(container, options = {}) {
     body.append(audience.wrap);
     syncs.push(() => {
       audience.setOptions(listSwitchOptions(editor.document, "audiences", catalogOptions()).map((entry) => ({ value: entry.id, label: entry.label })));
+      // The root audience is a string, one inline Audience object or an array of both: the picker shows the catalog ids.
       const value = editor.document.audience;
-      audience.set(Array.isArray(value) ? value : value === undefined ? [] : [value]);
+      const entries = Array.isArray(value) ? value : value === undefined ? [] : [value];
+      audience.set(entries.map((entry) => (entry && typeof entry === "object" ? entry.id : entry)).filter((id) => typeof id === "string"));
     });
 
     const owner = selectField("social-owner", "Socials belong to");

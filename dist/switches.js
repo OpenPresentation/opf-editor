@@ -213,12 +213,8 @@ export function prepareDimensionSwitch(document, dimension, value, options = {})
     const own = document.design?.dimensions;
     // {preset} alone is the same size as the bare preset string.
     const sameSize = own && typeof own === "object" && !Array.isArray(own) && own.preset === value && Object.keys(own).length === 1;
+    // A slide's design cannot set dimensions (FA-07), so no slide can shadow the deck's size.
     patches = sameSize ? [] : designPatches(document, [], { dimensions: value });
-    shadowed = shadowedSlides(document, ["dimensions"]);
-    if (options.clearSlideOverrides) {
-      for (const index of shadowed) patches.push({ op: "remove", path: opfPathToJsonPointer(["slides", String(index), "design", "dimensions"]) });
-      shadowed = [];
-    }
   } else if (dimension === "purposes") {
     // A catalog id, free-form goal text (no id check: any goal is valid) or an inline Purpose object; the schema validates it.
     if (typeof value !== "string" && !(value && typeof value === "object" && !Array.isArray(value)))
@@ -289,7 +285,8 @@ export function prepareDimensionSwitch(document, dimension, value, options = {})
       if (options.bundle !== false) {
         // The gallery's theme snippet writes the whole bundle, so an explicit deck choice
         // does not keep the previous theme's fonts, colors or background.
-        for (const key of ["colorScheme", "fontScheme", "background", "dimensions"]) if (record[key] !== undefined) entries[key] = record[key];
+        // A slide's design cannot set dimensions (a PPTX has one slide size), so only a deck-scope switch writes the theme's.
+        for (const key of ["colorScheme", "fontScheme", "background", ...(scopeIndex === undefined ? ["dimensions"] : [])]) if (record[key] !== undefined) entries[key] = record[key];
       }
       patches = catalogRecordPatches(document, dimension, options);
     } else if (dimension === "color-schemes" || dimension === "font-schemes") {
@@ -476,15 +473,12 @@ export function currentSwitchValue(document, dimension, options = {}) {
   if (dimension === "slide-sizes") {
     // The size the deck composes at: its own design.dimensions, else the theme's; a {preset} object reads as its preset.
     // A custom size (inches without a preset) reads as the object itself. Unset reads as undefined (composed as widescreen).
-    const own = design("dimensions");
-    let size = own.value;
-    let scope = own.scope;
+    let size = document.design?.dimensions;
     if (size === undefined) {
-      const themeId = idOf(design("theme").value);
+      const themeId = idOf(document.design?.theme);
       size = themeId ? findCatalogRecord(document, "themes", themeId, {})?.dimensions : undefined;
-      scope = "deck";
     }
-    return { value: size && typeof size === "object" && !Array.isArray(size) && Object.keys(size).length === 1 && size.preset ? size.preset : size, scope };
+    return { value: size && typeof size === "object" && !Array.isArray(size) && Object.keys(size).length === 1 && size.preset ? size.preset : size, scope: "deck" };
   }
   if (dimension === "purposes") {
     // A catalog id or goal text reads as itself, a Purpose object as its id (else the object).

@@ -62,7 +62,7 @@ export const DESIGN_OPTIONS = Object.freeze([
   { id: "chartPrimary", label: "Primary chart position", type: "enum", values: ENUMS.chartPrimary, scopes: ["deck", "slide"], path: "design.chartPrimary" },
   { id: "listBullet", label: "List bullets", type: "enum", values: ENUMS.listBullet, scopes: ["deck", "slide"], path: "design.listBullet" },
   { id: "contentBox", label: "Content box", type: "boolean", scopes: ["deck", "slide"], path: "design.contentBox" },
-  { id: "accentFont", label: "Accent font", type: "font", scopes: ["deck", "slide"], path: "design.fontScheme.accent.family" },
+  { id: "accentFont", label: "Accent font", type: "font", scopes: ["deck", "slide"], path: "design.fontScheme.accent" },
   { id: "logo", label: "Logo", type: "logo", scopes: ["deck", "slide"], path: "design.logo" },
   { id: "organizationLogo", label: "Organization logo", type: "organization-logo", scopes: ["deck"], path: "organization.logo" },
   { id: "watermark", label: "Watermark", type: "watermark", scopes: ["deck", "slide"], path: "design.watermark" },
@@ -187,7 +187,7 @@ function fontSchemeWithAccent(document, base, family) {
     delete object.accent;
   } else {
     if (typeof family !== "string" || !family.trim()) throw fail("invalid-design-value", "Accent font is a non-empty family name, or null to clear it.", { value: family });
-    object.accent = { ...(isObject(object.accent) ? object.accent : {}), family: family.trim() };
+    object.accent = family.trim();
   }
   const keys = Object.keys(object);
   if (!keys.length) return null;
@@ -295,7 +295,7 @@ export function setDesignOption(editor, option, value, options = {}) {
 /**
  * Read one design option for a panel: `{ value, scope, inherited }` where `scope` is "slide" when the
  * slide's own design sets it, "deck" when the deck does, and "default" when neither does.
- * `accentFont` reads the family; `organizationLogo` reads the organization.
+ * `accentFont` reads the family name; `organizationLogo` reads the organization.
  */
 export function getDesignOption(document, option, options = {}) {
   const descriptor = BY_ID[option];
@@ -308,7 +308,7 @@ export function getDesignOption(document, option, options = {}) {
   const key = descriptor.type === "font" ? "fontScheme" : option;
   const pick = (design) => {
     const value = design?.[key];
-    return descriptor.type === "font" ? (isObject(value) ? value.accent?.family : undefined) : value;
+    return descriptor.type === "font" ? (isObject(value) ? value.accent : undefined) : value;
   };
   const slideValue = options.slideIndex === undefined ? undefined : pick(document.slides?.[options.slideIndex]?.design);
   if (slideValue !== undefined) return { value: slideValue, scope: "slide", inherited: false };

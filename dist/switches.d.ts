@@ -36,9 +36,9 @@ export interface DimensionSwitchOptions {
   /** Extra caller-loaded catalog records by kind. */
   catalogs?: Record<string, unknown>;
   catalogSources?: Record<string, unknown>;
-  /** themes: also write the theme's color scheme, font scheme, background and dimensions to the deck design (default true). */
+  /** themes: also write the theme's color scheme, font scheme and background (and, for the deck, dimensions) to the design (default true). A slide's design cannot set dimensions. */
   bundle?: boolean;
-  /** Deck-scope design switches (and slide-sizes): remove slide-level values that would hide the switch. */
+  /** Deck-scope design switches: remove slide-level values that would hide the switch. */
   clearSlideOverrides?: boolean;
   /** socials: which document field holds the handle (default "speaker") and, for an array, which entry (default 0). */
   owner?: "speaker" | "organization";

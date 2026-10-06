@@ -74,7 +74,7 @@ try{
   await page.goto('https://opf-rich.test/');await page.addScriptTag({type:'module',content:bundle});
   const paint=()=>page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   const original=[{text:'First\r\n',bold:true,link:'https://example.org',fontSize:24},{text:'Second\rThird',italic:true,fontSize:24}];
-  const deckFor=text=>({name:'Keep deck metadata',design:{fontScheme:{id:'roboto',heading:{family:'Arimo'},body:{family:'Arimo'},code:{family:'Arimo'}}},slides:[{id:'rich',text,notes:'Keep notes'}],extensions:{keep:{value:42}}});
+  const deckFor=text=>({name:'Keep deck metadata',design:{fontScheme:{id:'roboto',heading: 'Arimo',body: 'Arimo',code: 'Arimo'}},slides:[{id:'rich',text,notes:'Keep notes'}],extensions:{keep:{value:42}}});
   const deck=deckFor(original),document=()=>page.evaluate(()=>editor.document);
   const text=()=>page.evaluate(()=>editor.get('slides.0.text'));
   const input=()=>page.getByRole('textbox',{name:'Edit rich text inline',exact:true});
