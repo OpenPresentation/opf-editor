@@ -552,10 +552,10 @@ assert.equal(typeof core.chartNumber, "function", "core exports chartNumber (RR-
     slides: [{ id: "d", title: "D", blocks: [{ chart: { type: "scatter", data: { columns: ["L", "X", "Y", "Z"], rows: [["a", 1, 2, 3]] }, mapping: { x: "Z", series: ["Y"] } } }] }],
   });
   const editor = session(scatter());
-  const warnings = () => (validate(editor.presentation, { only: ["format"] }).warnings ?? []).map((entry) => entry.params?.code ?? entry.code);
+  const warnings = () => validate(editor.presentation, { only: ["opf/chart-mapping-adapted"] }).findings.map((finding) => finding.ruleId);
   step(editor, "switch a scatter chart with mapping.x to column", () => switches.switchDimension(editor, "charts", "column", { slideIndex: 0, path: "slides.0.blocks.0" }), () => {
     assert.deepEqual(editor.get("slides.0.blocks.0.chart.mapping"), { series: ["Y"] }, "x leaves the mapping");
-    assert.ok(!warnings().includes("chart-mapping-adapted"), "no chart-mapping-adapted warning is left behind");
+    assert.ok(!warnings().includes("opf/chart-mapping-adapted"), "no chart-mapping-adapted warning is left behind");
   });
   const only = session({ ...scatter(), slides: [{ id: "d", title: "D", blocks: [{ chart: { type: "scatter", data: { columns: ["L", "X", "Y"], rows: [["a", 1, 2]] }, mapping: { x: "Y" } } }] }] });
   switches.switchDimension(only, "charts", "column", { slideIndex: 0, path: "slides.0.blocks.0" });

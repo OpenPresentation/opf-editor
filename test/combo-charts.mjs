@@ -4,7 +4,10 @@
 // the edited chart.
 import assert from "node:assert/strict";
 import { validate } from "@openpresentation/opf";
-import { renderSvg } from "@openpresentation/opf-render/svg";
+
+// `chart-option-adapted` (layout) and `chart-mapping-adapted` (content) are what core says when a combo option or mapping is dropped; `only: ["format"]` never reports them.
+const adapted = (presentation) => validate(presentation, { only: ["opf/chart-option-adapted", "opf/chart-mapping-adapted"] });
+import { renderSlideSvg } from "@openpresentation/opf-render/svg";
 import * as pptx from "@openpresentation/opf-pptx";
 import { createEditorSession } from "../dist/index.js";
 import { prepareChartOptions, readChartOptions, setChartOptions } from "../dist/chart-options.js";
@@ -42,7 +45,7 @@ const plan = (editor) => readChartOptions(editor.get(C), editor.presentation).co
 // 3. Editing lines and the secondary axis: one undoable patch each; `line` only when it differs from the default.
 {
   const editor = session();
-  const svgBefore = renderSvg(editor.presentation, { trace: true });
+  const svgBefore = renderSlideSvg(editor.presentation, 0, { trace: true });
   setChartOptions(editor, C, { secondaryAxis: ["Margin"] });
   assert.deepEqual(editor.get(C).secondaryAxis, ["Margin"]);
   assert.equal(editor.get(C).line, undefined, "the default line is not written");
@@ -51,7 +54,7 @@ const plan = (editor) => readChartOptions(editor.get(C), editor.presentation).co
   setChartOptions(editor, C, { line: ["Cost", "Margin"] });
   assert.deepEqual(editor.get(C).line, ["Cost", "Margin"]);
   assert.deepEqual(plan(editor), ["Revenue:bar/primary", "Cost:line/primary", "Margin:line/secondary"]);
-  assert.equal(validate(editor.presentation, { only: ["format"] }).counts.warning, 0, JSON.stringify(validate(editor.presentation, { only: ["format"] }).findings));
+  assert.equal(adapted(editor.presentation).counts.warning, 0, JSON.stringify(adapted(editor.presentation).findings));
   // A series that stops being a line leaves the secondary axis, and the secondary title goes with the last secondary line.
   setChartOptions(editor, C, { line: ["Cost"] });
   assert.deepEqual(editor.get(C).line, ["Cost"]);
@@ -63,7 +66,7 @@ const plan = (editor) => readChartOptions(editor.get(C), editor.presentation).co
   assert.deepEqual(editor.get(C).axisTitles, { secondary: "Margin" });
   editor.undo(); editor.undo(); editor.undo();
   assert.deepEqual(editor.get(C), deck({}).slides[0].blocks[0].chart);
-  assert.equal(renderSvg(editor.presentation, { trace: true }), svgBefore, "undo restores the preview");
+  assert.equal(renderSlideSvg(editor.presentation, 0, { trace: true }), svgBefore, "undo restores the preview");
 }
 
 // 4. Refusals: at least one line and at least one column series; unknown names.
@@ -86,7 +89,7 @@ const plan = (editor) => readChartOptions(editor.get(C), editor.presentation).co
   assert.equal(chart.line, undefined);
   assert.equal(chart.secondaryAxis, undefined);
   assert.deepEqual(chart.axisTitles, { value: "Revenue" });
-  assert.equal(validate(editor.presentation, { only: ["format"] }).counts.warning, 0);
+  assert.equal(adapted(editor.presentation).counts.warning, 0);
   editor.undo();
   assert.deepEqual(editor.get(C).secondaryAxis, ["Margin"]);
 }

@@ -53,7 +53,7 @@ assert.ok(change);
 // A zone that shows the speaker warns when the deck has no named speaker.
 setHeaderFooterZone(editor, "footer", "right", { speaker: true });
 assert.deepEqual(designWarnings(editor.presentation, 0).filter((warning) => warning.path.endsWith(".speaker")), []);
-const noSpeaker = { ...presentation(), design: { footer: { right: { speaker: true } } } };
+const noSpeaker = { ...document(), design: { footer: { right: { speaker: true } } } };
 delete noSpeaker.speaker;
 assert.deepEqual(designWarnings(noSpeaker, 0).map((warning) => [warning.code, warning.path]), [["unresolved-content", "design.footer.right.speaker"]]);
 console.log("Editor built-in variables passed: listing, token insertion, speaker zone field and warning.");

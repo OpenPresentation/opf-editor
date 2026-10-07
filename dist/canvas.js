@@ -22,7 +22,7 @@ import { createRichTextInput } from "./rich-text-input.js";
 import { textInputOffsetAtPoint } from "./text-pointer.js";
 import { createRichTextToolbar } from "./rich-text-toolbar.js";
 import { createImageCropper } from "./image-cropper.js";
-import { FONTS_PENDING, fontGate, fontsPendingError, whenFontsReady } from "./font-gate.js";
+import { FONTS_PENDING, fontGate, fontsPendingError, previewFonts, whenFontsReady } from "./font-gate.js";
 import { checkFormat, firstErrorMessage } from "./checks.js";
 export { getEditableFields } from "./canvas-fields.js";
 export { whenFontsReady, FONTS_PENDING, FONTS_UNAVAILABLE } from "./font-gate.js";
@@ -72,7 +72,7 @@ export function createCanvasEditor(container, options = {}) {
   // are not loaded yet is never rendered: the canvas has the handle load them first and shows "Loading fonts…" meanwhile. Without a
   // handle every document renders at once, with core's portable text estimate.
   const handle = options.fonts, fonts = fontGate(handle);
-  const drawOptions = (extra) => ({ ...renderOptions, fonts: handle, ...extra });
+  const drawOptions = (extra) => ({ ...renderOptions, fonts: previewFonts(handle), ...extra });
   let slideIndex = options.slideIndex ?? 0,
     // RR-32: the canvas edits the document as authored, so a template's {{tokens}} stay visible and an inline edit never
     // overwrites one with its resolved text. The Fill template panel previews the resolved deck. Pass `variables` to override.

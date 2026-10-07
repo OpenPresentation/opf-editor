@@ -9,9 +9,6 @@
   "engines": {
     "node": ">=22"
   },
-  "opf": {
-    "requiresUnreleasedCore": "0.14.0"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/OpenPresentation/opf-editor.git"

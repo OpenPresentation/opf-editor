@@ -2,7 +2,7 @@
 // (src/template-panel.js) over the playground's editor session, draws the live preview through the
 // playground's fonts handle, and fills the deck as one undoable edit.
 import { renderSlideSvg } from '@openpresentation/opf-render/svg';
-import { whenFontsReady } from '../src/font-gate.js';
+import { previewFonts, whenFontsReady } from '../src/font-gate.js';
 import { createTemplatePanel } from '../src/template-panel.js';
 import { hasTemplateVariables, previewTemplate } from '../src/templates.js';
 
@@ -27,7 +27,7 @@ export function installTemplateControls({ editor, getCanvas, getSlideIndex, getS
     const run = ++previewRun;
     return new Promise((resolve, reject) => {
       const filled = previewTemplate(source, variables).presentation;
-      const draw = () => resolve(renderSlideSvg(source, slideIndex, { fonts, variables, trace: false }));
+      const draw = () => resolve(renderSlideSvg(source, slideIndex, { fonts: previewFonts(fonts), variables, trace: false }));
       whenFontsReady(fonts, filled, { isCurrent: () => run === previewRun, loading() {}, ready: draw, failed: reject });
     });
   }

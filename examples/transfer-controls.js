@@ -12,7 +12,7 @@ import {
   normalizeGalleryUrl,
 } from "../src/galleries.js";
 import { renderSlideSvg } from "@openpresentation/opf-render/svg";
-import { whenFontsReady } from "../src/font-gate.js";
+import { previewFonts, whenFontsReady } from "../src/font-gate.js";
 import { readPptxFile, showConversionDiagnostics } from './pptx-controls.js';
 
 export function installTransferControls({
@@ -108,7 +108,7 @@ export function installTransferControls({
           $("import-summary").textContent = "Loading fonts for this document…";
         },
         ready: () => {
-          const svg = renderSlideSvg(result.presentation, result.slideIndex, { fonts });
+          const svg = renderSlideSvg(result.presentation, result.slideIndex, { fonts: previewFonts(fonts) });
           $("import-preview").innerHTML = svg;
           prepared = result;
           error("");
@@ -479,7 +479,7 @@ export function installTransferControls({
           $("import-summary").textContent = "Loading fonts for this document…";
         },
         ready: () => {
-          renderSlideSvg(result.presentation, result.slideIndex, { fonts });
+          renderSlideSvg(result.presentation, result.slideIndex, { fonts: previewFonts(fonts) });
           setSlideIndex(result.slideIndex);
           editor.applyPatch([{ op: "replace", path: "", value: result.presentation }], {
             source: "import",

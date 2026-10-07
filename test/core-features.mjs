@@ -21,7 +21,7 @@ function* files(directory, extensions) {
 // ---- 1. every named import from a sibling package is exported by it ----------------------------------------------------------------------
 const wanted = new Map(); // module specifier -> Map(name -> first file that imports it)
 const namespaceImports = [];
-for (const directory of ["src", "examples", "scripts"]) {
+for (const directory of ["src", "examples", "scripts", "test"]) {
   for (const file of files(path.join(root, directory), [".js", ".mjs"])) {
     const source = readFileSync(file, "utf8");
     for (const match of source.matchAll(/import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["']/g)) {

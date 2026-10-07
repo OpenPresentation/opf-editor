@@ -91,8 +91,8 @@ function primaryOrganization(presentation) {
   return list.find((entry) => entry?.role === "primary") ?? list[0];
 }
 
-function firstSpeaker(document) {
-  const list = Array.isArray(document.speaker) ? document.speaker : document.speaker ? [document.speaker] : [];
+function firstSpeaker(presentation) {
+  const list = Array.isArray(presentation.speaker) ? presentation.speaker : presentation.speaker ? [presentation.speaker] : [];
   return list[0];
 }
 
@@ -121,7 +121,7 @@ export function designWarnings(presentation, slideIndex = 0) {
       const item = isObject(design[which]) ? design[which][zone] : undefined;
       if (item?.organization === true && !organization)
         warnings.push({ code: "unresolved-content", path: `design.${which}.${zone}.organization`, message: `The ${which} ${zone} zone shows the organization, but the presentation has none.` });
-      if (item?.speaker === true && !firstSpeaker(document)?.name)
+      if (item?.speaker === true && !firstSpeaker(presentation)?.name)
         warnings.push({ code: "unresolved-content", path: `design.${which}.${zone}.speaker`, message: `The ${which} ${zone} zone shows the speaker, but the presentation has no named speaker.` });
       if (item?.socials === true && !organization?.socials)
         warnings.push({ code: "unresolved-content", path: `design.${which}.${zone}.socials`, message: `The ${which} ${zone} zone shows social profiles, but the organization has none.` });

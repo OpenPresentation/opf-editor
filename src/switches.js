@@ -481,7 +481,7 @@ export function currentSwitchValue(presentation, dimension, options = {}) {
   if (dimension === "slide-sizes") {
     // The size the deck composes at: its own design.dimensions, else the theme's; a {preset} object reads as its preset.
     // A custom size (inches without a preset) reads as the object itself. Unset reads as undefined (composed as widescreen).
-    let size = document.design?.dimensions;
+    let size = presentation.design?.dimensions;
     if (size === undefined) {
       const themeId = idOf(presentation.design?.theme);
       size = themeId ? findCatalogRecord(presentation, "themes", themeId, {})?.dimensions : undefined;

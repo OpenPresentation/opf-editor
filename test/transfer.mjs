@@ -201,7 +201,7 @@ assert.equal(
 {
   const source = { name: "Source", design: { theme: "minimal", dimensions: "4:3" }, slides: [{ id: "wide", title: "Sized deck" }] };
   const target = { name: "Target", design: { theme: "minimal", dimensions: "letter" }, slides: [{ id: "host", title: "Host" }] };
-  const inserted = prepareOpfImport(target, parseOpfTransfer(JSON.stringify(source)), { mode: "insert", slideIndex: 0 }).document;
+  const inserted = prepareOpfImport(target, parseOpfTransfer(JSON.stringify(source)), { mode: "insert", slideIndex: 0 }).presentation;
   assert.equal(inserted.design.dimensions, "letter");
   for (const slide of inserted.slides) assert.equal(slide.design?.dimensions, undefined, "no slide carries dimensions");
 }

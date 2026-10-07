@@ -2,8 +2,12 @@
 // highlight is offered or written; the choices come from the chart's resolved data (a dataset chart offers its dataset's columns and
 // rows); the preview draws the change and the PPTX export carries it.
 import assert from "node:assert/strict";
-import { validate, chartOptionSupport, chartOptionTarget } from "@openpresentation/opf";
-import { renderSvg } from "@openpresentation/opf-render/svg";
+import { validate } from "@openpresentation/opf";
+import { chartOptionSupport, chartOptionTarget } from "@openpresentation/opf/composition";
+
+// The rules that report an option or highlight the chart type cannot show (content and layout warnings, so `only: ["format"]` never sees them).
+const ADAPTED_RULES = ["opf/chart-option-adapted", "opf/chart-highlight-adapted", "opf/chart-mapping-adapted"];
+import { renderSlideSvg } from "@openpresentation/opf-render/svg";
 import * as pptx from "@openpresentation/opf-pptx";
 import { createEditorSession } from "../dist/index.js";
 import { prepareChartOptions, readChartOptions, setChartOptions } from "../dist/chart-options.js";
@@ -16,7 +20,7 @@ const deck = (type = "column", chart = {}) => ({
   slides: [{ id: "chart", title: "Chart", blocks: [{ chart: { type, data, ...chart } }, { text: "Notes" }] }],
 });
 const session = (type, chart) => createEditorSession(deck(type, chart), { rejectInvalid: true });
-const svg = (document) => renderSvg(document, { trace: true });
+const svg = (document) => renderSlideSvg(document, 0, { trace: true });
 
 // What each chart type offers follows core's support table.
 for (const type of ["column", "bar", "stacked-column", "line", "area", "pie", "doughnut", "scatter", "radar", "histogram", "waterfall", "funnel", "treemap", "box-and-whisker", "world"]) {
@@ -85,7 +89,7 @@ assert.deepEqual(readChartOptions({ type: "column", data: { src: "asset:missing"
   const pie = session("pie");
   setChartOptions(pie, C, { highlight: { series: ["North"], categories: ["Q2"] } });
   assert.deepEqual(pie.get(`${C}.highlight`), { categories: ["Q2"] });
-  assert.equal(validate(pie.presentation, { only: ["format"] }).counts.warning, 0, "no chart-option-adapted warning is left behind");
+  assert.equal(validate(pie.presentation, { only: ADAPTED_RULES }).counts.warning, 0, "no chart-option-adapted warning is left behind");
   const area = session("area");
   setChartOptions(area, C, { highlight: { series: ["South"], categories: ["Q2"] } });
   assert.deepEqual(area.get(`${C}.highlight`), { series: ["South"] });
