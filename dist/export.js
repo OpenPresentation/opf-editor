@@ -4,7 +4,7 @@
 // the handle first, and only faces its registry holds (bundled or hash-pinned, permissively licensed) are embedded, as
 // @font-face data in each SVG and as subsets in the PDF. No system font is read and nothing is fetched at export time.
 //
-//   const result = await exportDeck(editor.document, { format: "pdf", fonts, renderOptions, signal, onProgress });
+//   const result = await exportDeck(editor.presentation, { format: "pdf", fonts, renderOptions, signal, onProgress });
 //   // result.download is { name, type, bytes }: one PDF, one PNG or SVG, or a ZIP of the slides.
 
 import { renderSvg } from "@openpresentation/opf-render/svg";

@@ -17,9 +17,9 @@ const recorder = () => {
   return { families, fonts: { textMeasurement: { measure: (text, size, style) => (families.add(style.fontFamily), text.length * size * 0.5) } } };
 };
 const slide = { id: "s", title: "Title", text: "Body copy" };
-const familiesOf = (document, options = {}, index = 0) => {
+const familiesOf = (presentation, options = {}, index = 0) => {
   const { families, fonts } = recorder();
-  createEditorSession(document).composeSlide(index, { fonts, ...options });
+  createEditorSession(presentation).composeSlide(index, { fonts, ...options });
   return [...families].sort();
 };
 
@@ -33,9 +33,9 @@ const cases = [
   ["an inline font scheme", { design: { fontScheme: { id: "x", major: "Inter", minor: "Inter" } }, slides: [slide] }, 0, undefined],
   ["a scheme only the host's catalogs have", { design: { fontScheme: "host-lora" }, slides: [slide] }, 0, { fontSchemes: [{ id: "host-lora", name: "Host Lora", major: "Lora", minor: "Lora" }] }],
 ];
-for (const [name, document, index, catalogs] of cases) {
-  const expected = resolveSlideContext(document, index, { catalogs }).options.fontFamilies;
-  const drawn = familiesOf(document, catalogs ? { catalogs } : {}, index);
+for (const [name, presentation, index, catalogs] of cases) {
+  const expected = resolveSlideContext(presentation, index, { catalogs }).options.fontFamilies;
+  const drawn = familiesOf(presentation, catalogs ? { catalogs } : {}, index);
   const names = [...new Set([expected.heading, expected.body])].sort();
   assert.deepEqual(drawn, names, `${name}: composition measures the families core resolved (${names.join(", ")})`);
 }
@@ -45,23 +45,23 @@ assert.deepEqual(familiesOf({ slides: [slide] }), ["Aptos", "Aptos Display"]);
 // The editor composes what the renderer draws: same geometry through the same context.
 {
   const { fonts } = recorder();
-  const document = { design: { theme: "classic", fontScheme: "roboto" }, slides: [slide, { id: "two", title: "Two", items: ["a", "b", "c"] }] };
-  const editor = createEditorSession(document);
+  const presentation = { design: { theme: "classic", fontScheme: "roboto" }, slides: [slide, { id: "two", title: "Two", items: ["a", "b", "c"] }] };
+  const editor = createEditorSession(presentation);
   for (const index of [0, 1]) {
-    assert.deepEqual(editor.composeSlide(index, { fonts }).items, resolvePresentation(document, { fonts }).slides[index].geometry.items, `slide ${index}: editor and renderer geometry agree`);
+    assert.deepEqual(editor.composeSlide(index, { fonts }).items, resolvePresentation(presentation, { fonts }).slides[index].geometry.items, `slide ${index}: editor and renderer geometry agree`);
     // And it is exactly core's composeSlide over core's context.
-    assert.deepEqual(editor.composeSlide(index, { fonts }).items, composeSlide(document.slides[index], resolveSlideContext(document, index, { fonts }).options).items, `slide ${index}: editor.composeSlide is composeSlide over resolveSlideContext`);
+    assert.deepEqual(editor.composeSlide(index, { fonts }).items, composeSlide(presentation.slides[index], resolveSlideContext(presentation, index, { fonts }).options).items, `slide ${index}: editor.composeSlide is composeSlide over resolveSlideContext`);
   }
 }
 
 // Unknown ids fall back and report; they never throw (the layout study's rule): no layout record, `minimal`, `cool-horizon`, `aptos`.
 {
-  const document = { design: { theme: "no-such-theme", colorScheme: "no-such-colors", fontScheme: "no-such-fonts" }, slides: [{ ...slide, layout: "no-such-layout" }] };
+  const presentation = { design: { theme: "no-such-theme", colorScheme: "no-such-colors", fontScheme: "no-such-fonts" }, slides: [{ ...slide, layout: "no-such-layout" }] };
   const diagnostics = [];
-  const composition = createEditorSession(document).composeSlide(0, { onDiagnostic: (diagnostic) => diagnostics.push(diagnostic) });
+  const composition = createEditorSession(presentation).composeSlide(0, { onDiagnostic: (diagnostic) => diagnostics.push(diagnostic) });
   assert.ok(composition.items.length > 0, "the slide still composes");
   assert.deepEqual(diagnostics.map((diagnostic) => diagnostic.code).sort(), ["unresolved-color-scheme", "unresolved-font-scheme", "unresolved-layout", "unresolved-theme"]);
-  assert.equal(resolveSlideContext(document, 0).options.layout, undefined, "an unknown layout composes with no layout record");
+  assert.equal(resolveSlideContext(presentation, 0).options.layout, undefined, "an unknown layout composes with no layout record");
   // A slide with no layout at all is the same: no layout record, no diagnostic.
   const none = [];
   createEditorSession({ slides: [slide] }).composeSlide(0, { onDiagnostic: (diagnostic) => none.push(diagnostic) });

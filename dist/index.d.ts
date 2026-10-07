@@ -39,7 +39,7 @@ export type JsonPatchOperation =
   | { op: "test"; path: string; value: unknown };
 
 export interface EditorSnapshot {
-  document: unknown;
+  presentation: unknown;
   validation: ValidationReport;
   canUndo: boolean;
   canRedo: boolean;
@@ -48,7 +48,7 @@ export interface EditorSnapshot {
 }
 
 export interface EditorChange {
-  document: unknown;
+  presentation: unknown;
   patches: JsonPatchOperation[];
   inversePatches?: JsonPatchOperation[];
   redoPatches?: JsonPatchOperation[];
@@ -72,7 +72,7 @@ export interface EditorSession {
   paginateSlide(slideIndex: number, options?: PaginationOptions & EditorDiagnosticOptions, meta?: Record<string, unknown>): { change: EditorChange | null; pagination: PaginationResult };
   composeSlide(slideIndex: number, options?: ComposeSlideOptions & EditorDiagnosticOptions): SlideComposition;
   setComposition(slideIndex: number, composition: Composition, meta?: Record<string, unknown>): EditorChange;
-  readonly document: unknown;
+  readonly presentation: unknown;
   readonly validation: ValidationReport;
   readonly canUndo: boolean;
   readonly canRedo: boolean;
@@ -86,7 +86,7 @@ export interface EditorSession {
   /** The undo and redo stacks as plain data (oldest entry first), for hosts that persist work. */
   exportHistory(): EditorHistory;
   /** Replace the document and, optionally, the history in one step (one `restore` event). A history that does not replay against the document throws `invalid-history` before anything changes. */
-  restoreState(state: { document: unknown; undo?: EditorHistoryEntry[]; redo?: EditorHistoryEntry[] }, meta?: Record<string, unknown>): EditorChange;
+  restoreState(state: { presentation: unknown; undo?: EditorHistoryEntry[]; redo?: EditorHistoryEntry[] }, meta?: Record<string, unknown>): EditorChange;
   undo(meta?: Record<string, unknown>): EditorChange | null;
   redo(meta?: Record<string, unknown>): EditorChange | null;
 }
@@ -162,15 +162,15 @@ export declare function opfPathToJsonPointer(path: string | string[]): string;
 
 export declare function jsonPointerToOpfPath(pointer: string): string;
 
-export declare function getValueAtPath(document: unknown, path: string | string[], fallback?: unknown): unknown;
+export declare function getValueAtPath(presentation: unknown, path: string | string[], fallback?: unknown): unknown;
 
-export declare function hasValueAtPath(document: unknown, path: string | string[]): boolean;
+export declare function hasValueAtPath(presentation: unknown, path: string | string[]): boolean;
 
-export declare function createValuePatch(document: unknown, path: string | string[], value: unknown): JsonPatchOperation[];
+export declare function createValuePatch(presentation: unknown, path: string | string[], value: unknown): JsonPatchOperation[];
 
-export declare function applyJsonPatch(document: unknown, operations: JsonPatchOperation[]): unknown;
+export declare function applyJsonPatch(presentation: unknown, operations: JsonPatchOperation[]): unknown;
 
-export declare function invertJsonPatch(document: unknown, operations: JsonPatchOperation[]): JsonPatchOperation[];
+export declare function invertJsonPatch(presentation: unknown, operations: JsonPatchOperation[]): JsonPatchOperation[];
 
 /** Core's `stats` of the session's document: neutral facts (counts, words, notes coverage, images and alt text, speaking time), never severities. Reads the JSON only. */
 export declare function deckStats(editor: EditorSession, options?: StatsOptions): PresentationStats;

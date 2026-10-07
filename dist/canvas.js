@@ -67,7 +67,7 @@ export function createCanvasEditor(container, options = {}) {
     win = doc.defaultView;
   const editor =
     options.editor ??
-    createEditorSession(options.document, { rejectInvalid: true });
+    createEditorSession(options.presentation, { rejectInvalid: true });
   // `options.fonts` is the renderer's fonts handle (`loadFonts()`): it measures the text and draws the faces. A document whose faces
   // are not loaded yet is never rendered: the canvas has the handle load them first and shows "Loading fonts…" meanwhile. Without a
   // handle every document renders at once, with core's portable text estimate.
@@ -124,7 +124,7 @@ export function createCanvasEditor(container, options = {}) {
     onTyping: beginEdit,
     onProperties(path) { if (commit()) openProperties(path, editor.get(path)); },
     validateChange(path, value) {
-      validateRender(createCanvasDraft(editor.document, path, value));
+      validateRender(createCanvasDraft(editor.presentation, path, value));
     },
     onChange(path) { clearNotice(); options.onCommit?.({path, editor}); }
   });
@@ -148,7 +148,7 @@ export function createCanvasEditor(container, options = {}) {
   const blockControls = createBlockControls(root, {
     editor, render: renderFor, beforeEdit: () => {if(!commit())return false;richToolbar.hide();return true;}, enabled: () => layoutHandles.enabled,
     isEditing: () => !!active || !!layoutHandles.editingPath, slideIndex: () => slideIndex,
-    validate: document => validateRender(document),
+    validate: presentation => validateRender(presentation),
     clearError: clearNotice, onError: report,
     onMove: path => choose(splitOpfPath(path).join(".")),
     onCommit: value => options.onCommit?.(value),
@@ -179,20 +179,20 @@ export function createCanvasEditor(container, options = {}) {
   const pendingMessage = "Loading fonts for this document…";
   // A synchronous render or validation of a document whose faces are still loading fails with a clear "fonts-pending"
   // error and starts the load, so the next attempt succeeds. It never draws glyphs the registry cannot provide.
-  function requireFonts(document) {
-    const pending = fonts?.pending(document, renderOptions) ?? [];
+  function requireFonts(presentation) {
+    const pending = fonts?.pending(presentation, renderOptions) ?? [];
     if (!pending.length) return;
     notice.hidden = false;
     notice.textContent = pendingMessage;
-    fonts.ensure(document, { renderOptions }).then(
+    fonts.ensure(presentation, { renderOptions }).then(
       () => { if (!disposed && notice.textContent === pendingMessage) clearNotice(); },
       (error) => { if (!disposed) report(error); },
     );
     throw fontsPendingError(pending);
   }
-  function validateRender(document) {
-    requireFonts(document);
-    return renderSlideSvg(document, slideIndex, drawOptions());
+  function validateRender(presentation) {
+    requireFonts(presentation);
+    return renderSlideSvg(presentation, slideIndex, drawOptions());
   }
   function fontsState(kind, detail) {
     fontsShown = true;
@@ -222,7 +222,7 @@ export function createCanvasEditor(container, options = {}) {
   function show(target) {
     if (disposed) return;
     const token = ++showToken;
-    return whenFontsReady(fonts, target ?? editor.document, {
+    return whenFontsReady(fonts, target ?? editor.presentation, {
       renderOptions,
       isCurrent: () => !disposed && token === showToken,
       loading: (pending) => fontsState("loading", pending),
@@ -238,23 +238,23 @@ export function createCanvasEditor(container, options = {}) {
     });
   }
   // Renders now when the document's fonts are loaded (errors throw to the caller), otherwise after loading them.
-  function renderFor(document) {
-    if (fonts?.pending(document ?? editor.document, renderOptions).length) show(document);
-    else render(document);
+  function renderFor(presentation) {
+    if (fonts?.pending(presentation ?? editor.presentation, renderOptions).length) show(presentation);
+    else render(presentation);
   }
-  function render(document = editor.document) {
+  function render(presentation = editor.presentation) {
     if (disposed) return;
-    requireFonts(document);
+    requireFonts(presentation);
     showToken++;
-    const slides = document.slides ?? [];
+    const slides = presentation.slides ?? [];
     slideIndex = Math.max(0, Math.min(slideIndex, slides.length - 1));
-    const svgText = renderSlideSvg(document, slideIndex, drawOptions({ trace: true }));
+    const svgText = renderSlideSvg(presentation, slideIndex, drawOptions({ trace: true }));
     preview.innerHTML = svgText;
     const svg = preview.querySelector("svg");
     svg.setAttribute("role", "group");
     svg.setAttribute("aria-label", "Editable slide");
     svg.removeAttribute("aria-labelledby");
-    const geometry = resolvePresentation(document, drawOptions()).slides[
+    const geometry = resolvePresentation(presentation, drawOptions()).slides[
       slideIndex
     ].geometry;
     const candidates = [...svg.querySelectorAll("[data-opf-path]")];
@@ -262,7 +262,7 @@ export function createCanvasEditor(container, options = {}) {
     for (const node of candidates) {
       const path = node.getAttribute("data-opf-path");
       const item = geometry.items.find((item) => item.path === path);
-      const value = getValueAtPath(document, path);
+      const value = getValueAtPath(presentation, path);
       if (
         seen.has(path) ||
         node.getAttribute('data-opf-generated') === 'true' ||
@@ -340,8 +340,8 @@ export function createCanvasEditor(container, options = {}) {
       });
       if (path === selectedPath) node.setAttribute("data-canvas-selected", "");
     }
-    layoutHandles.update(document, geometry);
-    blockControls.update(document, geometry);
+    layoutHandles.update(presentation, geometry);
+    blockControls.update(presentation, geometry);
     imageCropper?.update();
     if (active?.kind === "text") positionInput();
     if (active?.kind === "rich-text") active.rich?.update();
@@ -350,7 +350,7 @@ export function createCanvasEditor(container, options = {}) {
       options.onFonts?.({ state: "ready" });
     }
     options.onRender?.({
-      document,
+      presentation,
       slideIndex,
       svg,
       geometry,
@@ -392,7 +392,7 @@ export function createCanvasEditor(container, options = {}) {
           clearNotice();
           render(draft);
           options.onDraft?.({
-            document: draft,
+            presentation: draft,
             path: active.path,
             value: undefined,
           });
@@ -403,13 +403,13 @@ export function createCanvasEditor(container, options = {}) {
       }
       try {
         const value = active.kind === "rich-text" ? active.rich.value : parseCanvasValue(active.input.value, active.type, active.originalValue);
-        const draft = createCanvasDraft(editor.document, active.path, value);
+        const draft = createCanvasDraft(editor.presentation, active.path, value);
         if (deferDraft(draft)) return;
         clearNotice();
         active.valid = true;
         active.draft = draft;
         render(draft);
-        options.onDraft?.({ document: draft, path: active.path, value });
+        options.onDraft?.({ presentation: draft, path: active.path, value });
       } catch (error) {
         active.valid = false;
         report(error);
@@ -429,7 +429,7 @@ export function createCanvasEditor(container, options = {}) {
     const font = win.getComputedStyle(text),
       fontSize = parseFloat(font.fontSize),
       geometry = resolvePresentation(
-        active.draft ?? editor.document,
+        active.draft ?? editor.presentation,
         drawOptions(),
       ).slides[slideIndex].geometry;
     const item = geometry.items.find((item) => item.path === active.path);
@@ -600,7 +600,7 @@ export function createCanvasEditor(container, options = {}) {
       // Only offer rich text where the canonical schema accepts TextRun[].
       if (typeof value === "string") {
         try {
-          createCanvasDraft(editor.document, path, [value]);
+          createCanvasDraft(editor.presentation, path, [value]);
           const format = doc.createElement("button");
           format.type = "button";
           format.textContent = "Format text";
@@ -683,7 +683,7 @@ export function createCanvasEditor(container, options = {}) {
     }));
   }
   function propertyDraft(edit) {
-    const draft = applyJsonPatch(editor.document, propertyPatches(edit)),
+    const draft = applyJsonPatch(editor.presentation, propertyPatches(edit)),
       validation = checkFormat(draft);
     if (!validation.valid)
       throw new Error(
@@ -869,7 +869,7 @@ export function createCanvasEditor(container, options = {}) {
         value = parseCanvasValue(edit.input.value, edit.type, edit.originalValue);
       else value = propertyDraft(edit);
       if (edit.kind === "text" || edit.kind === "rich-text")
-        validateRender(createCanvasDraft(editor.document, edit.path, value));
+        validateRender(createCanvasDraft(editor.presentation, edit.path, value));
       committing = true;
       if ((edit.kind === "text" || edit.kind === "rich-text") && JSON.stringify(value) !== edit.base)
         editor.set(edit.path, value, { source: "canvas", rejectInvalid: true });
@@ -921,7 +921,7 @@ export function createCanvasEditor(container, options = {}) {
     options.onCancel?.({ path });
   }
   function setSlide(index) {
-    if (!Number.isInteger(index) || !editor.document.slides?.[index])
+    if (!Number.isInteger(index) || !editor.presentation.slides?.[index])
       throw new RangeError("Slide index is out of range.");
     if (index === slideIndex) {
       if (!active) renderFor();

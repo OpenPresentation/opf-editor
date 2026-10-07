@@ -9,17 +9,17 @@ const report = JSON.parse((await readFile(new URL('native.json', root), 'utf8'))
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 assert.equal(report.sourceSha256, hash(await readFile(new URL('export.pptx', root))), 'Run the native check again for this browser export');
 const bytes = await readFile(new URL('native-saved.pptx', root));
-const document = await fromPptx(bytes);
-assert.equal(validate(document, { only: ["format"] }).valid, true);
-assert.equal(document.slides.length, 1);
-assert.match(JSON.stringify(document), /Edited in native PowerPoint/);
+const presentation = await fromPptx(bytes);
+assert.equal(validate(presentation, { only: ["format"] }).valid, true);
+assert.equal(presentation.slides.length, 1);
+assert.match(JSON.stringify(presentation), /Edited in native PowerPoint/);
 let tables = 0;
 const visit = value => {
   if (!value || typeof value !== 'object') return;
   if (value.table) tables++;
   Object.values(value).forEach(visit);
 };
-visit(document);
+visit(presentation);
 assert.equal(tables, 1);
 report.savedSha256 = hash(bytes);
 report.nativeSavedReimportValid = true;

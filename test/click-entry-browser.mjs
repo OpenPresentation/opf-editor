@@ -210,7 +210,7 @@ try {
   // 8. Press-drag selects from the press point to the release point; nothing moves.
   await slide(0);
   {
-    const before = JSON.stringify(await page.evaluate(() => editor.document));
+    const before = JSON.stringify(await page.evaluate(() => editor.presentation));
     const a = await point('slides.0.subtitle', 'Wrapped', 0, 'left'), b = await point('slides.0.subtitle', 'double', 2, 'right');
     await page.mouse.move(a.x, a.y);
     await page.mouse.down();
@@ -234,7 +234,7 @@ try {
     const backward = await state();
     assert.deepEqual([backward.start, backward.end, backward.direction], [source.indexOf('tail') + 1, source.indexOf('very long') + 4, 'backward']);
     await discard();
-    assert.equal(JSON.stringify(await page.evaluate(() => editor.document)), before, 'a text drag never changes or moves the document');
+    assert.equal(JSON.stringify(await page.evaluate(() => editor.presentation)), before, 'a text drag never changes or moves the document');
     done('press-drag selects a forward, backward and multi-line range without moving anything');
   }
 

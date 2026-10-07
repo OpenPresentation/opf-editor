@@ -47,10 +47,10 @@ export function parseCanvasValue(text, type, original) {
   return type === 'string' && typeof original === 'string' ? preserveTextLineEndings(original,String(text)) : text;
 }
 
-export function createCanvasDraft(document, path, value) {
+export function createCanvasDraft(presentation, path, value) {
   const draft = applyJsonPatch(
-    document,
-    createValuePatch(document, path, value),
+    presentation,
+    createValuePatch(presentation, path, value),
   );
   const validation = checkFormat(draft);
   if (!validation.valid)

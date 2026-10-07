@@ -42,7 +42,7 @@ const throwsCode = (fn, code) => {
 };
 
 const editor = createEditorSession(source());
-const report = validate(editor.document);
+const report = validate(editor.presentation);
 ok(report.valid && report.schemaValid && Array.isArray(report.findings), "validate returns core's report");
 const findings = reviewFindings(report);
 ok(findings.length >= 5, "the fixture has findings");
@@ -62,12 +62,12 @@ ok(filterFindings(findings, { minimum: "error" }).length === counts.error);
 const contrast = find("text-contrast");
 eq(contrast.slide, 0);
 eq(contrast.dottedPath, "slides.0.text.0.color");
-eq(findingTarget(editor.document, contrast), { slide: 0, path: "slides.0.text.0.color", pointer: "/slides/0/text/0/color", exact: true });
+eq(findingTarget(editor.presentation, contrast), { slide: 0, path: "slides.0.text.0.color", pointer: "/slides/0/text/0/color", exact: true });
 const noTitle = find("missing-slide-title");
 eq(noTitle.path, "/slides/2");
-eq(findingTarget(editor.document, { path: "/slides/2/title" }), { slide: 2, path: "slides.2", pointer: "/slides/2", exact: false }, "a missing field points at its parent");
-eq(findingTarget(editor.document, { path: "" }), { slide: null, path: "", pointer: "", exact: true });
-eq(findingTarget(editor.document, { path: "/design/logo" }).slide, null);
+eq(findingTarget(editor.presentation, { path: "/slides/2/title" }), { slide: 2, path: "slides.2", pointer: "/slides/2", exact: false }, "a missing field points at its parent");
+eq(findingTarget(editor.presentation, { path: "" }), { slide: null, path: "", pointer: "", exact: true });
+eq(findingTarget(editor.presentation, { path: "/design/logo" }).slide, null);
 
 // the contrast quick fix is one undoable, validated edit
 const fix = contrast.fixes.find((f) => f.id === "use-readable-color");
@@ -84,7 +84,7 @@ eq(editor.get("slides.0.text.0.color"), "#CCCCCC", "undo restores the colour");
 eq(events, ["patch", "undo"]);
 stop();
 applyReviewFix(editor, contrast, fix);
-ok(!validate(editor.document).findings.some((d) => d.ruleId === "opf/text-contrast"), "the finding is gone after the fix");
+ok(!validate(editor.presentation).findings.some((d) => d.ruleId === "opf/text-contrast"), "the finding is gone after the fix");
 editor.undo();
 
 // stale findings and unsafe patches are refused
@@ -101,11 +101,11 @@ eq(editor.get("slides.0.title"), "Revenue", "an edit that would make the documen
 
 // alt text: inline objects, bare strings, the registry, decorative, undo
 const alt = createEditorSession(source());
-eq(altTextPatch(alt.document, "/slides/1/blocks/0/image", "A chart"), [{ op: "replace", path: "/slides/1/blocks/0/image", value: { src: "https://example.com/one.png", alt: "A chart" } }]);
-eq(altTextPatch(alt.document, "/slides/1/blocks/1/image", "Two"), [{ op: "add", path: "/slides/1/blocks/1/image/alt", value: "Two" }]);
+eq(altTextPatch(alt.presentation, "/slides/1/blocks/0/image", "A chart"), [{ op: "replace", path: "/slides/1/blocks/0/image", value: { src: "https://example.com/one.png", alt: "A chart" } }]);
+eq(altTextPatch(alt.presentation, "/slides/1/blocks/1/image", "Two"), [{ op: "add", path: "/slides/1/blocks/1/image/alt", value: "Two" }]);
 setReviewAltText(alt, "/slides/1/blocks/0/image", "  The sales chart  ");
 eq(alt.get("slides.1.blocks.0.image"), { src: "https://example.com/one.png", alt: "The sales chart" });
-eq(currentAltText(alt.document, "/slides/1/blocks/0/image"), "The sales chart");
+eq(currentAltText(alt.presentation, "/slides/1/blocks/0/image"), "The sales chart");
 setReviewAltText(alt, "/slides/1/blocks/0/image", "The sales chart, revised");
 eq(alt.get("slides.1.blocks.0.image.alt"), "The sales chart, revised");
 eq(setReviewAltText(alt, "/slides/1/blocks/0/image", "The sales chart, revised").changed, false, "no change, no history entry");
@@ -115,14 +115,14 @@ throwsCode(() => setReviewAltText(alt, "/slides/9/image", "x"), "stale-finding")
 setReviewAltText(alt, "/slides/3/image", "The team");
 eq(alt.get("assets.hero"), { src: "https://example.com/hero.jpg", alt: "The team" });
 eq(alt.get("slides.3.image"), "asset:hero", "the reference itself is untouched");
-eq(currentAltText(alt.document, "/slides/3/image"), "The team");
-ok(!validate(alt.document).findings.some((d) => d.ruleId === "opf/missing-alt-text" && d.path === "/slides/3/image"));
+eq(currentAltText(alt.presentation, "/slides/3/image"), "The team");
+ok(!validate(alt.presentation).findings.some((d) => d.ruleId === "opf/missing-alt-text" && d.path === "/slides/3/image"));
 alt.undo();
 eq(alt.get("assets.hero"), { src: "https://example.com/hero.jpg" });
 // decorative is an explicit empty alt, and it satisfies the audit
 markDecorative(alt, "/slides/1/blocks/1/image");
 eq(alt.get("slides.1.blocks.1.image.alt"), "");
-ok(!validate(alt.document).findings.some((d) => d.ruleId === "opf/missing-alt-text" && d.path === "/slides/1/blocks/1/image"));
+ok(!validate(alt.presentation).findings.some((d) => d.ruleId === "opf/missing-alt-text" && d.path === "/slides/1/blocks/1/image"));
 markDecorative(alt, "/slides/3/image");
 eq(alt.get("assets.hero.alt"), "");
 const plainAsset = createEditorSession({ ...source(), slides: [{ title: "P", image: "asset:plain" }] });
@@ -130,7 +130,7 @@ markDecorative(plainAsset, "/slides/0/image");
 eq(plainAsset.get("assets.plain"), { src: "https://example.com/plain.jpg", alt: "" });
 eq(markDecorative(plainAsset, "/slides/0/image").changed, false);
 // the audit's own fixes apply
-const missing = reviewFindings(validate(createEditorSession(source()).document)).find((f) => f.ruleId === "opf/missing-alt-text" && f.path === "/slides/1/blocks/0/image");
+const missing = reviewFindings(validate(createEditorSession(source()).presentation)).find((f) => f.ruleId === "opf/missing-alt-text" && f.path === "/slides/1/blocks/0/image");
 const decorative = missing.fixes.find((f) => f.id === "mark-decorative");
 ok(!decorative.safe && decorative.kind === "patch");
 const viaFix = createEditorSession(source());
@@ -149,7 +149,7 @@ eq(missing.fixes[0].focus, { path: "/slides/1/blocks/0/image", field: "alt", val
 // the hook's findings and core's merge by source, and neither overwrites the other
 {
   eq(reviewFindings(undefined), []);
-  const core = validate(editor.document);
+  const core = validate(editor.presentation);
   const hosted = {
     valid: true,
     counts: { error: 0, warning: 1, info: 1 },
@@ -195,7 +195,7 @@ eq(missing.fixes[0].focus, { path: "/slides/1/blocks/0/image", field: "alt", val
 }
 
 // validate options reach core (severity per rule); an authored error severity makes the report invalid
-const strict = validate(editor.document, { severity: { "opf/text-contrast": "error" } });
+const strict = validate(editor.presentation, { severity: { "opf/text-contrast": "error" } });
 eq(strict.findings.find((f) => f.ruleId === "opf/text-contrast").severity, "error");
 ok(!strict.valid);
 

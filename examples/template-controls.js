@@ -23,7 +23,7 @@ export function installTemplateControls({ editor, getCanvas, getSlideIndex, getS
   let previewRun = 0;
 
   // The preview draws the template with the typed values; fonts for the filled text load first.
-  function renderPreview({ document: source, variables, slideIndex }) {
+  function renderPreview({ presentation: source, variables, slideIndex }) {
     const run = ++previewRun;
     return new Promise((resolve, reject) => {
       const filled = previewTemplate(source, variables).presentation;
@@ -67,7 +67,7 @@ export function installTemplateControls({ editor, getCanvas, getSlideIndex, getS
     close();
   });
   // A template deserves a visible entry point: mark the button when the deck has variables to fill.
-  const mark = () => button.toggleAttribute('data-has-variables', hasTemplateVariables(editor.document));
+  const mark = () => button.toggleAttribute('data-has-variables', hasTemplateVariables(editor.presentation));
   editor.subscribe(mark);
   mark();
   return { open: () => button.click(), close };

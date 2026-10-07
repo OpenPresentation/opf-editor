@@ -10,9 +10,9 @@ import { checkFormat, errorFindings } from "./checks.js";
 // theme, default), so the editor measures and composes what the renderer draws and the exporter writes. `options.fonts` is the
 // renderer's fonts handle (its `textMeasurement` measures); `options.onDiagnostic` hears each `unresolved-*` diagnostic;
 // any other option overrides the resolved one (`layout`, ...).
-function slideContext(document, slideIndex, { fonts, catalogs, onDiagnostic, ...overrides } = {}) {
-  if (!Number.isInteger(slideIndex) || !document.slides?.[slideIndex]) throw new OPFEditorError("slide-index-out-of-range", "Slide index is out of range.");
-  const { options, diagnostics } = resolveSlideContext(document, slideIndex, { fonts, catalogs });
+function slideContext(presentation, slideIndex, { fonts, catalogs, onDiagnostic, ...overrides } = {}) {
+  if (!Number.isInteger(slideIndex) || !presentation.slides?.[slideIndex]) throw new OPFEditorError("slide-index-out-of-range", "Slide index is out of range.");
+  const { options, diagnostics } = resolveSlideContext(presentation, slideIndex, { fonts, catalogs });
   for (const diagnostic of diagnostics) onDiagnostic?.(diagnostic);
   return { ...options, ...overrides };
 }
@@ -67,20 +67,20 @@ export function jsonPointerToOpfPath(pointer) {
   return parseJsonPointer(pointer).join(".");
 }
 
-export function getValueAtPath(document, path, fallback) {
-  const found = readPointer(document, splitOpfPath(path));
+export function getValueAtPath(presentation, path, fallback) {
+  const found = readPointer(presentation, splitOpfPath(path));
   return found.found ? found.value : fallback;
 }
 
-export function hasValueAtPath(document, path) {
-  return readPointer(document, splitOpfPath(path)).found;
+export function hasValueAtPath(presentation, path) {
+  return readPointer(presentation, splitOpfPath(path)).found;
 }
 
-export function createValuePatch(document, path, value) {
+export function createValuePatch(presentation, path, value) {
   const pointer = normalizePatchPath(path);
   return [
     {
-      op: hasValueAtPath(document, pointer) ? "replace" : "add",
+      op: hasValueAtPath(presentation, pointer) ? "replace" : "add",
       path: pointer,
       value: clone(value)
     }
@@ -90,21 +90,21 @@ export function createValuePatch(document, path, value) {
 // Patch semantics (RFC 6902, pointers, inverse patches) live in core's
 // "@openpresentation/opf/patch"; the editor adds its path spellings (dotted OPF
 // paths), its error type and its clone policy on top.
-export function applyJsonPatch(document, operations) {
+export function applyJsonPatch(presentation, operations) {
   assertPatchOperations(operations);
   const patch = operations.map(normalizeOperation);
   try {
-    return applyCorePatch(document, patch);
+    return applyCorePatch(presentation, patch);
   } catch (error) {
     throw editorPatchError(error);
   }
 }
 
-export function invertJsonPatch(document, operations) {
+export function invertJsonPatch(presentation, operations) {
   assertPatchOperations(operations);
   const patch = operations.map(normalizeOperation);
   try {
-    return invertPatch(document, patch);
+    return invertPatch(presentation, patch);
   } catch (error) {
     throw editorPatchError(error);
   }
@@ -118,12 +118,12 @@ export function invertJsonPatch(document, operations) {
  */
 export function deckStats(editor, options) {
   assertEditorSession(editor);
-  return stats(editor.document, options);
+  return stats(editor.presentation, options);
 }
 
 export function createEditorSession(input, options = {}) {
-  let document = parseInput(input);
-  let validation = checkFormat(document);
+  let presentation = parseInput(input);
+  let validation = checkFormat(presentation);
   const undoStack = [];
   const redoStack = [];
   const listeners = new Set();
@@ -139,7 +139,7 @@ export function createEditorSession(input, options = {}) {
   function commitPatch(operations, meta = {}) {
     assertPatchOperations(operations);
     const patches = operations.map(normalizeOperation);
-    const before = document;
+    const before = presentation;
     let next, inversePatches;
     try {
       ({ presentation: next, inverse: inversePatches } = applyPatchWithInverse(before, patches));
@@ -156,9 +156,9 @@ export function createEditorSession(input, options = {}) {
     }
 
     if (patches.every(patch => patch.op === "test")) return {
-      document: clone(document), patches: clonePatchOperations(patches), inversePatches: [], validation: nextValidation
+      presentation: clone(presentation), patches: clonePatchOperations(patches), inversePatches: [], validation: nextValidation
     };
-    document = next;
+    presentation = next;
     validation = nextValidation;
     undoStack.push({ patches: clonePatchOperations(patches), inversePatches, meta });
     redoStack.length = 0;
@@ -171,7 +171,7 @@ export function createEditorSession(input, options = {}) {
     });
 
     return {
-      document: clone(document),
+      presentation: clone(presentation),
       patches: clonePatchOperations(patches),
       inversePatches: clonePatchOperations(inversePatches),
       validation
@@ -179,8 +179,8 @@ export function createEditorSession(input, options = {}) {
   }
 
   const editor = {
-    get document() {
-      return clone(document);
+    get presentation() {
+      return clone(presentation);
     },
     get validation() {
       return validation;
@@ -193,7 +193,7 @@ export function createEditorSession(input, options = {}) {
     },
     snapshot() {
       return snapshotCache ??= freezeSnapshot({
-        document: clone(document),
+        presentation: clone(presentation),
         validation: clone(validation),
         canUndo: undoStack.length > 0,
         canRedo: redoStack.length > 0,
@@ -209,35 +209,35 @@ export function createEditorSession(input, options = {}) {
       return () => listeners.delete(listener);
     },
     get(path, fallback) {
-      return getValueAtPath(document, path, fallback);
+      return getValueAtPath(presentation, path, fallback);
     },
     set(path, value, meta = {}) {
-      return commitPatch(createValuePatch(document, path, value), {
+      return commitPatch(createValuePatch(presentation, path, value), {
         ...meta,
         path: normalizePatchPath(path)
       });
     },
     composeSlide(slideIndex, options = {}) {
-      return composeSlide(document.slides?.[slideIndex], slideContext(document, slideIndex, options));
+      return composeSlide(presentation.slides?.[slideIndex], slideContext(presentation, slideIndex, options));
     },
     paginateSlide(slideIndex, options = {}, meta = {}) {
       // Core pagination reads the measurement from `fonts`, so the resolved context hands it over that way.
-      const { textMeasurement, ...resolved } = slideContext(document, slideIndex, options);
-      const pagination = paginateSlide(document.slides[slideIndex], {
+      const { textMeasurement, ...resolved } = slideContext(presentation, slideIndex, options);
+      const pagination = paginateSlide(presentation.slides[slideIndex], {
         ...resolved,
         fonts: options.fonts ?? (textMeasurement ? { textMeasurement } : undefined),
-        reservedIds: collectReservedPresentationIds(document),
+        reservedIds: collectReservedPresentationIds(presentation),
       });
       // Pagination can persist a readability policy without adding a page. Commit
       // that change too, so preview/export use the same minimum that was evaluated.
-      if (pagination.slides.length === 1 && jsonEqual(pagination.slides[0], document.slides[slideIndex])) return { change: null, pagination };
-      const slides = [...document.slides];
+      if (pagination.slides.length === 1 && jsonEqual(pagination.slides[0], presentation.slides[slideIndex])) return { change: null, pagination };
+      const slides = [...presentation.slides];
       slides.splice(slideIndex, 1, ...pagination.slides);
       const change = editor.set('slides', slides, { ...meta, rejectInvalid: true, pagination: pagination.pages });
       return { change, pagination };
     },
     setComposition(slideIndex, composition, meta = {}) {
-      if (!Number.isInteger(slideIndex) || !document.slides?.[slideIndex]) throw new OPFEditorError("slide-index-out-of-range", "Slide index is out of range.");
+      if (!Number.isInteger(slideIndex) || !presentation.slides?.[slideIndex]) throw new OPFEditorError("slide-index-out-of-range", "Slide index is out of range.");
       return editor.set(`slides.${slideIndex}.composition`, composition, { ...meta, rejectInvalid: true });
     },
     setGroupComposition(path, composition, meta = {}) {
@@ -252,7 +252,7 @@ export function createEditorSession(input, options = {}) {
     applyPatch: commitPatch,
     /**
      * The undo and redo stacks as plain data (oldest entry first): `{ undo: [{ patches, inversePatches, meta }], redo: [...] }`.
-     * Together with `document` this is everything `restoreState` needs to bring a session back, for hosts that persist work.
+     * Together with `presentation` this is everything `restoreState` needs to bring a session back, for hosts that persist work.
      */
     exportHistory() {
       const entry = (item) => ({ patches: clonePatchOperations(item.patches), inversePatches: clonePatchOperations(item.inversePatches), meta: clone(item.meta ?? {}) });
@@ -265,8 +265,8 @@ export function createEditorSession(input, options = {}) {
      * before anything changes, so a stale or damaged copy never corrupts the session. Emits one `restore` event.
      */
     restoreState(state, meta = {}) {
-      if (!state || typeof state !== "object") throw new OPFEditorError("invalid-state", "restoreState needs { document, undo?, redo? }.");
-      const next = parseInput(state.document);
+      if (!state || typeof state !== "object") throw new OPFEditorError("invalid-state", "restoreState needs { presentation, undo?, redo? }.");
+      const next = parseInput(state.presentation);
       const nextValidation = checkFormat(next);
       if ((meta.rejectInvalid ?? rejectInvalid) && !nextValidation.valid) {
         throw new OPFEditorError("invalid-opf-edit", "The restored document is not valid OPF.", { issues: errorFindings(nextValidation) });
@@ -291,20 +291,20 @@ export function createEditorSession(input, options = {}) {
         throw new OPFEditorError("invalid-history", "The undo history does not belong to this document.", { cause: error instanceof Error ? error.message : String(error) });
       }
       const entry = (item) => ({ patches: item.patches.map(normalizeOperation), inversePatches: item.inversePatches.map(normalizeOperation), meta: clone(item.meta ?? {}) });
-      document = next;
+      presentation = next;
       validation = nextValidation;
       undoStack.length = 0;
       redoStack.length = 0;
       undoStack.push(...undo.map(entry));
       redoStack.push(...redo.map(entry));
       emit({ type: "restore", patches: [], validation, meta });
-      return { document: clone(document), patches: [], validation };
+      return { presentation: clone(presentation), patches: [], validation };
     },
     undo(meta = {}) {
       const entry = undoStack.pop();
       if (!entry) return null;
-      document = applyJsonPatch(document, entry.inversePatches);
-      validation = checkFormat(document);
+      presentation = applyJsonPatch(presentation, entry.inversePatches);
+      validation = checkFormat(presentation);
       redoStack.push(entry);
       emit({
         type: "undo",
@@ -314,7 +314,7 @@ export function createEditorSession(input, options = {}) {
         meta
       });
       return {
-        document: clone(document),
+        presentation: clone(presentation),
         patches: clonePatchOperations(entry.inversePatches),
         redoPatches: clonePatchOperations(entry.patches),
         validation
@@ -323,8 +323,8 @@ export function createEditorSession(input, options = {}) {
     redo(meta = {}) {
       const entry = redoStack.pop();
       if (!entry) return null;
-      document = applyJsonPatch(document, entry.patches);
-      validation = checkFormat(document);
+      presentation = applyJsonPatch(presentation, entry.patches);
+      validation = checkFormat(presentation);
       undoStack.push(entry);
       emit({
         type: "redo",
@@ -334,7 +334,7 @@ export function createEditorSession(input, options = {}) {
         meta
       });
       return {
-        document: clone(document),
+        presentation: clone(presentation),
         patches: clonePatchOperations(entry.patches),
         inversePatches: clonePatchOperations(entry.inversePatches),
         validation
@@ -457,7 +457,7 @@ export function assertCatalogId(catalogKind, id, options = {}) {
 export function setCatalogId(editor, path, catalogKind, id, meta = {}) {
   assertEditorSession(editor);
   const catalogId = assertCatalogId(catalogKind, id, {
-    presentation: meta.presentation ?? editor.document,
+    presentation: meta.presentation ?? editor.presentation,
     catalogs: meta.catalogs,
     catalogSources: meta.catalogSources
   });
@@ -518,7 +518,7 @@ export function createCatalogSelect(editor, options) {
 
   for (const option of getCatalogOptions(catalogKind, {
     ...options,
-    presentation: options?.presentation ?? editor.document
+    presentation: options?.presentation ?? editor.presentation
   })) {
     const optionElement = documentRef.createElement("option");
     optionElement.value = option.id;

@@ -5,12 +5,12 @@ import { DEFAULT_FONT_SCHEME } from "@openpresentation/opf/composition";
 import { checkFormat, firstErrorMessage } from "./checks.js";
 export const MAX_OPF_BYTES = 20 * 1024 * 1024;
 const clone = (value) => structuredClone(value);
-export function assertOpf(document) {
-  bounded(document);
-  const result = checkFormat(document);
+export function assertOpf(presentation) {
+  bounded(presentation);
+  const result = checkFormat(presentation);
   if (!result.valid)
     throw new Error(firstErrorMessage(result, "Invalid OPF document."));
-  return document;
+  return presentation;
 }
 function bounded(value, depth = 0, budget = { remaining: 250000 }) {
   if (depth > 64 || --budget.remaining < 0)
@@ -32,7 +32,7 @@ export function unwrapOpf(value, depth = 0) {
     if (snippet) return unwrapOpf(snippet.value ?? JSON.parse(snippet.source), depth + 1);
   }
   if (value?.opf && typeof value.opf === "object") return unwrapOpf(value.opf, depth + 1);
-  if (value?.document) return unwrapOpf(value.document, depth + 1);
+  if (value?.presentation) return unwrapOpf(value.presentation, depth + 1);
   return value;
 }
 export function parseOpfTransfer(text) {
@@ -59,24 +59,24 @@ export function parseOpfTransfer(text) {
   bounded(value);
   if (value?.slides) {
     assertOpf(value);
-    return { kind: "presentation", value, document: clone(value) };
+    return { kind: "presentation", value, presentation: clone(value) };
   }
-  const document = { slides: Array.isArray(value) ? value : [value] };
-  if (checkFormat(document).valid)
-    return { kind: "slides", value, document };
+  const presentation = { slides: Array.isArray(value) ? value : [value] };
+  if (checkFormat(presentation).valid)
+    return { kind: "slides", value, presentation };
   return { kind: "selection", value };
 }
 export function serializeOpfTransfer(
-  document,
+  presentation,
   { scope = "presentation", slideIndex = 0, path, format = "pretty" } = {},
 ) {
-  let value = document;
+  let value = presentation;
   if (scope === "slide") {
-    if (!document.slides?.[slideIndex])
+    if (!presentation.slides?.[slideIndex])
       throw new Error("Select a slide first.");
-    value = { ...document, slides: [document.slides[slideIndex]] };
+    value = { ...presentation, slides: [presentation.slides[slideIndex]] };
   } else if (scope === "selection") {
-    value = getValueAtPath(document, path);
+    value = getValueAtPath(presentation, path);
     if (value === undefined) throw new Error("Select some content first.");
   }
   const json = JSON.stringify(value, null, format === "compact" ? 0 : 2);
@@ -100,22 +100,22 @@ export function prepareOpfImport(
   { mode = "insert", slideIndex = 0, path } = {},
 ) {
   if (mode === "selection") {
-    const document = applyJsonPatch(
+    const presentation = applyJsonPatch(
       current,
       createValuePatch(current, path, transfer.value),
     );
-    assertOpf(document);
-    return { document, slideIndex };
+    assertOpf(presentation);
+    return { presentation, slideIndex };
   }
-  if (!transfer.document)
+  if (!transfer.presentation)
     throw new Error(
       "This is a content fragment. Choose Replace selected content.",
     );
   if (mode === "replace")
-    return { document: assertOpf(clone(transfer.document)), slideIndex: 0 };
+    return { presentation: assertOpf(clone(transfer.presentation)), slideIndex: 0 };
   if (mode !== "insert") throw new Error("Unknown import action.");
-  const incoming = clone(transfer.document),
-    document = clone(current);
+  const incoming = clone(transfer.presentation),
+    presentation = clone(current);
   // Freeze the source deck defaults on inserted slides before changing their catalog ids.
   incoming.slides = incoming.slides.map((slide, index) => {
     // A slide's design cannot set dimensions (a PPTX has one slide size): the inserted slide takes the host deck's.
@@ -139,7 +139,7 @@ export function prepareOpfImport(
     assetMap = new Map();
   let chartTypes = new Map();
   for (const [kind, catalog] of Object.entries(incoming.catalogs ?? {})) {
-    const existing = document.catalogs?.[kind];
+    const existing = presentation.catalogs?.[kind];
     if (
       catalog.source &&
       existing?.source &&
@@ -169,7 +169,7 @@ export function prepareOpfImport(
     if (catalogKeys[kind]) mappings[catalogKeys[kind]] = names;
     if (kind === "chartTypes") chartTypes = names;
   }
-  const assetIds = new Set(Object.keys(document.assets ?? {}));
+  const assetIds = new Set(Object.keys(presentation.assets ?? {}));
   for (const id of Object.keys(incoming.assets ?? {})) {
     let next = id,
       n = 2;
@@ -187,11 +187,11 @@ export function prepareOpfImport(
     else if (key === "dataset" && typeof value === "string") usedDatasets.add(value);
   };
   collectDatasets(incoming.slides);
-  const datasetIds = new Set(Object.keys(document.datasets ?? {}));
+  const datasetIds = new Set(Object.keys(presentation.datasets ?? {}));
   for (const id of usedDatasets) {
     const mine = incoming.datasets && Object.hasOwn(incoming.datasets, id) ? incoming.datasets[id] : undefined;
     if (mine === undefined) continue;
-    if (datasetIds.has(id) && JSON.stringify(document.datasets[id]) === JSON.stringify(mine)) {
+    if (datasetIds.has(id) && JSON.stringify(presentation.datasets[id]) === JSON.stringify(mine)) {
       datasetMap.set(id, id);
       continue;
     }
@@ -237,21 +237,21 @@ export function prepareOpfImport(
   };
   const rewritten = rewrite(incoming);
   if (incoming.catalogs) {
-    document.catalogs ??= {};
+    presentation.catalogs ??= {};
     for (const [kind, catalog] of Object.entries(rewritten.catalogs))
-      document.catalogs[kind] = {
-        ...document.catalogs[kind],
+      presentation.catalogs[kind] = {
+        ...presentation.catalogs[kind],
         ...catalog,
         records: [
-          ...(document.catalogs[kind]?.records ?? []),
+          ...(presentation.catalogs[kind]?.records ?? []),
           ...(catalog.records ?? []),
         ],
       };
   }
   if (incoming.assets) {
-    document.assets ??= {};
+    presentation.assets ??= {};
     for (const [id, asset] of Object.entries(rewritten.assets))
-      document.assets[assetMap.get(id)] =
+      presentation.assets[assetMap.get(id)] =
         typeof asset === "string" &&
         asset.startsWith("asset:") &&
         assetMap.has(asset.slice(6))
@@ -259,14 +259,14 @@ export function prepareOpfImport(
           : asset;
   }
   for (const [id, next] of datasetMap) {
-    if (document.datasets && Object.hasOwn(document.datasets, next)) continue;
-    document.datasets ??= {};
-    document.datasets[next] = clone(incoming.datasets[id]);
+    if (presentation.datasets && Object.hasOwn(presentation.datasets, next)) continue;
+    presentation.datasets ??= {};
+    presentation.datasets[next] = clone(incoming.datasets[id]);
   }
-  const ids = new Set(collectReservedPresentationIds(document));
+  const ids = new Set(collectReservedPresentationIds(presentation));
   for (const slide of rewritten.slides) remapSlideTreeIds(slide, ids);
-  const index = Math.max(0, Math.min(document.slides.length, slideIndex + 1));
-  document.slides.splice(index, 0, ...rewritten.slides);
-  assertOpf(document);
-  return { document, slideIndex: index };
+  const index = Math.max(0, Math.min(presentation.slides.length, slideIndex + 1));
+  presentation.slides.splice(index, 0, ...rewritten.slides);
+  assertOpf(presentation);
+  return { presentation, slideIndex: index };
 }

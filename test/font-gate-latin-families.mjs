@@ -30,7 +30,7 @@ assert.equal(eagerFaces.length, 33, "the eager list is the 33 office and base fa
 
 class Face { constructor(family, bytes, descriptors) { Object.assign(this, { family, bytes, descriptors }); } async load() { return this; } }
 const documentFonts = new Set(); documentFonts.ready = Promise.resolve();
-const document = { fonts: documentFonts, defaultView: { FontFace: Face } };
+const domDocument = { fonts: documentFonts, defaultView: { FontFace: Face } };
 const served = [];
 const fetchLocal = async (url) => {
   const file = url.replace("https://fonts.example/", "");
@@ -40,7 +40,7 @@ const fetchLocal = async (url) => {
     return { ok: true, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
   } catch { return { ok: false, status: 404 }; }
 };
-const fonts = await browserFonts.loadFonts({ faces: eagerFaces.map((face) => ({ ...face })), document, fetch: fetchLocal, substitutionPolicy: "visual", fallbackFamily: "Roboto", lazyFontsBaseUrl: "https://fonts.example/" });
+const fonts = await browserFonts.loadFonts({ faces: eagerFaces.map((face) => ({ ...face })), document: domDocument, fetch: fetchLocal, substitutionPolicy: "visual", fallbackFamily: "Roboto", lazyFontsBaseUrl: "https://fonts.example/" });
 const registry = fonts.registry;
 const gate = fontGate(fonts);
 
@@ -107,7 +107,7 @@ for (const entry of families) {
   const needed = [...new Set(drawn.map((face) => fileOfKey.get(key(face))).filter(Boolean))].sort();
   report.push({ family: entry.family, route: entry.route, files: needed, lazyBytes: (await Promise.all(needed.map(size))).reduce((a, b) => a + b, 0), fetchedAfterEarlierFamilies: fetched.length, faces: drawn.length });
 }
-assert.deepEqual(document.fonts.size, registry.describeFaces().length, "the document holds the registry's faces");
+assert.deepEqual(domDocument.fonts.size, registry.describeFaces().length, "the document holds the registry's faces");
 fonts.dispose();
 assert.equal(documentFonts.size, 0, "dispose removes every face");
 const total = new Set(served);

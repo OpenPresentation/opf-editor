@@ -97,13 +97,13 @@ function summaryText(counts, scopeLabel) {
 
 /**
  * Mount the Review panel. Options: `editor` (a session), `getSlideIndex()` (the slide the "This slide only" filter
- * follows), `getValidateOptions(document)` (core's `ValidateOptions`: `fonts` with the host's `textMeasurement` for font-exact
+ * follows), `getValidateOptions(presentation)` (core's `ValidateOptions`: `fonts` with the host's `textMeasurement` for font-exact
  * overflow, `severity`, `ignore`, `thresholds`, `contracts`, ...), `onGoTo({finding, target})` (select the content: `target` is
  * {slide, path, pointer, exact}), `onFocusField({finding, fix, target})` (focus a field the panel does not own: a title, text, link or
  * language), `onStatus(message, {error})`, `onChange({error, warning, info, total, all, sources, unavailable})` (after every redraw, with
  * the shown counts), `ignored` (rule ids hidden at the start) and `onIgnoredChange(ids)`.
  *
- * The full `validate(document)` runs once the document has been quiet for `delay` milliseconds (default 300) after a session change,
+ * The full `validate(presentation)` runs once the document has been quiet for `delay` milliseconds (default 300) after a session change,
  * and at once on mount and on `refresh()`. `autoRefresh` (default true) turns the re-check after changes off for a host that must wait
  * for its fonts; it then calls `refresh()` itself.
  *
@@ -171,7 +171,7 @@ export function createReviewPanel(container, options) {
   function validateNow() {
     lastAuditError = undefined;
     try {
-      coreReport = validate(editor.document, getValidateOptions?.(editor.document) ?? {});
+      coreReport = validate(editor.presentation, getValidateOptions?.(editor.presentation) ?? {});
     } catch (error) {
       coreReport = undefined;
       lastAuditError = error;
@@ -204,7 +204,7 @@ export function createReviewPanel(container, options) {
     if (!coreReport && !lastAuditError) validateNow();
     renderList();
     try {
-      const result = await review(editor.document, { signal: controller.signal, report: coreReport, validateOptions: getValidateOptions?.(editor.document) ?? {} });
+      const result = await review(editor.presentation, { signal: controller.signal, report: coreReport, validateOptions: getValidateOptions?.(editor.presentation) ?? {} });
       if (destroyed || hookRunning !== running) return;
       if (!result || !Array.isArray(result.findings)) throw new TypeError("The review hook must resolve a FindingReport ({ valid, findings, counts }).");
       hookRunning = undefined;
@@ -228,7 +228,7 @@ export function createReviewPanel(container, options) {
 
   function go(finding) {
     currentId = finding.id;
-    const target = findingTarget(editor.document, finding);
+    const target = findingTarget(editor.presentation, finding);
     for (const entry of list.querySelectorAll(".opf-review-item")) entry.setAttribute("aria-current", String(entry.dataset.findingId === finding.id));
     onGoTo?.({ finding, target });
   }
@@ -236,7 +236,7 @@ export function createReviewPanel(container, options) {
   function altForm(finding, fix) {
     const pointer = fix.focus.path;
     const inputId = `${id}-alt-${finding.id.replace(/[^a-z0-9]+/gi, "-")}`;
-    const input = h(doc, "input", { type: "text", id: inputId, value: altDraft || currentAltText(editor.document, pointer), "aria-describedby": `${inputId}-help` });
+    const input = h(doc, "input", { type: "text", id: inputId, value: altDraft || currentAltText(editor.presentation, pointer), "aria-describedby": `${inputId}-help` });
     const error = h(doc, "span", { class: "opf-review-error", role: "alert" });
     const form = h(doc, "form", { class: "opf-review-alt", novalidate: true },
       h(doc, "label", { for: inputId, text: "Alt text" }), input,
@@ -279,7 +279,7 @@ export function createReviewPanel(container, options) {
         return;
       }
       go(finding);
-      onFocusField?.({ finding, fix, target: findingTarget(editor.document, finding) });
+      onFocusField?.({ finding, fix, target: findingTarget(editor.presentation, finding) });
       return;
     }
     const index = visible().findIndex((entry) => entry.id === finding.id);

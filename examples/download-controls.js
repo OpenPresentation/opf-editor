@@ -56,7 +56,7 @@ export function installDownloadControls({ editor, getCanvas, getSlideIndex, stat
     return { width: Number(svg?.getAttribute('width')) || 1280, height: Number(svg?.getAttribute('height')) || 720 };
   }
   function labelOptions() {
-    const deck = editor.document, current = getSlideIndex();
+    const deck = editor.presentation, current = getSlideIndex();
     $('#download-current-label').textContent = `Current slide (${current + 1} of ${deck.slides.length})`;
     const all = slidesToExport(deck, { slides: 'all', includeHidden: $('#download-hidden').checked }).length;
     $('#download-all-label').textContent = `All slides (${all})`;
@@ -104,7 +104,7 @@ export function installDownloadControls({ editor, getCanvas, getSlideIndex, stat
     if (getCanvas() && !getCanvas().commit()) return;
     reset();
     const id = token;
-    const deck = structuredClone(editor.document);
+    const deck = structuredClone(editor.presentation);
     const format = value('download-format');
     controller = new AbortController();
     running(true);

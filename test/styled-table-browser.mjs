@@ -14,8 +14,8 @@ const valuePath='slides.0.table.rows.0.0.value',scalarPath='slides.0.table.rows.
 let editor,canvas,checks=0;
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 function check(ok,message){if(!ok)throw new Error(message);checks++;output.textContent+=`PASS ${message}\n`;}
-function show(){state.textContent=JSON.stringify({selectedPath:host.querySelector('[data-canvas-selected]')?.getAttribute('data-opf-path'),editingPath:canvas?.editingPath,canUndo:editor?.canUndo,canRedo:editor?.canRedo,table:editor?.document.slides[0].table},null,2);}
-function structural(){const table=editor.document.slides[0].table;check(table.rows[0][0].rowSpan===2&&table.rows[1][0]===null,'Typing preserves merge ownership');for(let r=0;r<2;r++)for(let c=0;c<3;c++)if(source.slides[0].table.rows[r][c])check(same(table.rows[r][c].style,source.slides[0].table.rows[r][c].style),`Cell ${r},${c} keeps its styles`);}
+function show(){state.textContent=JSON.stringify({selectedPath:host.querySelector('[data-canvas-selected]')?.getAttribute('data-opf-path'),editingPath:canvas?.editingPath,canUndo:editor?.canUndo,canRedo:editor?.canRedo,table:editor?.presentation.slides[0].table},null,2);}
+function structural(){const table=editor.presentation.slides[0].table;check(table.rows[0][0].rowSpan===2&&table.rows[1][0]===null,'Typing preserves merge ownership');for(let r=0;r<2;r++)for(let c=0;c<3;c++)if(source.slides[0].table.rows[r][c])check(same(table.rows[r][c].style,source.slides[0].table.rows[r][c].style),`Cell ${r},${c} keeps its styles`);}
 function button(label,action){const b=document.createElement('button');b.textContent=label;b.onclick=()=>{try{action();show();}catch(error){output.textContent+='FAIL '+error.stack;}};controls.append(b);}
 try{
  const faces=(await fetch('./fonts.json').then(r=>r.json())).filter(face=>['Roboto','Roboto Mono'].includes(face.family));
@@ -32,7 +32,7 @@ try{
  for(const event of ['click','dblclick','keydown','input'])host.addEventListener(event,()=>requestAnimationFrame(show));
  button('Undo',()=>editor.undo());button('Redo',()=>editor.redo());
  button('Verify typed merge',()=>{check(richTextContent(editor.get(valuePath))==='Mixed bold text!','Pointer edit commits rich text');check(editor.get(valuePath).some(run=>typeof run==='object'&&run.bold&&run.color==='#AA0000'),'Typing retains existing bold/color');structural();});
- button('Verify original',()=>check(same(editor.document,source),'Undo restores the complete source document'));
+ button('Verify original',()=>check(same(editor.presentation,source),'Undo restores the complete source document'));
  button('Verify formatting',()=>{check(richTextContent(editor.get(scalarPath))==='Preview','Formatting preserves scalar text');check(editor.get(scalarPath).every(run=>typeof run==='object'&&run.bold),'Formatting applies bold to the styled value');structural();});
  button('Verify empty edit',()=>{check(richTextContent(editor.get(emptyPath))==='New cell','Empty styled value accepts keyboard input');structural();});
  show();output.textContent+='READY for pointer, keyboard, formatting and undo checks\n';

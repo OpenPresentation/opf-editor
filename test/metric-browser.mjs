@@ -37,7 +37,7 @@ const bundled=await build({stdin:{resolveDir:fileURLToPath(new URL('../',import.
     const action=(id,run)=>document.getElementById(id).onclick=async()=>{try{await run();}catch(error){failures.push(error.message);}};
     action('undo',()=>editor.undo());action('redo',()=>editor.redo());
     action('paginate',()=>{metricCanvas.commit();window.pagination=editor.paginateSlide(0,{minFontSize:24,fonts});});
-    action('export',async()=>{metricCanvas.commit();window.accepted=editor.composeSlide(0,{fonts});window.lastExport=await toPptx(editor.document,{fonts});});
+    action('export',async()=>{metricCanvas.commit();window.accepted=editor.composeSlide(0,{fonts});window.lastExport=await toPptx(editor.presentation,{fonts});});
     action('import',async()=>{window.lastImport=await fromPptx(lastExport,{onDiagnostic:d=>diagnostics.push(d)});editor.set('',lastImport,{rejectInvalid:true});});
   };`},bundle:true,platform:'browser',format:'iife',write:false,minify:true});
 const bundle=bundled.outputFiles[0].text;
@@ -49,7 +49,7 @@ try {
   page.on('request',request=>{if(/^https?:/.test(request.url()))requests.push(request.url());});
   await page.setContent('<button id="undo">Undo</button><button id="redo">Redo</button><button id="paginate">Paginate</button><button id="export">Export</button><button id="import">Import</button><div id="canvas" style="width:800px"></div>');
   await page.addScriptTag({content:bundle});await page.context().setOffline(true);
-  const document=()=>page.evaluate(()=>editor.document);
+  const presentation=()=>page.evaluate(()=>editor.presentation);
   const target=path=>page.locator(`[data-canvas-target][data-opf-path="${path}"]`);
   const edit=async(path,value)=>{
     await enter(target(path));
@@ -78,7 +78,7 @@ try {
         assert.ok(Math.abs(origin.x-(part.linePositions[i].x+(edge?line.width*factor:0)))<=.00051,'SVG serializes accepted positions to three decimal places');
         assert.ok(Math.abs(origin.baseline-part.linePositions[i].baseline)<=.00051,'SVG serializes accepted positions to three decimal places');
       }
-      await edit(part.path);assert.deepEqual(await document(),deck);
+      await edit(part.path);assert.deepEqual(await presentation(),deck);
       assert.equal(await page.evaluate(()=>editor.canUndo),false,'Opening any metric field must preserve source and scalar types');
     }
     await enter(target('slides.0.metric.description'));
@@ -95,24 +95,24 @@ try {
     assert.ok(Math.abs(selection.width/selection.scale-part.box.width)<.01);
     if(process.argv[2]&&alignment==='center')await page.locator('#canvas').screenshot({path:process.argv[2]+`.${dimensions.width}-selection.png`});
     const changed='Edited\r\n\r\ncontext';await input.fill(changed);await input.press('Control+Enter');
-    assert.equal((await document()).slides[0].metric.description,changed);
-    await page.getByRole('button',{name:'Undo',exact:true}).click();assert.deepEqual(await document(),deck);
-    await page.getByRole('button',{name:'Redo',exact:true}).click();assert.equal((await document()).slides[0].metric.description,changed);
-    await edit('slides.0.metric.value','43');assert.equal((await document()).slides[0].metric.value,43);
-    await edit('slides.0.metric.delta','1');assert.equal((await document()).slides[0].metric.delta,1);
-    await edit('slides.0.metric.trend','down');assert.equal((await document()).slides[0].metric.trend,'down');
+    assert.equal((await presentation()).slides[0].metric.description,changed);
+    await page.getByRole('button',{name:'Undo',exact:true}).click();assert.deepEqual(await presentation(),deck);
+    await page.getByRole('button',{name:'Redo',exact:true}).click();assert.equal((await presentation()).slides[0].metric.description,changed);
+    await edit('slides.0.metric.value','43');assert.equal((await presentation()).slides[0].metric.value,43);
+    await edit('slides.0.metric.delta','1');assert.equal((await presentation()).slides[0].metric.delta,1);
+    await edit('slides.0.metric.trend','down');assert.equal((await presentation()).slides[0].metric.trend,'down');
     await edit('slides.0.metric.unit','seconds');await edit('slides.0.metric.label','New\tLabel  ');
-    const beforePagination=await document();
-    await page.getByRole('button',{name:'Paginate',exact:true}).click();assert.equal((await document()).slides[0].composition.minFontSize,24);
-    await page.getByRole('button',{name:'Undo',exact:true}).click();assert.deepEqual(await document(),beforePagination);
-    await page.getByRole('button',{name:'Redo',exact:true}).click();const accepted=await document();
+    const beforePagination=await presentation();
+    await page.getByRole('button',{name:'Paginate',exact:true}).click();assert.equal((await presentation()).slides[0].composition.minFontSize,24);
+    await page.getByRole('button',{name:'Undo',exact:true}).click();assert.deepEqual(await presentation(),beforePagination);
+    await page.getByRole('button',{name:'Redo',exact:true}).click();const accepted=await presentation();
     await page.getByRole('button',{name:'Export',exact:true}).click();await page.waitForFunction(()=>lastExport||failures.length);
     assert.deepEqual(await page.evaluate(()=>failures),[]);
     const bytes=await page.evaluate(()=>Array.from(lastExport));assert.ok(bytes.length>1000);
     await page.getByRole('button',{name:'Import',exact:true}).click();await page.waitForFunction(()=>lastImport||failures.length);
-    {const imported=await document();/* opf-pptx with content topology (spec-gap P1) returns the root metric payload as slides.0.metric; earlier releases return one metric block. */assert.deepEqual(imported.slides[0].metric??imported.slides[0].blocks?.[0]?.metric,accepted.slides[0].metric);assert.ok(imported.slides[0].metric!==undefined||imported.slides[0].blocks.length===1);}
+    {const imported=await presentation();/* opf-pptx with content topology (spec-gap P1) returns the root metric payload as slides.0.metric; earlier releases return one metric block. */assert.deepEqual(imported.slides[0].metric??imported.slides[0].blocks?.[0]?.metric,accepted.slides[0].metric);assert.ok(imported.slides[0].metric!==undefined||imported.slides[0].blocks.length===1);}
     assert.ok((await page.evaluate(()=>diagnostics)).some(d=>d.code==='metric-import-reflow'));
-    await page.getByRole('button',{name:'Undo',exact:true}).click();assert.deepEqual(await document(),accepted);
+    await page.getByRole('button',{name:'Undo',exact:true}).click();assert.deepEqual(await presentation(),accepted);
     assert.deepEqual(await page.evaluate(()=>failures),[]);
     if(process.argv[2]&&alignment==='center')await page.locator('#canvas').screenshot({path:process.argv[2]+`.${dimensions.width}-accepted.png`});
     results.push({dimensions,alignment,selection,parts:geometry.parts.length,exactMetricRoundTrip:true,exportSha256:hash(new Uint8Array(bytes)),exportBytes:bytes.length,substitutions:await page.evaluate(()=>fonts.substitutions)});
@@ -123,19 +123,19 @@ try {
     const body=target('slides.0.metric');assert.equal(await body.count(),1);assert.equal(await body.getAttribute('data-opf-metric-role'),'value');
     const part=await page.evaluate(()=>editor.composeSlide(0,{fonts}).items[0].metricLayout.parts[0]);
     if(typeof metric==='string'&&!metric.trim())assert.equal(Number(await body.locator(':scope > rect.opf-selection').getAttribute('height')),part.box.height+8);
-    await edit('slides.0.metric');assert.deepEqual(await document(),deck);assert.equal(await page.evaluate(()=>editor.canUndo),false);
+    await edit('slides.0.metric');assert.deepEqual(await presentation(),deck);assert.equal(await page.evaluate(()=>editor.canUndo),false);
     await edit('slides.0.metric',typeof metric==='number'?'1':'Visible metric');
-    assert.equal((await document()).slides[0].metric,typeof metric==='number'?1:'Visible metric');
-    await page.getByRole('button',{name:'Undo',exact:true}).click();assert.deepEqual(await document(),deck);
+    assert.equal((await presentation()).slides[0].metric,typeof metric==='number'?1:'Visible metric');
+    await page.getByRole('button',{name:'Undo',exact:true}).click();assert.deepEqual(await presentation(),deck);
     scalarResults.push({dimensions,source:metric,type:typeof metric,noOpPreserved:true,editUndoPreserved:true});
   }
   for(const [field,value,invalid] of [['value',42,'not a number'],['trend','flat','sideways']]){
     const deck={design:{fontScheme:'roboto'},slides:[{metric:{value:42,trend:'flat'}}]};
     await page.evaluate(args=>mountMetric(args),{deck,faces});
     await enter(target(`slides.0.metric.${field}`));const input=page.getByRole('textbox',{name:`Edit ${field} inline`,exact:true});
-    await input.fill(invalid);await input.press('Control+Enter');assert.deepEqual(await document(),deck);
+    await input.fill(invalid);await input.press('Control+Enter');assert.deepEqual(await presentation(),deck);
     assert.ok(await input.isVisible());assert.equal(await page.evaluate(()=>editor.canUndo),false);
-    assert.ok((await page.evaluate(()=>failures)).length>0);await input.press('Escape');assert.deepEqual(await document(),deck);
+    assert.ok((await page.evaluate(()=>failures)).length>0);await input.press('Escape');assert.deepEqual(await presentation(),deck);
     invalidResults.push({field,original:value,rejected:invalid,cancelPreserved:true});
   }
   assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);

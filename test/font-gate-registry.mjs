@@ -18,7 +18,7 @@ const eager = (await loadFonts()).registry.embeddedFonts.map((face, index) => ({
 
 class Face { constructor(family, bytes, descriptors) { Object.assign(this, { family, bytes, descriptors }); } async load() { return this; } }
 const documentFonts = new Set(); documentFonts.ready = Promise.resolve();
-const document = { fonts: documentFonts, defaultView: { FontFace: Face } };
+const domDocument = { fonts: documentFonts, defaultView: { FontFace: Face } };
 const served = [];
 const fetchLocal = async (url) => {
   const file = url.replace("https://fonts.example/", "");
@@ -30,7 +30,7 @@ const fetchLocal = async (url) => {
     return { ok: true, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
   } catch { return { ok: false, status: 404 }; }
 };
-const newFonts = (extra = {}) => browserFonts.loadFonts({ faces: eager.map((face) => ({ ...face })), ...extra, document, fetch: fetchLocal, substitutionPolicy: "visual", fallbackFamily: "Roboto", lazyFontsBaseUrl: "https://fonts.example/", scriptBaseUrl: "https://fonts.example/scripts/" });
+const newFonts = (extra = {}) => browserFonts.loadFonts({ faces: eager.map((face) => ({ ...face })), ...extra, document: domDocument, fetch: fetchLocal, substitutionPolicy: "visual", fallbackFamily: "Roboto", lazyFontsBaseUrl: "https://fonts.example/", scriptBaseUrl: "https://fonts.example/scripts/" });
 const names = (files) => files.map((file) => file.split("/").pop()).sort();
 
 // A font scheme only the host's catalogs have: Lora, a vendored open family, under the host's own id.

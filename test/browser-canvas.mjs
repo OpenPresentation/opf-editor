@@ -93,7 +93,7 @@ try {
   const canvas = createCanvasEditor(host, {
     editor,
     fonts,
-    onDraft: (event) => (draft = event.document),
+    onDraft: (event) => (draft = event.presentation),
     onError: (error) => errors.push(error.message),
   });
   await canvas.ready;

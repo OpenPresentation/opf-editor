@@ -32,20 +32,20 @@ assert.ok(ids.has("kpi-adoption-2"));
 if (validate(fixture, { only: ["format"] }).valid) {
   const host = structuredClone(fixture);
   const guest = structuredClone(fixture);
-  const { document } = prepareOpfImport(host, parseOpfTransfer(JSON.stringify(guest)));
+  const { presentation } = prepareOpfImport(host, parseOpfTransfer(JSON.stringify(guest)));
   const adoptionIds = [];
-  for (const slide of document.slides) {
+  for (const slide of presentation.slides) {
     for (const id of slideIds(slide)) if (id.startsWith("kpi-adoption")) adoptionIds.push(id);
   }
   assert.ok(adoptionIds.length >= 2, "insert remaps duplicate payload ids");
   assert.ok(new Set(adoptionIds).size === adoptionIds.length);
-  assert.equal(document.slides[0].extensions?.authoring?.note, fixture.slides[0].extensions.authoring.note);
+  assert.equal(presentation.slides[0].extensions?.authoring?.note, fixture.slides[0].extensions.authoring.note);
 }
 
 const editor = createEditorSession({
   slides: [{ title: "A", text: "x".repeat(5000) }, payloadSlide],
 });
-const reserved = collectReservedPresentationIds(editor.document);
+const reserved = collectReservedPresentationIds(editor.presentation);
 assert.ok(reserved.includes("kpi-adoption"));
 try {
   editor.paginateSlide(0, {}, { rejectInvalid: true });

@@ -4,11 +4,11 @@ import { fontGate } from '../src/font-gate.js';
 
 export async function readPptxFile(file) {
   const diagnostics = [];
-  const document = await fromPptx(await file.arrayBuffer(), {
+  const presentation = await fromPptx(await file.arrayBuffer(), {
     fallbackName: file.name.replace(/\.pptx$/i, ''),
     onDiagnostic: issue => diagnostics.push(issue),
   });
-  return { document, diagnostics };
+  return { presentation, diagnostics };
 }
 
 export function showConversionDiagnostics(container, diagnostics) {
@@ -30,7 +30,7 @@ export function installPptxExport({ editor, getCanvas, status, fonts, measuremen
     if (getCanvas() && !getCanvas().commit()) return;
     const id = ++request;
     // Export this committed snapshot, even if the host changes during conversion.
-    const deck = structuredClone(editor.document);
+    const deck = structuredClone(editor.presentation);
     bytes = undefined;
     $('download-pptx').disabled = true;
     $('export-error').textContent = '';

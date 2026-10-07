@@ -20,8 +20,8 @@ export function same(a, b) {
 }
 
 // Set (value) or remove (null) design keys at deck or slide scope.
-export function designPatches(document, base, entries) {
-  const design = getValueAtPath(document, base.length ? [...base, "design"] : ["design"]);
+export function designPatches(presentation, base, entries) {
+  const design = getValueAtPath(presentation, base.length ? [...base, "design"] : ["design"]);
   const at = (key) => opfPathToJsonPointer([...base, "design", key]);
   const set = Object.entries(entries).filter(([, value]) => value !== undefined && value !== null);
   if (!design || typeof design !== "object" || Array.isArray(design))
@@ -42,8 +42,8 @@ export function designPatches(document, base, entries) {
  * Validate a candidate patch the way every switch does: the result must be valid OPF unless the
  * input document was already invalid (then nothing new may be reported as the cause).
  */
-export function checkedDocument(document, patches, before) {
-  const next = patches.length ? applyJsonPatch(document, patches) : document;
+export function checkedDocument(presentation, patches, before) {
+  const next = patches.length ? applyJsonPatch(presentation, patches) : presentation;
   if (patches.length) {
     const validation = checkFormat(next);
     if (!validation.valid && before.valid)

@@ -19,10 +19,10 @@ const apply = (source, slides = [codeSlide]) =>
       metadata: { category: "font-schemes", source },
     },
   });
-const attached = (document) => document.catalogs.fontSchemes.records[0];
-function measured(document, slideIndex = 0) {
+const attached = (presentation) => presentation.catalogs.fontSchemes.records[0];
+function measured(presentation, slideIndex = 0) {
   const families = new Set();
-  createEditorSession(document).composeSlide(slideIndex, {
+  createEditorSession(presentation).composeSlide(slideIndex, {
     fonts: {
       textMeasurement: {
         measure: (text, size, style) => {

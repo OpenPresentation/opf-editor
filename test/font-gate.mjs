@@ -17,8 +17,8 @@ function handle({ pendingFiles = [], fail = false, stuck = false } = {}) {
   return {
     calls,
     textMeasurement: { measure: () => 1 },
-    pending: (document, renderOptions) => { calls.push(["pending", renderOptions]); return [...left]; },
-    async ensure(document, options) {
+    pending: (presentation, renderOptions) => { calls.push(["pending", renderOptions]); return [...left]; },
+    async ensure(presentation, options) {
       calls.push(["ensure", options]);
       await Promise.resolve();
       if (fail) { const error = new Error("Could not load font (503)."); error.code = "font-load-failed"; throw error; }
@@ -70,7 +70,7 @@ assert.deepEqual(fontGate({ pending() { throw new Error("not a document"); }, en
   assert.equal(ensured[1].signal, controller.signal, "and the signal");
   // whenFontsReady hands its renderOptions to the gate.
   const seen = [];
-  whenFontsReady({ pending: (document, options) => { seen.push(options); return []; }, ensure: async () => {} }, deck, { renderOptions: { catalogs }, ready: () => {} });
+  whenFontsReady({ pending: (presentation, options) => { seen.push(options); return []; }, ensure: async () => {} }, deck, { renderOptions: { catalogs }, ready: () => {} });
   assert.deepEqual(seen, [{ catalogs }]);
 }
 

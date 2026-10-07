@@ -19,9 +19,9 @@ const bareTheme = (extra = {}) => ({
   catalogs: { themes: { records: [bare] } },
   slides: [textSlide],
 });
-function measured(document) {
+function measured(presentation) {
   const families = new Set();
-  createEditorSession(document).composeSlide(0, {
+  createEditorSession(presentation).composeSlide(0, {
     fonts: {
       textMeasurement: {
         measure: (text, size, style) => {
@@ -45,7 +45,7 @@ assert.deepEqual(measured(bareTheme({ fontScheme: "roboto" })), ["Roboto"]);
 // Inserting slides freezes the source deck's effective design; the frozen font
 // scheme for a theme without one is the shared default, not roboto.
 const current = { name: "Target", design: { fontScheme: "roboto" }, slides: [{ id: "existing", title: "Existing" }] };
-const inserted = prepareOpfImport(current, parseOpfTransfer(JSON.stringify(bareTheme()))).document;
+const inserted = prepareOpfImport(current, parseOpfTransfer(JSON.stringify(bareTheme()))).presentation;
 assert.equal(inserted.slides.length, 2);
 assert.equal(inserted.slides[1].design.fontScheme, DEFAULT_FONT_SCHEME);
 assert.deepEqual(validate(inserted, { only: ["format"] }).valid, true);

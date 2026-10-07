@@ -84,7 +84,7 @@ try {
   await tab.goto(`${base}/index.html`);
   await tab.locator('#canvas svg').waitFor();
   const run = (fn, arg) => tab.evaluate(fn, arg);
-  const settle = () => tab.waitForFunction(() => document.querySelector('#canvas svg') && !document.querySelector('.opf-canvas-fonts') && window.harness.pending(window.harness.editor.document).length === 0, undefined, { timeout: 60000 });
+  const settle = () => tab.waitForFunction(() => document.querySelector('#canvas svg') && !document.querySelector('.opf-canvas-fonts') && window.harness.pending(window.harness.editor.presentation).length === 0, undefined, { timeout: 60000 });
   const state = () => run(() => ({
     runs: [...document.querySelectorAll('#canvas svg text')].map(node => ({ text: node.textContent, family: (node.getAttribute('font-family') ?? node.closest('[font-family]')?.getAttribute('font-family') ?? '').split(',').map(part => part.trim().replace(/^"|"$/g, '')) })),
     loaded: [...document.fonts].filter(face => face.status === 'loaded').map(face => face.family.replace(/^"|"$/g, '')),
@@ -97,12 +97,12 @@ try {
     assert.deepEqual(now.errors, [], `${name}: the canvas reported no error`);
     return now;
   };
-  assert.deepEqual(await run(() => window.harness.pending(window.harness.editor.document)), [], 'a Roboto document has nothing pending');
+  assert.deepEqual(await run(() => window.harness.pending(window.harness.editor.presentation)), [], 'a Roboto document has nothing pending');
 
   // FF-41: a deck whose layout exists only in the host's catalogs (the canvas's renderOptions) loads exactly the faces it draws:
   // Raleway Regular for the body and Raleway Bold for the title, not the four Raleway files, and nothing is drawn before they load.
   const catalogBefore = faceRequests.length;
-  const catalogPending = await run(() => { window.harness.editor.applyPatch([{ op: 'replace', path: '', value: { name: 'Host layout', design: { theme: 'classic', fontScheme: 'raleway' }, slides: [{ id: 'a', layout: 'host-bullets', title: 'Quarterly review', items: ['Sales grew twelve percent.'] }] } }]); return window.harness.pending(window.harness.editor.document); });
+  const catalogPending = await run(() => { window.harness.editor.applyPatch([{ op: 'replace', path: '', value: { name: 'Host layout', design: { theme: 'classic', fontScheme: 'raleway' }, slides: [{ id: 'a', layout: 'host-bullets', title: 'Quarterly review', items: ['Sales grew twelve percent.'] }] } }]); return window.harness.pending(window.harness.editor.presentation); });
   assert.deepEqual(catalogPending.map(file => file.split('/').pop()).sort(), ['Raleway-Bold.ttf', 'Raleway-Regular.ttf'], `the catalog-only layout resolves and needs two Raleway faces: ${catalogPending}`);
   assert.equal(await tab.locator('#canvas svg').count(), 0, 'the host-layout deck is not drawn before its faces load');
   await settle();
@@ -122,7 +122,7 @@ try {
   await settle();
   assert.ok((await state()).loaded.includes('Noto Sans KR'), 'Han text in a Korean deck loads Noto Sans KR');
   const before = faceRequests.length;
-  const pendingAfterSwitch = await run(() => { window.harness.switchDimension(window.harness.editor, 'languages', 'japanese'); return window.harness.fonts.pending(window.harness.editor.document); });
+  const pendingAfterSwitch = await run(() => { window.harness.switchDimension(window.harness.editor, 'languages', 'japanese'); return window.harness.fonts.pending(window.harness.editor.presentation); });
   assert.ok(pendingAfterSwitch.length > 0, 'the language switch left script faces pending');
   assert.equal(await tab.locator('#canvas svg').count(), 0, 'the canvas did not draw the document while its faces were pending');
   assert.match(await tab.locator('.opf-canvas-fonts').innerText(), /Loading fonts/);
@@ -146,12 +146,12 @@ try {
   // Font scheme switches to lazy families: Open Sans (catalog id) and Barlow (a record carried with the switch).
   await run(() => window.harness.editor.applyPatch([{ op: 'replace', path: '', value: { name: 'Latin', design: { theme: 'classic', fontScheme: 'roboto' }, slides: [{ id: 'a', title: 'Quarterly review', text: 'Sales grew twelve percent.' }] } }]));
   await settle();
-  const pendingOpenSans = await run(() => { window.harness.switchDimension(window.harness.editor, 'font-schemes', 'open-sans'); return window.harness.fonts.pending(window.harness.editor.document); });
+  const pendingOpenSans = await run(() => { window.harness.switchDimension(window.harness.editor, 'font-schemes', 'open-sans'); return window.harness.fonts.pending(window.harness.editor.presentation); });
   assert.ok(pendingOpenSans.some(file => /open-sans/.test(file)), `Open Sans is pending: ${pendingOpenSans}`);
   await settle();
   now = await clean('font scheme Open Sans');
   assert.ok(now.runs.length > 0 && now.runs.every(run => run.family[0] === 'Open Sans'), JSON.stringify(now.runs.map(run => run.family[0])));
-  const pendingBarlow = await run(() => { window.harness.switchDimension(window.harness.editor, 'font-schemes', 'barlow-preview', { record: { id: 'barlow-preview', name: 'Barlow', major: 'Barlow', minor: 'Barlow' } }); return window.harness.fonts.pending(window.harness.editor.document); });
+  const pendingBarlow = await run(() => { window.harness.switchDimension(window.harness.editor, 'font-schemes', 'barlow-preview', { record: { id: 'barlow-preview', name: 'Barlow', major: 'Barlow', minor: 'Barlow' } }); return window.harness.fonts.pending(window.harness.editor.presentation); });
   assert.ok(pendingBarlow.some(file => /barlow/.test(file)), `Barlow is pending: ${pendingBarlow}`);
   await settle();
   now = await clean('font scheme Barlow');
@@ -205,7 +205,7 @@ try {
   await tab.waitForFunction(() => [...document.fonts].some(face => face.family.replace(/"/g, '') === 'Noto Sans Thai' && face.status === 'loaded') && [...document.querySelectorAll('#canvas svg text')].some(node => node.textContent.includes('สวัสดี')), undefined, { timeout: 60000 });
   assert.ok(faceRequests.slice(draftBefore).some(url => /noto-sans-thai/.test(url)), 'the draft fetched the Thai face');
   assert.equal(await run(() => window.harness.canvas.commit()), true, 'the draft commits once its faces are loaded');
-  await tab.waitForFunction(() => window.harness.editor.document.slides[0].title === 'สวัสดีชาวโลก', undefined, { timeout: 60000 });
+  await tab.waitForFunction(() => window.harness.editor.presentation.slides[0].title === 'สวัสดีชาวโลก', undefined, { timeout: 60000 });
   now = await state();
   assert.deepEqual(now.seen.bad, [], 'in-progress edit: the canvas never showed a cannot-display state');
   assert.equal(now.errors.length, 2, 'only the two deliberate load failures were reported');

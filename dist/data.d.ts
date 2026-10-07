@@ -20,4 +20,4 @@ export interface DatasetImport {
   replaced: boolean;
 }
 /** Store imported data (the result of `importData`) as a shared dataset, as `opf import-data --dataset <id>` does. Throws `dataset-id-invalid`. */
-export declare function prepareDatasetImport(document: unknown, content: { table: unknown } | { chart: { type: string; data: unknown } }, options: DatasetImportOptions): DatasetImport;
+export declare function prepareDatasetImport(presentation: unknown, content: { table: unknown } | { chart: { type: string; data: unknown } }, options: DatasetImportOptions): DatasetImport;

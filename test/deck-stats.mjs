@@ -12,7 +12,7 @@ const editor = createEditorSession({
 });
 
 // It is core's report for the session's document, and it follows edits and undo.
-assert.deepEqual(deckStats(editor), stats(editor.document));
+assert.deepEqual(deckStats(editor), stats(editor.presentation));
 assert.equal(deckStats(editor).slides.total, 2);
 assert.equal(deckStats(editor).notes.withNotes, 1);
 assert.equal(deckStats(editor).images.content.missingAlt, 1, "a fact about alt text, not a severity");
@@ -24,7 +24,7 @@ editor.set("slides.0.hidden", true);
 assert.deepEqual(deckStats(editor).slides.hidden, [{ index: 0, id: "a" }]);
 
 // Options are core's: per-slide detail and the speaking rate.
-assert.deepEqual(deckStats(editor, { perSlide: true }), stats(editor.document, { perSlide: true }), "options reach core");
+assert.deepEqual(deckStats(editor, { perSlide: true }), stats(editor.presentation, { perSlide: true }), "options reach core");
 assert.notDeepEqual(deckStats(editor, { perSlide: true }), deckStats(editor), "per-slide detail is added");
 assert.equal(deckStats(editor, { wordsPerMinute: 65 }).speakingTime.wordsPerMinute, 65);
 

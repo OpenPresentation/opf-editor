@@ -7,7 +7,7 @@ export interface ReviewPanelOptions {
   /** The slide the "This slide only" filter follows. Call `update()` when it changes. */
   getSlideIndex?: () => number;
   /** Core's `ValidateOptions` for this document, for example `{ fonts: { textMeasurement } }` from the host's fonts handle (a function of the slide index is accepted too). */
-  getValidateOptions?: (document: unknown) => ValidateOptions;
+  getValidateOptions?: (presentation: unknown) => ValidateOptions;
   /** Select the content a finding is about. `target.path` is the OPF dotted path (the nearest existing field), `target.slide` the slide or null. */
   onGoTo?: (event: { finding: ReviewFinding; target: ReviewTarget }) => void;
   /** Focus a field the panel does not own (a title, text, link, language or font size) after going to it. Alt text is edited in the panel itself. */

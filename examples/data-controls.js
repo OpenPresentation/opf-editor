@@ -31,7 +31,7 @@ export function installDataControls({editor,getCanvas,getSlideIndex,getSelectedP
  }
  function prepare() {
    if(!content)throw new Error('Choose valid data first.');
-   const deck=editor.document;
+   const deck=editor.presentation;
    // "Store as a shared dataset" writes datasets.<id> and places { dataset: id } where the rows would go: one undoable edit.
    let placed=content,before=[];
    if($('data-dataset').checked) {
@@ -49,7 +49,7 @@ export function installDataControls({editor,getCanvas,getSlideIndex,getSelectedP
   const on=$('data-dataset').checked;
   $('data-dataset-id-label').hidden=!on;$('data-dataset-note').hidden=!on;
   if(!on)return;
-  const id=$('data-dataset-id').value.trim(),existing=editor.document.datasets?.[id];
+  const id=$('data-dataset-id').value.trim(),existing=editor.presentation.datasets?.[id];
   $('data-dataset-note').textContent=existing?`Dataset '${id}' exists: its columns and rows are replaced for every chart and table that uses it.`:'The rows are stored once in the deck; the slide refers to them by id.';
  }
  function update() {
@@ -63,7 +63,7 @@ export function installDataControls({editor,getCanvas,getSlideIndex,getSelectedP
    if(columnsKey!==key){columnsKey=key;$('data-category').replaceChildren(...data.columns.map(name=>new Option(name,name)));$('data-series').replaceChildren(...data.columns.map((name,i)=>{const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=name;input.checked=i>0;label.append(input,document.createTextNode(name));input.onchange=update;return label;}));}
    content=importData($('data-text').value,{...options(),as:$('data-as').value,chartType:$('data-chart-type').value,category:$('data-category').value,series:[...$('data-series').querySelectorAll('input:checked')].map(input=>input.value)});
    // A one-slide draft inherits deck design/assets for an accurate content preview.
-   const deck=editor.document, preview={...deck,slides:[{title:$('data-slide-title').value,...content}]};
+   const deck=editor.presentation, preview={...deck,slides:[{title:$('data-slide-title').value,...content}]};
    // FF-41: the preview draws only once the faces the data needs (a CSV in Japanese or Arabic, an Aptos deck) are loaded.
    const show=()=>{
     $('data-preview').innerHTML=renderSlideSvg(preview,0,{fonts,trace:false});
@@ -77,7 +77,7 @@ export function installDataControls({editor,getCanvas,getSlideIndex,getSelectedP
   }catch(error){content=undefined;$('data-error').textContent=error.message;}
  }
  // The dataset id starts as the first one the deck does not hold, so a second import does not replace the first one's rows. Typing an id (to replace one on purpose) keeps it.
- function freeDatasetId(){const taken=editor.document.datasets&&typeof editor.document.datasets==='object'?editor.document.datasets:{};let id='data',n=1;while(Object.hasOwn(taken,id))id=`data-${++n}`;return id;}
+ function freeDatasetId(){const taken=editor.presentation.datasets&&typeof editor.presentation.datasets==='object'?editor.presentation.datasets:{};let id='data',n=1;while(Object.hasOwn(taken,id))id=`data-${++n}`;return id;}
  button.onclick=()=>{if(getCanvas()&&!getCanvas().commit())return;if($('data-dataset-id').dataset.typed!=='1')$('data-dataset-id').value=freeDatasetId();dialog.showModal();update();$('data-text').focus();};
  $('data-close').onclick=()=>dialog.close();dialog.onclose=()=>{if(!dialog.open)revision++;};
  $('data-text').oninput=()=>{revision++;update();};

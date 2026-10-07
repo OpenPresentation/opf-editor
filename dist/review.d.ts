@@ -58,11 +58,11 @@ export declare function sortFindings(findings: readonly ReviewFinding[]): Review
 /** Findings grouped by category: core's categories in core's order, then any other category in the order it first appears. Empty categories are left out. */
 export declare function groupFindings(findings: readonly ReviewFinding[]): { category: string; findings: ReviewFinding[] }[];
 /** Where "go to" lands for a finding. */
-export declare function findingTarget(document: unknown, finding: Pick<ReviewFinding, "path">): ReviewTarget;
+export declare function findingTarget(presentation: unknown, finding: Pick<ReviewFinding, "path">): ReviewTarget;
 /** Apply a `patch` fix as one undoable, validated session change; refuses a stale or unsafe patch. */
 export declare function applyReviewFix(editor: EditorSession, finding: Pick<ReviewFinding, "ruleId"> | undefined, fix: ReviewFix, meta?: Record<string, unknown>): EditorChange;
 /** The patch that sets (or, for `""`, marks decorative) the alt text of the picture at `pointer`; null when nothing changes. */
-export declare function altTextPatch(document: unknown, pointer: string, text: string): JsonPatchOperation[] | null;
+export declare function altTextPatch(presentation: unknown, pointer: string, text: string): JsonPatchOperation[] | null;
 export declare function setReviewAltText(editor: EditorSession, pointer: string, text: string, meta?: Record<string, unknown>): { changed: boolean } & Partial<EditorChange>;
 export declare function markDecorative(editor: EditorSession, pointer: string, meta?: Record<string, unknown>): { changed: boolean } & Partial<EditorChange>;
-export declare function currentAltText(document: unknown, pointer: string): string;
+export declare function currentAltText(presentation: unknown, pointer: string): string;

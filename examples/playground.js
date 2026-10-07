@@ -214,7 +214,7 @@ function describeFontChange(change) {
 function render() {
   fontRegistry.clearSubstitutions();
   renderError = undefined;
-  const deck = editor.document;
+  const deck = editor.presentation;
   slideIndex = Math.max(0, Math.min(slideIndex, deck.slides.length - 1));
   renderNavigator(deck);
   fontRegistry.clearSubstitutions();
@@ -251,9 +251,9 @@ function render() {
       else if(fontsFailure){fontsFailure=undefined;refresh();}
     },
     onSelect:value=>{select(value.path);showPanel('content');},
-    onDraft:value=>{element('json').value=viewSource(value.document);status('Editing on the slide · Esc to cancel');},
+    onDraft:value=>{element('json').value=viewSource(value.presentation);status('Editing on the slide · Esc to cancel');},
     onCommit:()=>status('Changes saved in this session'),
-    onCancel:()=>{element('json').value=viewSource(editor.document);status('Edit cancelled');},
+    onCancel:()=>{element('json').value=viewSource(editor.presentation);status('Edit cancelled');},
     onError:error=>status(error.message),
   });
   else canvas.setSlide(slideIndex);
@@ -280,7 +280,7 @@ let refreshToken = 0;
 function refresh() {
   const token = ++refreshToken;
   let loaded = false;
-  return whenFontsReady(fonts, editor.document, {
+  return whenFontsReady(fonts, editor.presentation, {
     isCurrent: () => token === refreshToken,
     loading: () => { loaded = true; status('Loading fonts…'); if (!canvas) element('preview').textContent = 'Loading fonts…'; element('undo').disabled = !editor.canUndo; element('redo').disabled = !editor.canRedo; },
     ready: () => { fontsFailure = undefined; if (loaded) { thumbnailCache.clear(); if (/Loading fonts/.test(element('status').textContent)) status('Ready to edit'); } renderSafely(); },
@@ -303,9 +303,9 @@ element('arrange').onclick = () => {
 element('mode').onchange = () => act(() => editor.setComposition(slideIndex, { ...editor.get(`slides.${slideIndex}.composition`, {}), mode: element('mode').value }));
 element('group').onchange = () => { element('group-mode').value = editor.get(`${element('group').value}.composition.mode`, 'auto'); };
 element('group-mode').onchange = () => act(() => editor.setGroupComposition(element('group').value, { ...editor.get(`${element('group').value}.composition`, {}), mode: element('group-mode').value }));
-element('paginate').onclick = () => act(() => editor.paginateSlide(slideIndex,layoutFor(editor.document,slideIndex)));
+element('paginate').onclick = () => act(() => editor.paginateSlide(slideIndex,layoutFor(editor.presentation,slideIndex)));
 element('add').onclick = () => act(() => {
-  const deck = editor.document;
+  const deck = editor.presentation;
   let index = deck.slides.length + 1;
   while (deck.slides.some(slide => slide.id === `slide-${index}`)) index++;
   slideIndex = deck.slides.length;
@@ -336,7 +336,7 @@ element('apply-json').onclick = async event => {
   const prior = sourceText;
   try {
     // Remember the spelling of the document being replaced so Undo restores it exactly, then keep the applied bytes.
-    updateJsonSource(sourceText ?? prettySource(editor.document), editor.document, sourceMemory);
+    updateJsonSource(sourceText ?? prettySource(editor.presentation), editor.presentation, sourceMemory);
     sourceText = applied;
     editor.applyPatch([{op:'replace',path:'',value:deck}]);
     // A host that loads a document (the gallery handoff clicks this button from script) is not the user's work: do not autosave it or warn about it.
@@ -345,7 +345,7 @@ element('apply-json').onclick = async event => {
     element('source-dialog').close(); status('Presentation source updated');
   } catch(error) { sourceText = prior; element('json-error').textContent = error.issues?.[0]?.message ?? error.message; }
 };
-element('open-json').onclick = () => { if(canvas && !canvas.commit())return; element('json').value = viewSource(editor.document); element('json-error').textContent = ''; element('source-dialog').showModal();previewSource(); };
+element('open-json').onclick = () => { if(canvas && !canvas.commit())return; element('json').value = viewSource(editor.presentation); element('json-error').textContent = ''; element('source-dialog').showModal();previewSource(); };
 element('close-json').onclick = () => element('source-dialog').close();
 let sourceFrame=0,previewToken=0;
 function previewSource() {
@@ -383,7 +383,7 @@ element('document-name').onkeydown = event => { if(event.key==='Enter') event.cu
 element('apply-notes').onclick = () => act(() => editor.set(`slides.${slideIndex}.notes`,element('notes').value));
 element('download').onclick = () => {
   if(canvas && !canvas.commit())return;
-  const deck=editor.document, blob=new Blob([JSON.stringify(deck,null,2)],{type:'application/json'}), url=URL.createObjectURL(blob);
+  const deck=editor.presentation, blob=new Blob([JSON.stringify(deck,null,2)],{type:'application/json'}), url=URL.createObjectURL(blob);
   const link=document.createElement('a'); link.href=url; link.download=`${(deck.name ?? 'presentation').replace(/[^a-z0-9_-]+/gi,'-').replace(/^-|-$/g,'') || 'presentation'}.opf.json`;
   link.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); status('OPF file downloaded');
   persistence?.markSaved();
@@ -426,7 +426,7 @@ element('open-properties').onclick=()=>{
  propertiesDialog.showModal();
  propertiesInspector?.destroy();
  propertiesInspector=createSchemaInspector(element('schema-properties'),{editor,path:`/slides/${slideIndex}`,
-  onDraft:({document:deck})=>{const token=++propertiesPreviewToken;whenFontsReady(fonts,deck,{isCurrent:()=>token===propertiesPreviewToken,loading:()=>{element('properties-preview-status').textContent='Loading fonts for this document…';},ready:()=>{element('properties-preview').innerHTML=renderSlideSvg(deck,Math.min(slideIndex,deck.slides.length-1),{fonts,trace:true});element('properties-preview-status').textContent='Click slide content to find its field. Metadata is stored with the deck.';},failed:error=>{element('properties-preview-status').textContent='Preview unavailable: '+error.message;}});},
+  onDraft:({presentation:deck})=>{const token=++propertiesPreviewToken;whenFontsReady(fonts,deck,{isCurrent:()=>token===propertiesPreviewToken,loading:()=>{element('properties-preview-status').textContent='Loading fonts for this document…';},ready:()=>{element('properties-preview').innerHTML=renderSlideSvg(deck,Math.min(slideIndex,deck.slides.length-1),{fonts,trace:true});element('properties-preview-status').textContent='Click slide content to find its field. Metadata is stored with the deck.';},failed:error=>{element('properties-preview-status').textContent='Preview unavailable: '+error.message;}});},
   onCommit:()=>status('Presentation properties updated'),onError:error=>status(error.message)
  });
 };

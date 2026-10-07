@@ -73,17 +73,17 @@ Chart highlight (FA-14): the same module edits `chart.highlight`: `setChartOptio
 import { createCanvasEditor } from '@openpresentation/opf-editor/canvas';
 
 const canvas = createCanvasEditor(container, {
-  document: presentation,
+  presentation,
   fonts, // the renderer's fonts handle: const fonts = await loadFonts({ faces, ... })
-  onCommit: ({ editor }) => saveDocument(editor.document),
+  onCommit: ({ editor }) => saveDocument(editor.presentation),
 });
 await canvas.ready;
 // canvas.destroy() when unmounting.
 ```
 
-Load the same font bytes into the browser with `loadFonts` from `@openpresentation/opf-render/fonts-browser` before mounting; the handle it returns is the one `fonts` option of the canvas, `exportDeck`, `editor.composeSlide` and `editor.paginateSlide`. The host owns font URLs, storage and collaboration. For non-Latin documents, pass the pinned script pack's location as `scriptBaseUrl` and the canvas calls `fonts.ensure(document)` after edits (`scripts: 'auto'`, FF-19): only the faces for the scripts a document draws are fetched, once, hash-verified, for example Noto Sans JP for Japanese; a Latin-only document fetches none. The playground does this from `./script-fonts/`, which `npm run build:playground` fills with the pinned faces. `onDraft` provides live document drafts; the session only changes on commit. Escape cancels. Concurrent edits to the selected payload cancel a stale draft.
+Load the same font bytes into the browser with `loadFonts` from `@openpresentation/opf-render/fonts-browser` before mounting; the handle it returns is the one `fonts` option of the canvas, `exportDeck`, `editor.composeSlide` and `editor.paginateSlide`. The host owns font URLs, storage and collaboration. For non-Latin documents, pass the pinned script pack's location as `scriptBaseUrl` and the canvas calls `fonts.ensure(presentation)` after edits (`scripts: 'auto'`, FF-19): only the faces for the scripts a document draws are fetched, once, hash-verified, for example Noto Sans JP for Japanese; a Latin-only document fetches none. The playground does this from `./script-fonts/`, which `npm run build:playground` fills with the pinned faces. `onDraft` provides live document drafts; the session only changes on commit. Escape cancels. Concurrent edits to the selected payload cancel a stale draft.
 
-Fonts load before pixels (FF-41). A document can need faces the browser has not loaded yet: script faces for the languages it draws and vendored preview faces for the font families it resolves (Intos for Aptos, Open Sans, Barlow). The handle knows what is missing (`fonts.pending(document)`) and loads it (`await fonts.ensure(document)`), so the canvas needs no separate gate: with the handle as `fonts` it never renders such a document early: on every path (editor changes, undo and redo, imports, dimension switches, slide changes, in-progress edits) it shows "Loading fonts…", loads the faces and then renders. A load that fails is reported through `onFonts`/`onError` and offers a retry button; nothing retries by itself, and the failed document is not drawn.
+Fonts load before pixels (FF-41). A document can need faces the browser has not loaded yet: script faces for the languages it draws and vendored preview faces for the font families it resolves (Intos for Aptos, Open Sans, Barlow). The handle knows what is missing (`fonts.pending(presentation)`) and loads it (`await fonts.ensure(presentation)`), so the canvas needs no separate gate: with the handle as `fonts` it never renders such a document early: on every path (editor changes, undo and redo, imports, dimension switches, slide changes, in-progress edits) it shows "Loading fonts…", loads the faces and then renders. A load that fails is reported through `onFonts`/`onError` and offers a retry button; nothing retries by itself, and the failed document is not drawn.
 
 ```js
 import { createCanvasEditor, whenFontsReady } from '@openpresentation/opf-editor/canvas';
@@ -92,11 +92,11 @@ import { loadFonts } from '@openpresentation/opf-render/fonts-browser';
 const fonts = await loadFonts({ faces, scriptBaseUrl, lazyFontsBaseUrl }); // a handle with no faces to load gates nothing
 // The canvas hands the handle its current renderOptions (catalogs, ...), so font schemes only your catalogs know resolve in the
 // registry too. Defaults for your own calls: loadFonts({ renderOptions: { catalogs } }).
-const canvas = createCanvasEditor(container, { document, fonts, renderOptions: { catalogs } });
-// Other renders of your own: whenFontsReady(fonts, document, { ready: draw, failed: showError, loading: showSpinner })
+const canvas = createCanvasEditor(container, { presentation, fonts, renderOptions: { catalogs } });
+// Other renders of your own: whenFontsReady(fonts, presentation, { ready: draw, failed: showError, loading: showSpinner })
 ```
 
-`session.composeSlide(index, { fonts })` and `session.paginateSlide(index, { fonts })` take the same handle and resolve the slide's canvas, layout, theme, colour scheme and font families with core's `resolveSlideContext` (slide design, then deck design, then theme, then the default: the order the renderer and the PowerPoint export use), so the editor composes what is drawn and exported. An unknown layout, theme, colour scheme or font-scheme id never throws: the slide composes with no layout record, `minimal`, `cool-horizon` or `aptos`, and `onDiagnostic` hears `unresolved-layout`, `unresolved-theme`, `unresolved-color-scheme` and `unresolved-font-scheme`. The handle's `textMeasurement` is strict: for a document with a script the design font lacks (Japanese under Aptos) pass `{ fonts: { textMeasurement: createScriptTextMeasurement(fonts.textMeasurement, resolveScriptFonts(document, { slideIndex })) } }` (`createScriptTextMeasurement` is from `@openpresentation/opf-render/fonts`, `resolveScriptFonts` from `@openpresentation/opf/composition`), as `renderSvg` does internally.
+`session.composeSlide(index, { fonts })` and `session.paginateSlide(index, { fonts })` take the same handle and resolve the slide's canvas, layout, theme, colour scheme and font families with core's `resolveSlideContext` (slide design, then deck design, then theme, then the default: the order the renderer and the PowerPoint export use), so the editor composes what is drawn and exported. An unknown layout, theme, colour scheme or font-scheme id never throws: the slide composes with no layout record, `minimal`, `cool-horizon` or `aptos`, and `onDiagnostic` hears `unresolved-layout`, `unresolved-theme`, `unresolved-color-scheme` and `unresolved-font-scheme`. The handle's `textMeasurement` is strict: for a document with a script the design font lacks (Japanese under Aptos) pass `{ fonts: { textMeasurement: createScriptTextMeasurement(fonts.textMeasurement, resolveScriptFonts(presentation, { slideIndex })) } }` (`createScriptTextMeasurement` is from `@openpresentation/opf-render/fonts`, `resolveScriptFonts` from `@openpresentation/opf/composition`), as `renderSvg` does internally.
 
 These APIs were introduced in 0.1.0. Version 0.7.0 requires core 0.10.0 and renderer 0.8.0 for the canvas, including shared accepted geometry, styled/merged cells, rich table values, headers and content-aware row heights. See the OPF repository’s `docs/live-editor.md` for setup, the support matrix and roadmap. `pnpm pack:ecosystem` in that repository also prepares local preview tarballs for coordinated development.
 
@@ -107,8 +107,8 @@ One click puts the caret where you click, the way PowerPoint and Google Slides d
 The gesture is configurable:
 
 ```js
-createCanvasEditor(container, { document, textEntry: 'click' }); // default: one click enters
-createCanvasEditor(container, { document, textEntry: 'dblclick' }); // one click selects, a double-click enters
+createCanvasEditor(container, { presentation, textEntry: 'click' }); // default: one click enters
+createCanvasEditor(container, { presentation, textEntry: 'dblclick' }); // one click selects, a double-click enters
 ```
 
 `textEntry: 'dblclick'` keeps the older two-step gesture (select, then double-click) but a double-click now also places the caret at the pointer instead of selecting all text. Hosts and tests that used `dblclick()` and then relied on all text being selected should switch to keyboard entry (focus the target and press Enter) or select explicitly; `locator.dblclick()` on the default canvas now places the caret and then selects the word under it.
@@ -119,7 +119,7 @@ The canvas retains canonical SVG glyphs while a transparent native input supplie
 
 ## List numbering (RR-33)
 
-`@openpresentation/opf-editor/numbering` is the headless model and `/numbering-panel` the DOM control for the `numbering` field of `items` and `bullets` payloads (a style name, a `{ style, start, suffix }` object, or an array per list level). `setNumbering(editor, path, value)` numbers the list a path points at or into (`undefined` turns numbering off and drops the entry `start` values), `setEntryStart(editor, itemPath, start)` restarts the count at an entry, `numberingValue(levels)` writes the shortest form, `numberingState(document, path)` reads the settings and the markers the list draws, and `findNumberableLists(document, slideIndex)` lists a slide's lists. Each write is one validated, undoable session edit. `createNumberingPanel(container, { editor, getTarget, getSlideIndex, onStatus })` mounts the control: number this list, style, start and suffix, different numbering per level, the markers it will draw, and a restart at the selected entry. The playground opens it from **List numbering**. Needs a core release that ships `numbering`; see core's [numbered lists](https://github.com/OpenPresentation/opf/blob/main/docs/numbered-lists.md).
+`@openpresentation/opf-editor/numbering` is the headless model and `/numbering-panel` the DOM control for the `numbering` field of `items` and `bullets` payloads (a style name, a `{ style, start, suffix }` object, or an array per list level). `setNumbering(editor, path, value)` numbers the list a path points at or into (`undefined` turns numbering off and drops the entry `start` values), `setEntryStart(editor, itemPath, start)` restarts the count at an entry, `numberingValue(levels)` writes the shortest form, `numberingState(presentation, path)` reads the settings and the markers the list draws, and `findNumberableLists(presentation, slideIndex)` lists a slide's lists. Each write is one validated, undoable session edit. `createNumberingPanel(container, { editor, getTarget, getSlideIndex, onStatus })` mounts the control: number this list, style, start and suffix, different numbering per level, the markers it will draw, and a restart at the selected entry. The playground opens it from **List numbering**. Needs a core release that ships `numbering`; see core's [numbered lists](https://github.com/OpenPresentation/opf/blob/main/docs/numbered-lists.md).
 
 ## Runtime Policy
 
@@ -151,7 +151,7 @@ import {
 import { renderSlideSvg } from "@openpresentation/opf-render";
 
 const editor = createEditorSession(opfDocument, { rejectInvalid: true });
-const svg = renderSlideSvg(editor.document, 0, { trace: true, fonts });
+const svg = renderSlideSvg(editor.presentation, 0, { trace: true, fonts });
 
 preview.innerHTML = svg;
 const binding = createSvgTraceBinding(preview.querySelector("svg"), editor, {
@@ -218,7 +218,7 @@ switchDimension(editor, "font-schemes", "georgia");                      // /des
 switchDimension(editor, "charts", "line", { slideIndex: 1 });            // /slides/1/chart/type
 switchDimension(editor, "blocks", "list", { path: "slides.2.blocks.0" }); // replace one block
 editor.undo();                                                            // one step per switch
-const { patches, document } = prepareDimensionSwitch(editor.document, "themes", "classic"); // preview only
+const { patches, presentation } = prepareDimensionSwitch(editor.presentation, "themes", "classic"); // preview only
 ```
 
 | Dimension | Document patch | Notes |
@@ -236,7 +236,7 @@ const { patches, document } = prepareDimensionSwitch(editor.document, "themes", 
 | `slide-sizes` | `/design/dimensions` | One of the schema's ten presets (`SLIDE_SIZE_PRESETS`: `16:9`, `4:3`, `16:10`, the social-feed ratios `1:1`, `4:5` and `9:16`, `letter`, `a4`, `widescreen`, `standard`). Deck only (`slideIndex` is refused: a presentation has one slide size). The preview recomposes at the new canvas and the PowerPoint export writes the matching `p:sldSz`; a custom size (inches) is replaced by the preset. `listSwitchOptions` labels each preset with its inches; `currentSwitchValue` reads `design.dimensions`, else the theme's size. A slide's design cannot set `dimensions`, so nothing shadows the deck's size. A deck-scope theme switch still writes its own size; a slide-scope one does not. |
 | `purposes` | `/purpose` | A `purposes` catalog id, any free-form goal text (not checked against the catalog), or a Purpose object. `record` adds a gallery item's purpose record inline. Authoring metadata: the preview does not change. |
 
-A deck-level design switch cannot reach a slide that carries its own value for that key. The result lists those slides in `shadowed`; `clearSlideOverrides: true` removes the overrides in the same transaction. `record` adds a gallery item's catalog record inline in the same transaction when neither the document nor the bundled catalog defines its id (a gallery-only layout or font scheme). Every switch is validated: an unknown catalog id, an invalid value or an invalid resulting document throws before anything changes, and switching to the current value commits nothing. The editor session emits the usual `patch`, `undo` and `redo` events with `meta.source: "dimension-switch"` and `meta.dimension`, so the canvas and any host preview recompose from the switched document. `resolveSlideContext(document, slideIndex).options.fontFamilies` (core) returns the heading, body and code families the preview measures and the export names.
+A deck-level design switch cannot reach a slide that carries its own value for that key. The result lists those slides in `shadowed`; `clearSlideOverrides: true` removes the overrides in the same transaction. `record` adds a gallery item's catalog record inline in the same transaction when neither the document nor the bundled catalog defines its id (a gallery-only layout or font scheme). Every switch is validated: an unknown catalog id, an invalid value or an invalid resulting document throws before anything changes, and switching to the current value commits nothing. The editor session emits the usual `patch`, `undo` and `redo` events with `meta.source: "dimension-switch"` and `meta.dimension`, so the canvas and any host preview recompose from the switched document. `resolveSlideContext(presentation, slideIndex).options.fontFamilies` (core) returns the heading, body and code families the preview measures and the export names.
 
 ### Content-type conversion (RR-06, RR-26)
 
@@ -245,7 +245,7 @@ A deck-level design switch cannot reach a slide that carries its own value for t
 ```js
 import { convertBlock, blockConversionTargets, prepareBlockConversion } from "@openpresentation/opf-editor/block-convert";
 
-blockConversionTargets(editor.document, "slides.2.blocks.0");
+blockConversionTargets(editor.presentation, "slides.2.blocks.0");
 // [{ kind: "list", label: "List", available: true, lossless: true, loss: [] }, { kind: "metric", available: false, reason: "The first line is longer than 24 characters, ..." }, ...]
 const change = convertBlock(editor, "slides.2.blocks.0", "list"); // one undoable step
 change.lossless; change.loss; // for example [] or ["text formatting", "list nesting levels"]
@@ -269,11 +269,11 @@ switchDimension(editor, "blocks", "list", { path: "slides.2.blocks.0", convert: 
 | table | list, timeline, text, metric blocks | First column is the item; columns are read by heading (`When`, `What`, `Value`, ...); Markdown or tab-separated text. Dropped columns and headings are reported. |
 | group of metrics | table | A group (or a slide, or a region) whose blocks are all metrics; only the columns in use. |
 
-Images, videos and any other group have no conversion. Everything else is replacement. `blockPathForSelection(document, selectedPath)` maps a selection such as `slides.0.blocks.1.text` to its block for a host that offers the control on selection, and `metricGroupForSelection` finds the group of metrics around a selected metric. Conversions are guarded by a `test` operation, so one built from a stale read cannot overwrite a concurrent edit.
+Images, videos and any other group have no conversion. Everything else is replacement. `blockPathForSelection(presentation, selectedPath)` maps a selection such as `slides.0.blocks.1.text` to its block for a host that offers the control on selection, and `metricGroupForSelection` finds the group of metrics around a selected metric. Conversions are guarded by a `test` operation, so one built from a stale read cannot overwrite a concurrent edit.
 
 ### Content actions (RR-26)
 
-`@openpresentation/opf-editor/content-actions` holds the other pure transforms of core's `/convert` as editor transactions. Every action has a `prepare...` form that returns `{ document, patches, path, changed, lossless, loss, reason }` without touching a session (pass `{ validate: false }` for a dry run that only needs the loss report), and an applying form that is one guarded, validated, undoable step. A refusal throws `content-action-refused` with core's reason.
+`@openpresentation/opf-editor/content-actions` holds the other pure transforms of core's `/convert` as editor transactions. Every action has a `prepare...` form that returns `{ presentation, patches, path, changed, lossless, loss, reason }` without touching a session (pass `{ validate: false }` for a dry run that only needs the loss report), and an applying form that is one guarded, validated, undoable step. A refusal throws `content-action-refused` with core's reason.
 
 | Action | Applying form | What it does |
 | --- | --- | --- |
@@ -287,7 +287,7 @@ The playground's Content tab mounts the block-level and slide-structure actions 
 
 ### Pickers: options, chart types and current values
 
-`listSwitchOptions(document, dimension, options)` lists what a catalog dimension offers (the document's inline records first, then caller-loaded ones, then the bundled catalog, without duplicates). `compatibleChartTypes(document, { slideIndex, path })` lists the chart types the chart's inline data can use as it is, by data shape: the first column labels the categories and each further column is a series (how the renderers read it), a type with N series needs exactly N value columns, except that stacked types and the combo chart take that many or more (combo: two or more), and the single-series, distribution and geographic types are offered only where they fit. Switching a combo chart to another type removes its `line`, `secondaryAxis` and secondary axis title. It is data-shape compatibility, not a claim that an engine draws the type. `currentSwitchValue(document, dimension, { slideIndex })` reads the value back as `{ value, scope }`.
+`listSwitchOptions(presentation, dimension, options)` lists what a catalog dimension offers (the document's inline records first, then caller-loaded ones, then the bundled catalog, without duplicates). `compatibleChartTypes(presentation, { slideIndex, path })` lists the chart types the chart's inline data can use as it is, by data shape: the first column labels the categories and each further column is a series (how the renderers read it), a type with N series needs exactly N value columns, except that stacked types and the combo chart take that many or more (combo: two or more), and the single-series, distribution and geographic types are offered only where they fit. Switching a combo chart to another type removes its `line`, `secondaryAxis` and secondary axis title. It is data-shape compatibility, not a claim that an engine draws the type. `currentSwitchValue(presentation, dimension, { slideIndex })` reads the value back as `{ value, scope }`.
 
 ## Design options (RR-06)
 
@@ -316,7 +316,7 @@ setHeaderFooterZone(editor, "footer", "right", { slideNumber: true, logo: true }
 | `slideImage` | `design.slideImage` | a source or `{ src, position, size, fill, shape, inset, ... }` (fields merge; `position` defaults to `background` because the object form requires it) |
 | header and footer zones | `design.header` / `design.footer` `.left/.center/.right` | `setHeaderFooterZone` merges every part a zone can hold (`text`, `logo`, `image`, `slideNumber` and `slideNumberFormat` (must contain `{current}`), `date` (true, or a fixed date) and `dateFormat`, `organization`, `speaker` (the first speaker's name and title), `socials`, `section`; `ZONE_FIELDS`) into one zone, checking each value; a removed field, an emptied zone and an emptied header are all deleted rather than left as `{}`. A slide's own header or footer replaces the deck's whole one, so the first edit on a slide starts from a copy of the deck's (its other zones stay), and a slide emptied that way hides the furniture (`false`) instead of inheriting it again |
 
-A deck-scope change reports `shadowed` slides whose own design hides it (`clearSlideOverrides: true` removes those values in the same transaction). Results carry `warnings`: a header or footer zone with `logo: true`, or picture bullets, with no logo to draw (no slide, deck or primary-organization logo) is reported as `unresolved-logo`, and a zone that shows the organization or its social profiles when there are none as `unresolved-content`, before export, as `designWarnings(document, slideIndex)` does for the current document. `DESIGN_OPTIONS` describes every option for a generic panel, and `getDesignOption` reads `{ value, scope, inherited }`.
+A deck-scope change reports `shadowed` slides whose own design hides it (`clearSlideOverrides: true` removes those values in the same transaction). Results carry `warnings`: a header or footer zone with `logo: true`, or picture bullets, with no logo to draw (no slide, deck or primary-organization logo) is reported as `unresolved-logo`, and a zone that shows the organization or its social profiles when there are none as `unresolved-content`, before export, as `designWarnings(presentation, slideIndex)` does for the current document. `DESIGN_OPTIONS` describes every option for a generic panel, and `getDesignOption` reads `{ value, scope, inherited }`.
 
 ### Image uploads (RR-06)
 
@@ -326,11 +326,11 @@ A deck-scope change reports `shadowed` slides whose own design hides it (`clearS
 import { applyImageUpload } from "@openpresentation/opf-editor/assets";
 import { prepareLogoVariant } from "@openpresentation/opf-editor/design-options";
 
-const change = await applyImageUpload(editor, file, (reference, document) => prepareLogoVariant(document, "light", reference), { alt: "Acme logo" });
+const change = await applyImageUpload(editor, file, (reference, presentation) => prepareLogoVariant(presentation, "light", reference), { alt: "Acme logo" });
 change.assetId; // "acme-logo": the document now has assets["acme-logo"] = { src: "data:image/png;base64,...", mediaType, title, alt } and design.logo.light = "asset:acme-logo"
 ```
 
-`build(reference, document)` is any `prepare...` function of this package, so the same upload works for the logo (all 12 variants), organization logo, watermark, slide image, a background (`prepareBackground`) and a header/footer zone image. The file is checked before anything changes: PNG, JPEG, GIF, WebP or SVG by its bytes (a `.jpg` that is really a PNG, a text file, an empty file and an SVG with script are refused), and at most `maxBytes` (default 2 MiB, `DEFAULT_MAX_IMAGE_BYTES`) with a message that says what to do. A host that stores images elsewhere passes `onAddAsset({ name, mediaType, bytes, size, alt, file })` and returns the reference to use (a web address, or an `asset:` id it added); nothing is then added to `assets`. `setAssetAlt` edits an asset's alt text as one step.
+`build(reference, presentation)` is any `prepare...` function of this package, so the same upload works for the logo (all 12 variants), organization logo, watermark, slide image, a background (`prepareBackground`) and a header/footer zone image. The file is checked before anything changes: PNG, JPEG, GIF, WebP or SVG by its bytes (a `.jpg` that is really a PNG, a text file, an empty file and an SVG with script are refused), and at most `maxBytes` (default 2 MiB, `DEFAULT_MAX_IMAGE_BYTES`) with a message that says what to do. A host that stores images elsewhere passes `onAddAsset({ name, mediaType, bytes, size, alt, file })` and returns the reference to use (a web address, or an `asset:` id it added); nothing is then added to `assets`. `setAssetAlt` edits an asset's alt text as one step.
 
 ### Backgrounds (RR-06)
 
@@ -347,8 +347,8 @@ setCaption(editor, "slides.1.blocks.0", { text: "Figure 1. Adoption by year", al
 addReference(editor, { id: "gartner-2026", text: "Gartner, Market Guide, 2026", url: "https://www.gartner.com" });
 citeRun(editor, "slides.0.text.0", "gartner-2026"); // the run shows a superscript marker; the slide lists the reference
 setFootnote(editor, "slides.0.text.1", "Internal forecast, not audited.");
-listCitations(editor.document); // the numbering every engine draws: notes, references, per-slide markers, unused ids
-referencesSlideFor(editor.document, { title: "Sources" }); // an ordinary list slide to insert
+listCitations(editor.presentation); // the numbering every engine draws: notes, references, per-slide markers, unused ids
+referencesSlideFor(editor.presentation, { title: "Sources" }); // an ordinary list slide to insert
 ```
 
 `captionTargets`, `readCaption`, `listReferences`, `updateReference`, `removeReference` (refuses while a run cites the id unless `force`, which also removes those cites), `unciteRun` and `runAt` complete the set; every `prepare*` variant returns the patches and the validated candidate without applying them. A string run becomes an object run when it gains a cite or footnote and returns to a string when nothing is left. The module needs the core that ships the fields; on an older core `listCitations` and `referencesSlideFor` throw `annotations-unavailable`.
@@ -370,7 +370,7 @@ Styles use scheme roles, so they follow the color scheme, and the renderers keep
 
 ## Slide management (RR-21)
 
-`@openpresentation/opf-editor/slides` adds, duplicates, deletes, reorders, hides and sections slides. Every function has a `prepare…` form that returns the JSON Patch for a document without touching a session (`{ document, patches, changed, selection }`), and an apply form that commits it as ONE validated, undoable change, so a single Undo restores the deck exactly and the preview, thumbnails and PPTX export follow from the document. An operation that changes nothing commits nothing (`changed: false`).
+`@openpresentation/opf-editor/slides` adds, duplicates, deletes, reorders, hides and sections slides. Every function has a `prepare…` form that returns the JSON Patch for a document without touching a session (`{ presentation, patches, changed, selection }`), and an apply form that commits it as ONE validated, undoable change, so a single Undo restores the deck exactly and the preview, thumbnails and PPTX export follow from the document. An operation that changes nothing commits nothing (`changed: false`).
 
 ```js
 import { addSlide, duplicateSlides, removeSlides, moveSlides, moveSlidesBy, setHidden, addSection, renameSection, removeSection, moveSection, setSection, listSections } from "@openpresentation/opf-editor/slides";
@@ -424,7 +424,7 @@ import { prepareDatasetImport, importData } from "@openpresentation/opf-editor/d
 setGridColumnFormat(editor, "slides.3.blocks.0.chart", 1, "$#,##0.0");   // header "Revenue" becomes { name: "Revenue", format }; null clears it
 setChartMapping(editor, "slides.3.blocks.0.chart", { category: "Region", series: ["Revenue"] });
 detachGridDataset(editor, "slides.3.blocks.1.table");                   // its own copy instead of the shared dataset
-const stored = prepareDatasetImport(editor.document, importData(csv, { as: "chart" }), { id: "revenue" });
+const stored = prepareDatasetImport(editor.presentation, importData(csv, { as: "chart" }), { id: "revenue" });
 editor.applyPatch([...stored.patches, { op: "add", path: "/slides/-", value: { id: "rev", title: "Revenue", ...stored.content } }]);
 ```
 
@@ -503,7 +503,7 @@ import { renderSlideSvg } from '@openpresentation/opf-render/svg';
 const panel = createTemplatePanel(container, {
   editor,
   // The live preview: the template drawn with the values typed so far (unfilled variables show their example).
-  renderPreview: ({ document, variables, slideIndex }) => renderSlideSvg(document, slideIndex, { fonts, variables }),
+  renderPreview: ({ presentation, variables, slideIndex }) => renderSlideSvg(presentation, slideIndex, { fonts, variables }),
   getTarget: () => ({ path: selectedPath, start, end }), // the text field a token is inserted into; omit to hide that section
   onApply: () => redraw(),
 });
@@ -511,11 +511,11 @@ const panel = createTemplatePanel(container, {
 
 The panel lists every variable with the input its kind needs (text, number, date, color, link, one-entry-per-line list, and an image source with an asset pick or an uploaded file, 5 MB at most), marks which are filled, defaulted, optional or still needed, says where each is used, rejects a bad value in place, and previews the result as values change. **Fill the presentation** resolves the variables and replaces the document with the concrete deck as one validated, undoable edit (one Undo restores the template); **Fill what is ready** keeps the unfilled variables declared. **Insert a variable into text** inserts `{{id}}` into the selected text, optionally declaring a new variable in the same edit. A **Built-in variables** section lists the values the document supplies itself (`deck.*`, `speaker.*`, `speakers`, `organization.*`, and `speaker.<id>.*` / `organization.<id>.*` by id), read-only, each with its current value or "not set" and where it is used; they are filled from the document's own fields, not in the panel, and the same names appear in the insert list so `{{speaker.name}}` can be inserted without declaring anything. A checkbox marks the document as a template.
 
-The headless pieces are usable on their own: `listTemplateFields(document, values)`, `templateStatus`, `previewTemplate`, `createTemplateFill(editor)` (`set`, `setText`, `clear`, `reset`, `preview`, `apply({partial})`), `declareVariable`, `setTemplate`, `insertVariableToken(editor, path, id, {start, end, runIndex, format, declare})`, `variableToken` (also for built-in names), `listBuiltins(document)` (the built-ins with kind, label, value, availability and uses), `suggestVariableId`. Every write goes through the session. The canvas draws a template as authored (`renderOptions.variables` defaults to `false`), so its tokens stay visible and an inline edit never overwrites one with resolved text; the panel's preview draws the resolved deck. The playground adds a **Fill template** button.
+The headless pieces are usable on their own: `listTemplateFields(presentation, values)`, `templateStatus`, `previewTemplate`, `createTemplateFill(editor)` (`set`, `setText`, `clear`, `reset`, `preview`, `apply({partial})`), `declareVariable`, `setTemplate`, `insertVariableToken(editor, path, id, {start, end, runIndex, format, declare})`, `variableToken` (also for built-in names), `listBuiltins(document)` (the built-ins with kind, label, value, availability and uses), `suggestVariableId`. Every write goes through the session. The canvas draws a template as authored (`renderOptions.variables` defaults to `false`), so its tokens stay visible and an inline edit never overwrites one with resolved text; the panel's preview draws the resolved deck. The playground adds a **Fill template** button.
 
 ## Find and replace (RR-25)
 
-`@openpresentation/opf-editor/find` is the headless model and `/find-panel` the DOM panel. The model lists every piece of text in a document (`collectSearchFields`: presentation name and description, header and footer text, and per slide the title, subtitle, tag, section, text and its runs, list items and bullets, code, string metrics and their label, unit and delta, quotes with attribution and source, timeline names, dates and events, chart column labels and string cells, table headers and cells including styled cells, image and video alt text, and speaker notes). Numbers, ids, asset references, URLs, colours and layout names are never searched or changed. `findMatches(document, query, { matchCase, wholeWord, regex, notes, slideIndex })` returns the matches with the field, offsets and a context snippet; an invalid regular expression comes back as `error` and an empty match is skipped. `replaceAll(editor, query, replacement, options)` replaces every match as **one** `applyPatch` (one undo step restores every field; a document the schema rejects changes nothing) and `replaceMatch(editor, match, query, replacement, options)` replaces one. In regular-expression mode the replacement reads `$&`, `$1` to `$99`, `$<name>`, `` $` ``, `$'` and `$$`; otherwise it is literal.
+`@openpresentation/opf-editor/find` is the headless model and `/find-panel` the DOM panel. The model lists every piece of text in a document (`collectSearchFields`: presentation name and description, header and footer text, and per slide the title, subtitle, tag, section, text and its runs, list items and bullets, code, string metrics and their label, unit and delta, quotes with attribution and source, timeline names, dates and events, chart column labels and string cells, table headers and cells including styled cells, image and video alt text, and speaker notes). Numbers, ids, asset references, URLs, colours and layout names are never searched or changed. `findMatches(presentation, query, { matchCase, wholeWord, regex, notes, slideIndex })` returns the matches with the field, offsets and a context snippet; an invalid regular expression comes back as `error` and an empty match is skipped. `replaceAll(editor, query, replacement, options)` replaces every match as **one** `applyPatch` (one undo step restores every field; a document the schema rejects changes nothing) and `replaceMatch(editor, match, query, replacement, options)` replaces one. In regular-expression mode the replacement reads `$&`, `$1` to `$99`, `$<name>`, `` $` ``, `$'` and `$$`; otherwise it is literal.
 
 **Rich text.** A run array is searched as its runs joined, so a phrase that crosses a bold/plain boundary is found. A match inside one run changes only that run and every run keeps its formatting. A match that spans several runs is replaced with the formatting of the run that holds the first matched character (the Word and Google Docs rule): the matched characters of the later runs are removed, text before and after keeps its own formatting, and a run left empty is dropped (a field always keeps at least one run). A run written as a plain string stays a plain string.
 
@@ -535,7 +535,7 @@ At 900px and narrower the playground is one screen: the slide strip on top, the 
 
 `@openpresentation/opf-editor/review-panel` mounts the findings of core's `validate(presentation)` next to the document, grouped by category (format, references, policy, accessibility, layout, content): contrast, text that does not fit, missing alt text, reading order, fonts, links and more (the same rules as `opf validate`; see the [validate guide](https://github.com/OpenPresentation/opf/blob/main/docs/validate.md)). A finding is core's `Finding` (rule id, severity, category, JSON Pointer path, message, `fixes`), so a hosted reviewer that returns a `FindingReport`, such as pptx.dev's review, lists its findings in the same panel.
 
-The session itself checks only the `format` category per edit (`validate(document, { only: ["format"] })`, no layout is built), and `editor.validation` is that report: `valid`, `findings`, `counts`. The panel runs the full check once the document has been quiet for a moment (`delay`, 300 ms), never per keystroke.
+The session itself checks only the `format` category per edit (`validate(presentation, { only: ["format"] })`, no layout is built), and `editor.validation` is that report: `valid`, `findings`, `counts`. The panel runs the full check once the document has been quiet for a moment (`delay`, 300 ms), never per keystroke.
 
 ```js
 import { createReviewPanel } from "@openpresentation/opf-editor/review-panel";
@@ -561,7 +561,7 @@ Findings show a severity word, the slide, the rule id and, for a hosted reviewer
 
 ```js
 import { exportDeck } from "@openpresentation/opf-editor/export";
-const result = await exportDeck(editor.document, {
+const result = await exportDeck(editor.presentation, {
   format: "pdf",              // "pdf" | "png" | "svg"
   slides: "all",              // or "current" with slideIndex, or [slide numbers]; hidden slides only with includeHidden
   pdfMode: "vector",          // or "raster" (an image per slide); PNG and raster density: scale 1 to 4
@@ -632,7 +632,7 @@ Version 0.11.0 requires `@openpresentation/opf@^0.12.0` and the optional rendere
 
 With the sibling workspace linked, run `pnpm demo:editor` from the OPF repo, then serve its `artifacts/editor` directory with a static HTTP server. The demo lets you select SVG text, apply edits, change composition, edit the JSON document, and undo/redo. It uses the real renderer and editor session with no service dependency.
 
-Editor snapshots are immutable and keep the same object identity until a change. This supports React `useSyncExternalStore` without render loops. `editor.document` remains a separate mutable copy for callers that need one.
+Editor snapshots are immutable and keep the same object identity until a change. This supports React `useSyncExternalStore` without render loops. `editor.presentation` remains a separate mutable copy for callers that need one.
 
 Nested content groups expose their bounds through `editor.composeSlide(index).groups`. Use `editor.setGroupComposition("slides.0.blocks.0", {mode:"column"})` to reflow a group with validation and undo/redo. The playground includes a nested example and group arrangement controls.
 
@@ -680,7 +680,7 @@ Headless applications and agents can import `formatRichTextRange`, `replaceRichT
 
 The canvas can show draggable, keyboard-accessible dividers for root and nested composition tracks. Pass `layoutEditing: true`, or call `canvas.setLayoutEditing(true)`. A pointer drag produces live preview drafts and commits one undo step. Escape cancels; strict overflow prevents invalid fit. Automatic layouts become explicit grids when resized. Promoted regions stay fixed, while their nested groups can be resized.
 
-`prepareTrackResize(document, flow, boundary, fraction)` from `@openpresentation/opf-editor/layout` returns a candidate document and guarded patches for headless agents. Obtain `flow` from the shared renderer's `geometry.flows`; preview the candidate before applying. The editor supports JSON Patch `test` guards alongside add/replace/remove/move/copy (RFC 6902, executed by core's `@openpresentation/opf/patch`, the module `opf edit` and `opf diff` also use); failed guards leave state and history unchanged. This export is included in version 0.1.0.
+`prepareTrackResize(presentation, flow, boundary, fraction)` from `@openpresentation/opf-editor/layout` returns a candidate document and guarded patches for headless agents. Obtain `flow` from the shared renderer's `geometry.flows`; preview the candidate before applying. The editor supports JSON Patch `test` guards alongside add/replace/remove/move/copy (RFC 6902, executed by core's `@openpresentation/opf/patch`, the module `opf edit` and `opf diff` also use); failed guards leave state and history unchanged. This export is included in version 0.1.0.
 
 
 ### Move complete blocks

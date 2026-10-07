@@ -3,7 +3,7 @@
 // Everything here reads and writes the document through the session, so a fill, a declaration
 // and a token insertion are validated, undoable JSON Patch edits like any other. Importing this
 // module needs no DOM.
-import { coerceVariableValue, hasContentVariables, listVariables, resolveVariables, variableDeclarations } from "@openpresentation/opf";
+import { coerceVariableValue, hasContentVariables, listBuiltinVariables, listVariables, resolveVariables, variableDeclarations } from "@openpresentation/opf";
 import { OPFEditorError, getValueAtPath, opfPathToJsonPointer } from "./index.js";
 
 const VARIABLE_ID = /^[a-z][a-z0-9-]*$/;
@@ -35,22 +35,21 @@ function checkEditor(editor) {
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
 /** True when the document is marked as a template (`template: true`). */
-export function isTemplateDocument(document) {
-  return isObject(document) && document.template === true;
+export function isTemplateDocument(presentation) {
+  return isObject(presentation) && presentation.template === true;
 }
 
 /** True when the document is a template or declares a variable that is not a color. */
-export function hasTemplateVariables(document) {
-  return hasContentVariables(document);
+export function hasTemplateVariables(presentation) {
+  return hasContentVariables(presentation);
 }
 
 /**
- * The document's built-in variables (read-only values from its own speaker, organization and deck metadata) with
- * kind, label, current value, whether the document has a source value and where each is used. Empty on a core
- * that predates built-ins.
+ * The presentation's built-in variables (read-only values from its own speaker, organization and deck metadata) with
+ * kind, label, current value, whether the presentation has a source value and where each is used.
  */
-export function listBuiltins(document) {
-  return typeof core.listBuiltinVariables === "function" ? core.listBuiltinVariables(document) : [];
+export function listBuiltins(presentation) {
+  return listBuiltinVariables(presentation);
 }
 
 function humanize(id) {
@@ -90,9 +89,9 @@ export function fieldTextToValue(kind, text) {
  * `status` is "filled" (a value was supplied), "default" (the declaration has a value), "unfilled"
  * (required, no value) or "optional" (not required, no value).
  */
-export function listTemplateFields(document, values = {}) {
-  const declared = new Map(variableDeclarations(document).map((declaration) => [declaration.id, declaration]));
-  return listVariables(document, values).map((info) => {
+export function listTemplateFields(presentation, values = {}) {
+  const declared = new Map(variableDeclarations(presentation).map((declaration) => [declaration.id, declaration]));
+  return listVariables(presentation, values).map((info) => {
     const declaration = declared.get(info.id);
     const supplied = Object.hasOwn(values, info.id) && values[info.id] !== undefined && values[info.id] !== null;
     const defaultValue = declaration?.value;
@@ -119,12 +118,12 @@ export function listTemplateFields(document, values = {}) {
 }
 
 /** The summary a panel shows: how many required variables still need a value. */
-export function templateStatus(document, values = {}) {
-  const fields = listTemplateFields(document, values);
+export function templateStatus(presentation, values = {}) {
+  const fields = listTemplateFields(presentation, values);
   const required = fields.filter((field) => field.required);
   const unfilled = fields.filter((field) => field.status === "unfilled").map((field) => field.id);
   return {
-    template: isTemplateDocument(document),
+    template: isTemplateDocument(presentation),
     fieldCount: fields.length,
     requiredCount: required.length,
     filledRequiredCount: required.length - unfilled.length,
@@ -137,8 +136,8 @@ export function templateStatus(document, values = {}) {
  * Preview data for the supplied values: the concrete deck with each unfilled variable's example (or its
  * token when it has none). Never throws for missing values; the diagnostics say what was unfilled.
  */
-export function previewTemplate(document, values = {}) {
-  return resolveVariables(document, values, { examples: true, partial: true });
+export function previewTemplate(presentation, values = {}) {
+  return resolveVariables(presentation, values, { examples: true, partial: true });
 }
 
 /**
@@ -153,20 +152,20 @@ export function createTemplateFill(editor, options = {}) {
   const emit = () => {
     for (const listener of listeners) listener(api);
   };
-  const declared = () => new Set(variableDeclarations(editor.document).map((declaration) => declaration.id));
-  const kindOf = (id) => variableDeclarations(editor.document).find((declaration) => declaration.id === id)?.kind;
+  const declared = () => new Set(variableDeclarations(editor.presentation).map((declaration) => declaration.id));
+  const kindOf = (id) => variableDeclarations(editor.presentation).find((declaration) => declaration.id === id)?.kind;
   const api = {
     get values() {
       return structuredClone(values);
     },
     fields() {
-      return listTemplateFields(editor.document, values);
+      return listTemplateFields(editor.presentation, values);
     },
     status() {
-      return templateStatus(editor.document, values);
+      return templateStatus(editor.presentation, values);
     },
     preview() {
-      return previewTemplate(editor.document, values);
+      return previewTemplate(editor.presentation, values);
     },
     set(id, value) {
       if (!declared().has(id)) throw fail("unknown-variable", `No variable '${id}' is declared.`, { id });
@@ -213,8 +212,8 @@ export function createTemplateFill(editor, options = {}) {
      * `partial` is set (the unfilled ones stay declared for a later pass).
      */
     apply({ partial = false, meta = {} } = {}) {
-      const document = editor.document;
-      const result = resolveVariables(document, values, { partial, template: false });
+      const presentation = editor.presentation;
+      const result = resolveVariables(presentation, values, { partial, template: false });
       const errors = result.diagnostics.filter((entry) => entry.severity === "error");
       if (errors.length) {
         const unfilled = errors.some((entry) => entry.code === "variable-unfilled");
@@ -241,20 +240,20 @@ export function variableToken(id, format) {
 }
 
 /** An unused variable id derived from a label, for a "new variable" form. */
-export function suggestVariableId(document, label = "value") {
+export function suggestVariableId(presentation, label = "value") {
   const base = String(label).normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").replace(/^[^a-z]+/, "") || "value";
-  const taken = new Set(isObject(document?.variables) ? Object.keys(document.variables) : []);
+  const taken = new Set(isObject(presentation?.variables) ? Object.keys(presentation.variables) : []);
   if (!taken.has(base)) return base;
   for (let n = 2; ; n++) if (!taken.has(`${base}-${n}`)) return `${base}-${n}`;
 }
 
-function declarationPatches(document, id, declaration) {
+function declarationPatches(presentation, id, declaration) {
   if (!VARIABLE_ID.test(id)) throw fail("invalid-variable-id", "A variable id is lowercase kebab-case: letters, digits and hyphens, starting with a letter.", { id });
   const entry = typeof declaration === "string" ? declaration : structuredClone(declaration);
   if (typeof entry !== "string" && !(isObject(entry) && KINDS.includes(entry.type))) {
     throw fail("invalid-variable", `A variable declaration is a hex color or an object whose type is one of ${KINDS.join(", ")}.`, { id });
   }
-  const variables = document.variables;
+  const variables = presentation.variables;
   if (variables !== undefined && !isObject(variables)) throw fail("invalid-variable", "The document's variables field is not an object.", { id });
   if (variables && Object.hasOwn(variables, id)) throw fail("variable-exists", `A variable '${id}' is already declared.`, { id });
   return variables === undefined
@@ -265,20 +264,20 @@ function declarationPatches(document, id, declaration) {
 /** Declare a variable as one undoable edit. The resulting document must validate (a required variable with no value needs `template: true`). */
 export function declareVariable(editor, id, declaration, meta = {}) {
   checkEditor(editor);
-  return editor.applyPatch(declarationPatches(editor.document, id, declaration), { source: "template-variable", rejectInvalid: true, ...meta });
+  return editor.applyPatch(declarationPatches(editor.presentation, id, declaration), { source: "template-variable", rejectInvalid: true, ...meta });
 }
 
 /** Mark the document as a template (or, with `false`, as a normal deck) as one undoable edit. */
 export function setTemplate(editor, enabled, meta = {}) {
   checkEditor(editor);
-  const document = editor.document;
-  const present = Object.hasOwn(document, "template");
+  const presentation = editor.presentation;
+  const present = Object.hasOwn(presentation, "template");
   const patches = enabled
     ? [{ op: present ? "replace" : "add", path: "/template", value: true }]
     : present
       ? [{ op: "remove", path: "/template" }]
       : [];
-  if (!patches.length) return { document, patches: [], inversePatches: [], validation: editor.validation };
+  if (!patches.length) return { presentation, patches: [], inversePatches: [], validation: editor.validation };
   return editor.applyPatch(patches, { source: "template-mode", rejectInvalid: true, ...meta });
 }
 
@@ -290,17 +289,17 @@ export function setTemplate(editor, enabled, meta = {}) {
  */
 export function insertVariableToken(editor, path, id, { start, end, runIndex, format, declare, meta = {} } = {}) {
   checkEditor(editor);
-  const document = editor.document;
+  const presentation = editor.presentation;
   const token = variableToken(id, format);
   const patches = [];
   // A built-in needs no declaration; an unknown built-in path fails the validated edit.
-  const declaredNow = BUILTIN_NAME.test(id) || (isObject(document.variables) && Object.hasOwn(document.variables, id));
+  const declaredNow = BUILTIN_NAME.test(id) || (isObject(presentation.variables) && Object.hasOwn(presentation.variables, id));
   if (!declaredNow) {
     if (declare === undefined) throw fail("unknown-variable", `No variable '${id}' is declared. Declare it first, or pass its declaration.`, { id });
-    patches.push(...declarationPatches(document, id, declare));
+    patches.push(...declarationPatches(presentation, id, declare));
   }
   const pointer = opfPathToJsonPointer(path);
-  const current = getValueAtPath(document, path);
+  const current = getValueAtPath(presentation, path);
   const splice = (text) => {
     const from = start === undefined ? text.length : start;
     const to = end === undefined ? from : end;

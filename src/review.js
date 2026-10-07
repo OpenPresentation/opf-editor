@@ -118,10 +118,10 @@ export function groupFindings(findings) {
  * Where "go to" lands for a finding: the slide and the deepest existing path on the finding's way (a finding about
  * a missing field points at the field's parent). `path` is the OPF dotted path a host selects; `pointer` the JSON Pointer.
  */
-export function findingTarget(document, finding) {
+export function findingTarget(presentation, finding) {
   const segments = splitOpfPath(finding.path ?? "");
   let length = segments.length;
-  while (length > 0 && !hasValueAtPath(document, segments.slice(0, length))) length -= 1;
+  while (length > 0 && !hasValueAtPath(presentation, segments.slice(0, length))) length -= 1;
   const kept = segments.slice(0, length);
   const slide = kept[0] === "slides" && /^\d+$/.test(kept[1] ?? "") ? Number(kept[1]) : null;
   return { slide, path: kept.join("."), pointer: opfPathToJsonPointer(kept), exact: length === segments.length };
@@ -131,7 +131,7 @@ const PATCH_OPS = new Set(["add", "replace", "remove", "move", "copy", "test"]);
 const MAX_FIX_OPERATIONS = 20;
 const STALE = "The slide has changed since this finding was made. The review has been refreshed; apply the fix again if it still shows.";
 
-function checkPatch(document, operations) {
+function checkPatch(presentation, operations) {
   if (!Array.isArray(operations) || !operations.length || operations.length > MAX_FIX_OPERATIONS) {
     throw fail("invalid-fix", `A review fix changes one to ${MAX_FIX_OPERATIONS} fields.`);
   }
@@ -140,8 +140,8 @@ function checkPatch(document, operations) {
       throw fail("invalid-fix", "A review fix may change a field below the document root.", { operation });
     }
     // The finding is stale when the field it was about has since changed: refuse instead of guessing.
-    if ((operation.op === "replace" || operation.op === "remove") && !hasValueAtPath(document, operation.path)) throw fail("stale-finding", STALE, { operation });
-    if ((operation.op === "move" || operation.op === "copy") && (typeof operation.from !== "string" || !hasValueAtPath(document, operation.from))) throw fail("stale-finding", STALE, { operation });
+    if ((operation.op === "replace" || operation.op === "remove") && !hasValueAtPath(presentation, operation.path)) throw fail("stale-finding", STALE, { operation });
+    if ((operation.op === "move" || operation.op === "copy") && (typeof operation.from !== "string" || !hasValueAtPath(presentation, operation.from))) throw fail("stale-finding", STALE, { operation });
   }
 }
 
@@ -152,23 +152,23 @@ function checkPatch(document, operations) {
 export function applyReviewFix(editor, finding, fix, meta = {}) {
   if (!editor || typeof editor.applyPatch !== "function") throw fail("invalid-editor", "Expected an editor session created by createEditorSession.");
   if (!fix || (fix.kind ?? "patch") !== "patch") throw fail("invalid-fix", "Only patch fixes can be applied; a focus fix asks the author to type something.");
-  checkPatch(editor.document, fix.patch);
+  checkPatch(editor.presentation, fix.patch);
   return editor.applyPatch(fix.patch, { ...meta, source: meta.source ?? "review", ruleId: finding?.ruleId, fix: fix.id, rejectInvalid: true });
 }
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
 /** The patch operations that give the asset value at `pointer` alt text (`""` marks it decorative), or `null` when it already has exactly this alt. */
-export function altTextPatch(document, pointer, text) {
-  const value = getValueAtPath(document, pointer);
+export function altTextPatch(presentation, pointer, text) {
+  const value = getValueAtPath(presentation, pointer);
   if (value === undefined) throw fail("stale-finding", "The picture this finding is about no longer exists.", { pointer });
   const alt = String(text ?? "");
   const id = assetIdOf(value);
-  const entry = id === undefined ? undefined : getValueAtPath(document, ["assets", id]);
+  const entry = id === undefined ? undefined : getValueAtPath(presentation, ["assets", id]);
   // A picture that points into the assets registry gets its alt text there, so every use of the asset has it.
   if (id !== undefined && entry !== undefined) {
     // prepareAssetAlt treats "" as "remove the alt"; an empty alt here is the decorative choice and must stay in the document.
-    if (alt !== "") return prepareAssetAlt(document, id, alt).patches;
+    if (alt !== "") return prepareAssetAlt(presentation, id, alt).patches;
     if (isObject(entry)) {
       if (entry.alt === "") return null;
       return [{ op: Object.hasOwn(entry, "alt") ? "replace" : "add", path: opfPathToJsonPointer(["assets", id, "alt"]), value: "" }];
@@ -187,23 +187,23 @@ export function altTextPatch(document, pointer, text) {
 export function setReviewAltText(editor, pointer, text, meta = {}) {
   const alt = String(text ?? "").trim();
   if (!alt) throw fail("empty-alt-text", "Write what the picture shows, or mark it decorative.", { pointer });
-  const patch = altTextPatch(editor.document, pointer, alt);
-  if (!patch) return { changed: false, document: editor.document };
+  const patch = altTextPatch(editor.presentation, pointer, alt);
+  if (!patch) return { changed: false, presentation: editor.presentation };
   return { changed: true, ...editor.applyPatch(patch, { ...meta, source: meta.source ?? "review-alt", pointer, rejectInvalid: true }) };
 }
 
 /** Mark a picture decorative (empty alt text), an explicit choice, as one undoable change. */
 export function markDecorative(editor, pointer, meta = {}) {
-  const patch = altTextPatch(editor.document, pointer, "");
-  if (!patch) return { changed: false, document: editor.document };
+  const patch = altTextPatch(editor.presentation, pointer, "");
+  if (!patch) return { changed: false, presentation: editor.presentation };
   return { changed: true, ...editor.applyPatch(patch, { ...meta, source: meta.source ?? "review-decorative", pointer, rejectInvalid: true }) };
 }
 
 /** The alt text a picture has now (own or through the assets registry), for pre-filling the field. */
-export function currentAltText(document, pointer) {
-  const value = getValueAtPath(document, pointer);
+export function currentAltText(presentation, pointer) {
+  const value = getValueAtPath(presentation, pointer);
   if (isObject(value) && typeof value.alt === "string") return value.alt;
   const id = assetIdOf(value);
-  const entry = id === undefined ? undefined : getValueAtPath(document, ["assets", id]);
+  const entry = id === undefined ? undefined : getValueAtPath(presentation, ["assets", id]);
   return isObject(entry) && typeof entry.alt === "string" ? entry.alt : "";
 }

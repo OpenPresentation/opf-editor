@@ -29,7 +29,7 @@ export declare function whenFontsReady(
 ): Promise<void>;
 export interface CanvasEditorOptions {
   editor?: EditorSession;
-  document?: unknown;
+  presentation?: unknown;
   slideIndex?: number;
   /** Show keyboard-accessible dividers for resizing composition tracks. */
   layoutEditing?: boolean;
@@ -60,7 +60,7 @@ export interface CanvasEditorOptions {
     editor: EditorSession;
   }) => void;
   onDraft?: (draft: {
-    document: unknown;
+    presentation: unknown;
     path: string;
     value: unknown;
   }) => void;
@@ -70,7 +70,7 @@ export interface CanvasEditorOptions {
   /** Font loading progress of the canvas: `loading`, `error` (a face could not be loaded; the canvas offers a retry) and `ready`. */
   onFonts?: (event: { state: "loading"; pending: string[] } | { state: "error"; error: Error } | { state: "ready" }) => void;
   onRender?: (event: {
-    document: unknown;
+    presentation: unknown;
     slideIndex: number;
     svg: SVGSVGElement;
     geometry: SlideComposition;
@@ -102,7 +102,7 @@ export interface CanvasEditor {
   editProperties(path: string): boolean;
   commit(): boolean;
   cancel(): void;
-  render(document?: unknown): void;
+  render(presentation?: unknown): void;
   setSlide(index: number): boolean;
   /**
    * Select the content at `path`, or the closest enclosing content the canvas can select (a list item selects its list),

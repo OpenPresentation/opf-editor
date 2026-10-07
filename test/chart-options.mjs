@@ -16,7 +16,7 @@ const deck = (type = "column") => ({
   slides: [{ id: "chart", title: "Chart", blocks: [{ chart: { type, data } }, { text: "Notes" }] }],
 });
 const session = (type) => createEditorSession(deck(type), { rejectInvalid: true });
-const svg = (document) => renderSlideSvg(document, 0, { trace: true });
+const svg = (presentation) => renderSlideSvg(presentation, 0, { trace: true });
 
 // Selection paths.
 assert.equal(parseChartPath(C), C);
@@ -46,16 +46,16 @@ assert.equal(readChartOptions({ type: "treemap", data, dataLabels: false }).stat
 // Axis titles: one patch, one undo step, the preview draws them, the PPTX carries them.
 {
   const editor = session();
-  const before = editor.document;
+  const before = editor.presentation;
   const beforeSvg = svg(before);
   const change = setChartOptions(editor, C, { axisTitles: { category: "Quarter", value: "Revenue ($M)" } });
   assert.equal(change.changed, true);
   assert.deepEqual(editor.get(`${C}.axisTitles`), { category: "Quarter", value: "Revenue ($M)" });
   assert.equal(editor.snapshot().undoDepth, 1);
-  assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
-  assert.notEqual(svg(editor.document), beforeSvg, "the preview draws the titles");
-  assert.match(svg(editor.document), /data-opf-path="slides\.0\.blocks\.0\.chart\.axisTitles\.value"/);
-  const bytes = await pptx.toPptx(structuredClone(editor.document), { strictAssets: true });
+  assert.equal(validate(editor.presentation, { only: ["format"] }).valid, true);
+  assert.notEqual(svg(editor.presentation), beforeSvg, "the preview draws the titles");
+  assert.match(svg(editor.presentation), /data-opf-path="slides\.0\.blocks\.0\.chart\.axisTitles\.value"/);
+  const bytes = await pptx.toPptx(structuredClone(editor.presentation), { strictAssets: true });
   const back = await pptx.fromPptx(bytes);
   const block = (back.slides?.[0]?.blocks ?? []).find((entry) => entry.chart) ?? back.slides?.[0];
   assert.deepEqual(block.chart.axisTitles, { category: "Quarter", value: "Revenue ($M)" }, "the titles survive the PPTX round trip");
@@ -68,8 +68,8 @@ assert.equal(readChartOptions({ type: "treemap", data, dataLabels: false }).stat
   assert.equal(editor.get(`${C}.axisTitles`), undefined);
   assert.equal(setChartOptions(editor, C, { axisTitles: { category: "" } }).changed, false, "removing nothing is a no-op");
   while (editor.snapshot().undoDepth) editor.undo();
-  assert.deepEqual(editor.document, before);
-  assert.equal(svg(editor.document), beforeSvg);
+  assert.deepEqual(editor.presentation, before);
+  assert.equal(svg(editor.presentation), beforeSvg);
 }
 
 // A chart type without the axis never gets the title.
@@ -83,17 +83,17 @@ assert.equal(readChartOptions({ type: "treemap", data, dataLabels: false }).stat
 // Legend.
 {
   const editor = session();
-  const before = editor.document;
+  const before = editor.presentation;
   for (const position of ["top", "bottom", "left", "right", "none"]) {
     assert.equal(setChartOptions(editor, C, { legend: position }).changed, true);
     assert.equal(editor.get(`${C}.legend`), position);
-    assert.equal(validate(editor.document, { only: ["format"] }).valid, true);
+    assert.equal(validate(editor.presentation, { only: ["format"] }).valid, true);
   }
   assert.equal(setChartOptions(editor, C, { legend: "default" }).changed, true);
   assert.equal(editor.get(`${C}.legend`), undefined, "default removes the field");
   assert.throws(() => setChartOptions(editor, C, { legend: "middle" }), /not a legend position/);
   while (editor.snapshot().undoDepth) editor.undo();
-  assert.deepEqual(editor.document, before);
+  assert.deepEqual(editor.presentation, before);
   const radar = session("radar");
   assert.equal(setChartOptions(radar, C, { legend: "bottom" }).changed, true);
   const world = session("world");
@@ -103,10 +103,10 @@ assert.equal(readChartOptions({ type: "treemap", data, dataLabels: false }).stat
 // Data labels: on/off, content, position, separator; unsupported values are never written.
 {
   const editor = session();
-  const before = editor.document;
+  const before = editor.presentation;
   assert.equal(setChartOptions(editor, C, { dataLabels: true }).changed, true);
   assert.equal(editor.get(`${C}.dataLabels`), true);
-  assert.match(svg(editor.document), /data-opf-path="slides\.0\.blocks\.0\.chart\.data\.rows\.0\.1"/);
+  assert.match(svg(editor.presentation), /data-opf-path="slides\.0\.blocks\.0\.chart\.data\.rows\.0\.1"/);
   setChartOptions(editor, C, { dataLabels: { position: "inside-end" } });
   assert.deepEqual(editor.get(`${C}.dataLabels`), { position: "inside-end" });
   setChartOptions(editor, C, { dataLabels: { content: ["value", "category"], separator: " | " } });
@@ -128,7 +128,7 @@ assert.equal(readChartOptions({ type: "treemap", data, dataLabels: false }).stat
   assert.equal(setChartOptions(editor, C, { dataLabels: false }).changed, true);
   assert.equal(editor.get(`${C}.dataLabels`), undefined);
   while (editor.snapshot().undoDepth) editor.undo();
-  assert.deepEqual(editor.document, before);
+  assert.deepEqual(editor.presentation, before);
 
   const pie = session("pie");
   setChartOptions(pie, C, { dataLabels: { content: ["category", "percent"], position: "center" } });
@@ -158,15 +158,15 @@ for (const type of ["funnel", "treemap"]) {
 
 // prepareChartOptions never mutates its input and reports a no-op.
 {
-  const document = deck();
-  const frozen = JSON.stringify(document);
-  const prepared = prepareChartOptions(document, C, { legend: "top", axisTitles: { value: "Revenue" } });
-  assert.equal(JSON.stringify(document), frozen, "the document is not modified");
+  const presentation = deck();
+  const frozen = JSON.stringify(presentation);
+  const prepared = prepareChartOptions(presentation, C, { legend: "top", axisTitles: { value: "Revenue" } });
+  assert.equal(JSON.stringify(presentation), frozen, "the document is not modified");
   assert.equal(prepared.changed, true);
   assert.deepEqual(prepared.patches.map((patch) => patch.op), ["add", "add"]);
-  assert.equal(prepared.document.slides[0].blocks[0].chart.legend, "top");
-  assert.equal(prepareChartOptions(document, C, {}).changed, false);
-  assert.throws(() => prepareChartOptions(document, "slides.0.blocks.1.text", { legend: "top" }), /Choose a chart/);
+  assert.equal(prepared.presentation.slides[0].blocks[0].chart.legend, "top");
+  assert.equal(prepareChartOptions(presentation, C, {}).changed, false);
+  assert.throws(() => prepareChartOptions(presentation, "slides.0.blocks.1.text", { legend: "top" }), /Choose a chart/);
 }
 
 console.log("Chart options (editor): axis titles, legend position and data labels edit as one undoable patch, follow core's support table, redraw in the preview and survive the PPTX round trip.");

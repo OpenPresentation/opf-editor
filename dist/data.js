@@ -14,13 +14,13 @@ const isObject = (value) => Boolean(value) && typeof value === "object" && !Arra
  * dataset of that id, which keeps its title, description and source; `source` is merged into its `source`). Apply `patches` and the patch that
  * places `content` in one `applyPatch` call so the import is one undoable edit. Throws `dataset-id-invalid`.
  */
-export function prepareDatasetImport(document, content, options = {}) {
+export function prepareDatasetImport(presentation, content, options = {}) {
   const id = options.id;
   if (typeof id !== "string" || !DATASET_ID_PATTERN.test(id)) throw fail("dataset-id-invalid", 'A dataset id starts with a letter or digit and holds letters, digits, ".", "_" or "-".', { id });
   const isTable = isObject(content) && isObject(content.table);
   if (!isTable && !(isObject(content) && isObject(content.chart) && isObject(content.chart.data))) throw fail("dataset-content-invalid", "Give the table or chart that importData returned.", {});
   const data = isTable ? content.table : content.chart.data;
-  const datasets = isObject(document) && isObject(document.datasets) ? document.datasets : undefined;
+  const datasets = isObject(presentation) && isObject(presentation.datasets) ? presentation.datasets : undefined;
   const previous = datasets && Object.hasOwn(datasets, id) && isObject(datasets[id]) ? datasets[id] : undefined;
   const origin = isObject(options.source) && typeof options.source.src === "string" ? options.source : undefined;
   const entry = {

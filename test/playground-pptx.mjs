@@ -33,9 +33,9 @@ try {
   const button = name => page.getByRole('button', { name, exact: true });
   const source = async () => {
     await button('Source').click();
-    const document = JSON.parse(await page.locator('#json').inputValue());
+    const presentation = JSON.parse(await page.locator('#json').inputValue());
     await button('Close source editor').click();
-    return document;
+    return presentation;
   };
   const deck = {
     name: 'Local browser PowerPoint', design: { theme: 'classic', fontScheme: 'roboto' },

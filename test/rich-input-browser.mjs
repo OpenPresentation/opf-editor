@@ -70,7 +70,7 @@ try{
   const paint=()=>page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   const original=[{text:'First\r\n',bold:true,link:'https://example.org',fontSize:24},{text:'Second\rThird',italic:true,fontSize:24}];
   const deckFor=text=>({name:'Keep deck metadata',design:{fontScheme:{id:'roboto',heading: 'Arimo',body: 'Arimo',code: 'Arimo'}},slides:[{id:'rich',text,notes:'Keep notes'}],extensions:{keep:{value:42}}});
-  const deck=deckFor(original),document=()=>page.evaluate(()=>editor.document);
+  const deck=deckFor(original),presentation=()=>page.evaluate(()=>editor.presentation);
   const text=()=>page.evaluate(()=>editor.get('slides.0.text'));
   const input=()=>page.getByRole('textbox',{name:'Edit rich text inline',exact:true});
   const mount=async value=>{await page.evaluate(args=>mountRich(args),{deck:value,faces});await paint();};
@@ -97,14 +97,14 @@ try{
   };
 
   await mount(deck);await begin();assert.equal(await input().inputValue(),'First\nSecond\nThird');await commit();
-  assert.deepEqual(await document(),deck);assert.equal(await page.evaluate(()=>editor.canUndo),false);await passed('Opening normalized native input is an exact source no-op');
+  assert.deepEqual(await presentation(),deck);assert.equal(await page.evaluate(()=>editor.canUndo),false);await passed('Opening normalized native input is an exact source no-op');
   await begin();await select(18);await input().pressSequentially('!');await paint();
-  assert.deepEqual(await document(),deck);await assertTrace('First\r\nSecond\rThird!');
+  assert.deepEqual(await presentation(),deck);await assertTrace('First\r\nSecond\rThird!');
   await input().press('Control+z');await paint();assert.equal(await input().inputValue(),'First\nSecond\nThird');
   await input().press('Control+Shift+z');await paint();assert.equal(await input().inputValue(),'First\nSecond\nThird!');
   await page.evaluate(()=>editor.set('slides.0.notes','Concurrent notes'));await commit();
-  assert.deepEqual(await document(),{...deck,slides:[{...deck.slides[0],notes:'Concurrent notes',text:[original[0],{...original[1],text:'Second\rThird!'}]}]});
-  await page.evaluate(()=>editor.undo());assert.deepEqual(await text(),original);assert.equal((await document()).slides[0].notes,'Concurrent notes');
+  assert.deepEqual(await presentation(),{...deck,slides:[{...deck.slides[0],notes:'Concurrent notes',text:[original[0],{...original[1],text:'Second\rThird!'}]}]});
+  await page.evaluate(()=>editor.undo());assert.deepEqual(await text(),original);assert.equal((await presentation()).slides[0].notes,'Concurrent notes');
   await passed('Typing preserves runs and metadata, live drafts, draft undo/redo and one session undo');
 
   await mount(deck);await begin();await select(5,6);await input().press('Backspace');await commit();
@@ -125,7 +125,7 @@ try{
   assert.equal(await page.getByRole('textbox',{name:'Selected text',exact:true}).inputValue(),'Second');
   await page.getByRole('button',{name:'Bold',exact:true}).click();await paint();
   assert.deepEqual(await text(),[original[0],{...original[1],text:'Second',bold:true},{...original[1],text:'\rThird'}]);
-  await page.evaluate(()=>editor.undo());assert.deepEqual(await document(),deck);await passed('Formatting after CRLF changes precisely the selected source range and undoes exactly');
+  await page.evaluate(()=>editor.undo());assert.deepEqual(await presentation(),deck);await passed('Formatting after CRLF changes precisely the selected source range and undoes exactly');
 
   const paragraph='AVATAR office affine o\u0302\u0301 with mixed styles and wrapping. '.repeat(4);
   const wrapped=[{text:'Heading\r\n',bold:true,fontSize:24},{text:paragraph,italic:true,fontSize:24},{text:'\rLast  line  ',underline:true,fontSize:24,link:'https://example.org/last'}];

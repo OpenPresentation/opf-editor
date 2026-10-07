@@ -33,9 +33,9 @@ export function parseChartPath(path) {
   return index >= 1 ? parts.slice(0, index + 1).join(".") : undefined;
 }
 
-function chartAt(document, chartPath) {
+function chartAt(presentation, chartPath) {
   const parts = splitOpfPath(chartPath);
-  const chart = getValueAtPath(document, parts);
+  const chart = getValueAtPath(presentation, parts);
   if (!isObject(chart) || typeof chart.type !== "string") throw fail("chart-not-found", "Choose a chart (a path ending in .chart).", { chartPath });
   return { parts, chart };
 }
@@ -216,11 +216,11 @@ function desired(chart, change, support, choices, current, document) {
  * is written only when it differs from the default (the last series), and the secondary axis title goes when no series uses that axis.
  * Fields the chart type cannot show are never written. The document is not modified.
  */
-export function prepareChartOptions(document, chartPath, change) {
-  const before = checkFormat(document);
-  const { parts, chart } = chartAt(document, chartPath);
-  const read = readChartOptions(chart, document);
-  const wanted = desired(chart, change, read.fields, read.choices, read.state, document);
+export function prepareChartOptions(presentation, chartPath, change) {
+  const before = checkFormat(presentation);
+  const { parts, chart } = chartAt(presentation, chartPath);
+  const read = readChartOptions(chart, presentation);
+  const wanted = desired(chart, change, read.fields, read.choices, read.state, presentation);
   const patches = [];
   for (const [key, value] of Object.entries(wanted)) {
     const path = opfPathToJsonPointer([...parts, key]);
@@ -230,8 +230,8 @@ export function prepareChartOptions(document, chartPath, change) {
     } else if (!present) patches.push({ op: "add", path, value: structuredClone(value) });
     else if (!same(chart[key], value)) patches.push({ op: "replace", path, value: structuredClone(value) });
   }
-  const next = checkedDocument(document, patches, before);
-  return { action: "chart-options", chartPath, changed: patches.length > 0, patches, document: next };
+  const next = checkedDocument(presentation, patches, before);
+  return { action: "chart-options", chartPath, changed: patches.length > 0, patches, presentation: next };
 }
 
 function checkEditor(editor) {
@@ -241,10 +241,10 @@ function checkEditor(editor) {
 /** Apply a chart option change to an editor session as one undoable edit. Returns the editor change. */
 export function setChartOptions(editor, chartPath, change, meta = {}) {
   checkEditor(editor);
-  const prepared = prepareChartOptions(editor.document, chartPath, change);
-  const { document, patches, ...summary } = prepared;
-  void document;
-  if (!prepared.changed) return { ...summary, document: editor.document, patches: [], inversePatches: [], validation: editor.validation };
+  const prepared = prepareChartOptions(editor.presentation, chartPath, change);
+  const { presentation, patches, ...summary } = prepared;
+  void presentation;
+  if (!prepared.changed) return { ...summary, presentation: editor.presentation, patches: [], inversePatches: [], validation: editor.validation };
   const applied = editor.applyPatch(patches, { ...meta, source: meta.source ?? "chart-option", action: prepared.action, path: chartPath });
   return { ...applied, ...summary };
 }
