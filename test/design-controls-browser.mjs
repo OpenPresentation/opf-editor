@@ -359,7 +359,7 @@ try {
   await selection.getByLabel(label('Header row')).waitFor();
   assert.match(await selection.locator('[data-role="cell-summary"]').textContent(), /Row 2, column 1/);
   await step('table header style', () => selection.getByLabel(label('Header row')).selectOption('plain'), current => current.slides[2].blocks[1].table.columns[0].style?.fill === 'surface', { preview: true });
-  await step('table banded rows', () => selection.getByLabel('Banded rows').check(), current => current.slides[2].blocks[1].table.rows[1][0].style?.fill === 'background', { preview: true });
+  await step('table banded rows', () => selection.getByLabel('Banded rows').check(), current => current.slides[2].blocks[1].table.rows[1][0].style?.fill === 'surfaceAlt', { preview: true });
   await step('table borders', () => selection.getByLabel(label('Borders')).selectOption('none'), current => current.slides[2].blocks[1].table.rows[0][0].style?.borders?.top?.width === 0, { preview: true });
   await selection.getByLabel(label('Borders')).selectOption('grid');
   await waitDoc(current => current.slides[2].blocks[1].table.rows[0][0].style?.borders?.left?.width === 1, 'grid borders');
