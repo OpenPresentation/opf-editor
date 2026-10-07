@@ -207,7 +207,7 @@ assert.deepEqual(summary, ALL_DIMENSIONS);
 {
   const document = baseDeck();
   document.audience = { id: "executive", attentionBudgetMinutes: 20 };
-  assert.equal(validatePresentation(document).valid, true);
+  assert.equal(validate(document, { only: ["format"] }).valid, true);
   assert.deepEqual(currentSwitchValue(document, "audiences"), { value: { id: "executive", attentionBudgetMinutes: 20 }, scope: "deck" });
   const editor = session(document);
   const change = switchDimension(editor, "audiences", ["investor"]);

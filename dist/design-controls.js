@@ -760,7 +760,7 @@ export function createDesignControls(container, options = {}) {
       help: "A text stamp centered on the slide, drawn diagonally in the theme text color at the opacity below. Press Enter to apply; clear the field to remove it. It replaces a watermark image.",
       onCommit: (value) => run(() => {
         const text = value.trim();
-        const current = getDesignOption(editor.document, "watermark", scoped()).value;
+        const current = getDesignOption(editor.presentation, "watermark", scoped()).value;
         if (text === "") return current && typeof current === "object" && typeof current.text === "string" ? setDesignOption(editor, "watermark", null, scoped()) : { changed: false };
         const opacity = current && typeof current === "object" && typeof current.opacity === "number" ? current.opacity : 0.1;
         return setDesignOption(editor, "watermark", { text, opacity }, scoped());

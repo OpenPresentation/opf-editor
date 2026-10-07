@@ -35,6 +35,6 @@ assert.deepEqual(schemaVariants({type:['string','number']}).map(s=>s.type),['str
   assert.ok(listSchemaFields().some(field => field.name === 'status' && field.values?.join() === 'done,current,planned'));
   const session = createEditorSession(deck);
   session.set('/slides/0/timeline/0/status', 'current');
-  assert.equal(session.document.slides[0].timeline[0].status, 'current');
+  assert.equal(session.presentation.slides[0].timeline[0].status, 'current');
   assert.throws(() => session.set('/slides/0/timeline/0/status', 'blocked', { rejectInvalid: true }));
 }
