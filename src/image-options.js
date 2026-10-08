@@ -48,6 +48,13 @@ export function normalizeOverlay(value) {
   return out;
 }
 
+/** A recolor: `"grayscale"` or a duotone `{ dark, light }` (ColorRefs), shared by image backgrounds and image blocks. */
+export function normalizeRecolor(value) {
+  if (value === "grayscale") return value;
+  if (isObject(value)) return { dark: colorRef(value.dark, "The duotone dark color"), light: colorRef(value.light, "The duotone light color") };
+  throw bad('Recolor is "grayscale" or a duotone { dark, light }.', { field: "recolor", value });
+}
+
 /** A placement `{ edge, size?, inset? }`: the block bleeds to that slide edge and takes `size` (0.1 to 0.9, default 0.5) of the slide. */
 export function normalizePlacement(value) {
   if (!isObject(value) || !IMAGE_EDGES.includes(value.edge)) throw bad(`A placement names the slide edge the image bleeds to: ${IMAGE_EDGES.join(", ")}.`, { value });
@@ -93,9 +100,7 @@ function normalizeField(key, value) {
       return opacity;
     }
     case "recolor":
-      if (value === "grayscale") return value;
-      if (isObject(value)) return { dark: colorRef(value.dark, "The duotone dark color"), light: colorRef(value.light, "The duotone light color") };
-      throw bad('Recolor is "grayscale" or a duotone { dark, light }.', { field: key, value });
+      return normalizeRecolor(value);
     case "overlay":
       return normalizeOverlay(value);
     case "placement":

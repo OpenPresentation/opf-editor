@@ -159,14 +159,14 @@ function embeddedRecord(source) {
 }
 /**
  * A gallery item that describes one catalog record (a layout, theme, colour or font scheme) is embedded in the
- * document it previews, in the catalog group whose `source` is the gallery's origin: `default` when the document has no
- * default group (or its default is that gallery), otherwise the record is left out and the document's own references
- * decide. Records the document already embeds are kept.
+ * document it previews: under `default` with the gallery's origin as its `source` when the document has no default
+ * group (or its default is that gallery), else under `custom` (an item with no gallery URL, or another default
+ * catalog). Records the document already embeds are kept.
  */
 function attachDefinition(presentation, descriptor, gallerySource) {
   const source = descriptor.metadata?.source,
     category = descriptor.category ?? descriptor.metadata?.category;
-  if (!isPlain(source) || !gallerySource) return;
+  if (!isPlain(source)) return;
   const kind = {
     layouts: "layouts",
     "font-schemes": "fontSchemes",
@@ -176,14 +176,12 @@ function attachDefinition(presentation, descriptor, gallerySource) {
   if (!kind) return;
   const id = source.id ?? source.slug;
   if (typeof id !== "string" || !/^[a-z][a-z0-9-]*$/.test(id)) return;
-  presentation.catalogs ??= {};
-  const groups = presentation.catalogs;
-  if (groups.default === false) return;
-  if (groups.default !== undefined && groups.default?.source !== gallerySource) return;
-  if (groups.custom?.[kind]?.[id] !== undefined) return;
-  groups.default ??= { source: gallerySource };
-  groups.default[kind] ??= {};
-  if (groups.default[kind][id] !== undefined) return;
+  const groups = (presentation.catalogs ??= {});
+  if (groups.custom?.[kind]?.[id] !== undefined || groups.default?.[kind]?.[id] !== undefined) return;
+  const group = gallerySource && (groups.default === undefined || groups.default?.source === gallerySource) ? "default" : "custom";
+  if (group === "default") groups.default ??= { source: gallerySource };
+  else groups.custom ??= {};
+  groups[group][kind] ??= {};
   let record;
   if (kind === "layouts") {
     // A gallery layout item is a layout record: its placeholders, design hints and composition are the
@@ -201,7 +199,7 @@ function attachDefinition(presentation, descriptor, gallerySource) {
     };
   } else if (kind === "fontSchemes") record = fontSchemeRecord(source, id);
   else record = embeddedRecord(source);
-  groups.default[kind][id] = record;
+  groups[group][kind][id] = record;
 }
 export async function loadOpfGalleryItem(item, { gallery, ...options } = {}) {
   const base = gallery ?? options.base;

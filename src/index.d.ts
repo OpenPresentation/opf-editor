@@ -5,7 +5,7 @@ export * from "./catalogs.js";
 /**
  * What the editor adds to the options of `composeSlide` and `paginateSlide`: `fonts` is the renderer's fonts handle (`loadFonts()`), whose
  * `textMeasurement` measures the text; `catalogs` are host catalogs for this call (merged after the session's registered ones);
- * `onDiagnostic` hears every diagnostic of core's `resolveSlideContext` (`unresolved-reference`, `unresolved-font-scheme`). Any other
+ * `onDiagnostic` hears every diagnostic of core's `resolveSlideContext` (`unresolved-reference`). Any other
  * option overrides the resolved one.
  */
 export interface EditorDiagnosticOptions {

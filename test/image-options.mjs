@@ -1,5 +1,5 @@
 // FA-22/FA-23 (OPF 0.15): image blocks carry their own framing (fit, focus, treatments, placement) and backgrounds take the
-// flat image form. Each change is one validated, undoable patch; slideImage and imageFill are gone.
+// flat image form. Each change is one validated, undoable patch.
 import assert from "node:assert/strict";
 import { composeSlide } from "@openpresentation/opf/composition";
 import { resolveSlideContext } from "@openpresentation/opf";
@@ -97,20 +97,23 @@ const deck = () => ({
   assert.equal(normalizeBackground("#ffffff"), "#FFFFFF");
   assert.throws(() => normalizeBackground("x.jpg"), (error) => error.code === "invalid-background");
   assert.equal(normalizeBackground({ type: "image", src: "asset:photo" }), "asset:photo");
-  const spec = { type: "image", src: "asset:photo", alt: "Ships at dawn", fit: "cover", focus: { x: 0.5, y: 0.7 }, opacity: 0.9, overlay: { color: "dark1", opacity: 0.4 } };
+  const spec = { type: "image", src: "asset:photo", alt: "Ships at dawn", fit: "cover", focus: { x: 0.5, y: 0.7 }, opacity: 0.9, recolor: "grayscale", overlay: { color: "dark1", opacity: 0.4 } };
   assert.deepEqual(normalizeBackground(spec), spec);
   assert.throws(() => normalizeBackground({ type: "image", image: { src: "asset:photo" } }), (error) => error.code === "invalid-background", "the 0.14 image wrapper is gone");
   assert.throws(() => normalizeBackground({ ...spec, overlay: { color: "dark1", opacity: 2 } }), (error) => error.code === "invalid-background");
+  assert.deepEqual(normalizeBackground({ ...spec, recolor: { dark: "dark1", light: "accent1" } }).recolor, { dark: "dark1", light: "accent1" }, "a background takes a duotone recolor (FA-22 draft 3)");
+  assert.throws(() => normalizeBackground({ ...spec, recolor: "sepia" }), (error) => error.code === "invalid-background");
 
   const editor = createEditorSession(deck(), { rejectInvalid: true });
   setBackground(editor, spec);
   assert.deepEqual(editor.get("design.background"), spec);
   setBackground(editor, { type: "image", src: "asset:photo", fit: "tile" }, { slideIndex: 1 });
-  assert.deepEqual(readBackground(editor.presentation, { slideIndex: 1 }), { type: "image", opacity: undefined, src: "asset:photo", alt: undefined, fit: "tile", focus: undefined, overlay: undefined, scope: "slide", value: { type: "image", src: "asset:photo", fit: "tile" } });
+  assert.deepEqual(readBackground(editor.presentation, { slideIndex: 1 }), { type: "image", opacity: undefined, src: "asset:photo", alt: undefined, fit: "tile", focus: undefined, recolor: undefined, overlay: undefined, scope: "slide", value: { type: "image", src: "asset:photo", fit: "tile" } });
   const deckState = readBackground(editor.presentation);
   assert.equal(deckState.alt, "Ships at dawn");
   assert.deepEqual(deckState.focus, { x: 0.5, y: 0.7 });
   assert.deepEqual(deckState.overlay, { color: "dark1", opacity: 0.4 });
+  assert.equal(deckState.recolor, "grayscale");
   const geometry = composeSlide(editor.presentation.slides[0], resolveSlideContext(editor.presentation, 0).options);
   assert.equal(geometry.backgroundImage?.src, "asset:photo", "the composed slide carries the background image");
   assert.equal(geometry.backgroundImage.alt, "Ships at dawn");
@@ -118,9 +121,8 @@ const deck = () => ({
   assert.deepEqual(readBackground(editor.presentation, { slideIndex: 0 }).type, "image");
 }
 
-// --- removed: the slide image, image fill and the slide-image destinations -----------------------------------------
+// --- removed design keys are refused; image destinations are the background and the watermark ----------------------
 {
-  assert.ok(!DESIGN_OPTIONS.some((option) => option.id === "slideImage"));
   assert.deepEqual(DESIGN_OPTIONS.find((option) => option.id === "imageFit").values, ["cover", "contain", "stretch"]);
   const editor = createEditorSession(deck(), { rejectInvalid: true });
   setDesignOption(editor, "imageFit", "contain", { slideIndex: 0 });
@@ -129,4 +131,4 @@ const deck = () => ({
   assert.deepEqual(IMAGE_DESTINATIONS.map((entry) => entry.target), ["background", "watermark"]);
 }
 
-console.log("image options ok: block fit, focus, treatments and placement; flat image backgrounds; slideImage and imageFill removed");
+console.log("image options ok: block fit, focus, treatments and placement; flat image backgrounds; the removed design keys are refused");

@@ -522,6 +522,18 @@ export function createDesignControls(container, options = {}) {
     const focusX = numberField("bg-focus-x", "Focus across (0 left to 1 right)", { min: 0, max: 1, step: 0.05 });
     const focusY = numberField("bg-focus-y", "Focus down (0 top to 1 bottom)", { min: 0, max: 1, step: 0.05 });
     const overlay = overlayFields("bg-overlay", "Overlay");
+    const bgRecolor = selectField("bg-recolor", "Recolor", { empty: "None", help: "Grayscale, or a duotone from a dark to a light color. Changes the picture's pixels only, not the overlay." });
+    bgRecolor.setOptions([
+      { value: "grayscale", label: "Grayscale" },
+      { value: "duotone", label: "Duotone" },
+    ]);
+    const bgDuoDark = textField("bg-duo-dark", "Background duotone dark color", { list: true, placeholder: "dark1" });
+    const bgDuoLight = textField("bg-duo-light", "Background duotone light color", { list: true, placeholder: "accent1" });
+    bgDuoDark.setList(COLOR_NAMES);
+    bgDuoLight.setList(COLOR_NAMES);
+    const showDuotone = () => { for (const field of [bgDuoDark, bgDuoLight]) field.wrap.hidden = bgRecolor.select.value !== "duotone"; };
+    bgRecolor.select.addEventListener("change", showDuotone);
+    const recolorValue = () => (bgRecolor.select.value === "grayscale" ? "grayscale" : bgRecolor.select.value === "duotone" ? { dark: bgDuoDark.input.value.trim(), light: bgDuoLight.input.value.trim() } : undefined);
     const imageSpec = (src) => {
       const x = focusX.input.value, y = focusY.input.value;
       return {
@@ -531,6 +543,7 @@ export function createDesignControls(container, options = {}) {
         ...(bgAlt.input.value.trim() ? { alt: bgAlt.input.value.trim() } : {}),
         ...(x !== "" || y !== "" ? { focus: { x: x === "" ? 0.5 : Number(x), y: y === "" ? 0.5 : Number(y) } } : {}),
         ...(opacityValue() === undefined ? {} : { opacity: opacityValue() }),
+        ...(recolorValue() ? { recolor: recolorValue() } : {}),
         ...(overlay.value() ? { overlay: overlay.value() } : {}),
       };
     };
@@ -539,7 +552,7 @@ export function createDesignControls(container, options = {}) {
       build: (ref, doc) => prepareBackground(doc, imageSpec(ref), scoped()),
       help: "An asset reference, a web address or a data address. Press Enter or choose a file to apply it with the settings here.",
     });
-    imagePanel.append(bgImage.wrap, fit.wrap, bgAlt.wrap, focusX.wrap, focusY.wrap, overlay.wrap);
+    imagePanel.append(bgImage.wrap, fit.wrap, bgAlt.wrap, focusX.wrap, focusY.wrap, bgRecolor.wrap, bgDuoDark.wrap, bgDuoLight.wrap, overlay.wrap);
 
     const patternPanel = panel("pattern", "Pattern");
     const preset = selectField("bg-preset", "Pattern", { help: "The 54 PowerPoint presets. PPTX export writes them as native pattern fills." });
@@ -599,6 +612,11 @@ export function createDesignControls(container, options = {}) {
       focusX.set(current.type === "image" && current.focus ? String(current.focus.x) : "");
       focusY.set(current.type === "image" && current.focus ? String(current.focus.y) : "");
       overlay.set(current.type === "image" ? current.overlay : undefined);
+      const recolor = current.type === "image" ? current.recolor : undefined;
+      bgRecolor.set(recolor === "grayscale" ? "grayscale" : recolor && typeof recolor === "object" ? "duotone" : "");
+      bgDuoDark.set(recolor && typeof recolor === "object" ? recolor.dark : "");
+      bgDuoLight.set(recolor && typeof recolor === "object" ? recolor.light : "");
+      showDuotone();
       preset.set(current.type === "pattern" ? current.preset : "pct5");
       patternFg.set(current.type === "pattern" ? (current.foregroundColor ?? "") : "");
       patternBg.set(current.type === "pattern" ? (current.backgroundColor ?? "") : "");

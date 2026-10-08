@@ -1,12 +1,12 @@
 // Backgrounds (RR-06, FA-22/FA-23): every background form the schema has, with validation that explains itself.
 // A background is a theme slot, a solid color, a linear gradient, an image or a pattern, at the deck or on one slide. It is
 // the only canvas fill and never moves content. The image form is flat (OPF 0.15): `{ type: "image", src, alt, fit, focus,
-// opacity, overlay }`; an image source string (`asset:`, `https://`, `data:`, `./`, `../`) is the cover-image shorthand.
+// opacity, recolor, overlay }`; an image source string (`asset:`, `https://`, `data:`, `./`, `../`) is the cover-image shorthand.
 // `setBackground` is one undoable patch through the `backgrounds` switch, so the preview, export and Undo behave like every
 // other dimension.
 import { prepareDimensionSwitch, switchDimension } from "./switches.js";
 import { fail } from "./edit-helpers.js";
-import { normalizeFocus, normalizeOverlay } from "./image-options.js";
+import { normalizeFocus, normalizeOverlay, normalizeRecolor } from "./image-options.js";
 
 export const BACKGROUND_TYPES = Object.freeze(["theme", "solid", "gradient", "image", "pattern"]);
 export const THEME_BACKGROUND_SLOTS = Object.freeze(["light1", "light2", "dark1", "dark2"]);
@@ -104,7 +104,8 @@ export function normalizeBackground(spec) {
       };
       const focus = spec.focus === undefined || spec.focus === null ? undefined : wrap(() => normalizeFocus(spec.focus));
       const overlay = spec.overlay === undefined || spec.overlay === null ? undefined : wrap(() => normalizeOverlay(spec.overlay));
-      const value = { type: "image", src, ...(alt ? { alt } : {}), ...(fit ? { fit } : {}), ...(focus ? { focus } : {}), ...(opacity === undefined ? {} : { opacity }), ...(overlay ? { overlay } : {}) };
+      const recolor = spec.recolor === undefined || spec.recolor === null || spec.recolor === "" ? undefined : wrap(() => normalizeRecolor(spec.recolor));
+      const value = { type: "image", src, ...(alt ? { alt } : {}), ...(fit ? { fit } : {}), ...(focus ? { focus } : {}), ...(opacity === undefined ? {} : { opacity }), ...(recolor ? { recolor } : {}), ...(overlay ? { overlay } : {}) };
       // A cover image with nothing else is the shorthand string.
       return Object.keys(value).length === 2 ? src : value;
     }
@@ -133,7 +134,7 @@ export function setBackground(editor, spec, options = {}) {
 
 /**
  * The background that applies at a scope as a flat description for a form:
- * `{ type, slot?, color?, opacity?, angle?, stops?, src?, alt?, fit?, focus?, overlay?, preset?, foregroundColor?, backgroundColor?, scope, value }`.
+ * `{ type, slot?, color?, opacity?, angle?, stops?, src?, alt?, fit?, focus?, recolor?, overlay?, preset?, foregroundColor?, backgroundColor?, scope, value }`.
  * `type` is undefined when nothing is set; `scope` is "slide" when the slide sets its own, else "deck".
  */
 export function readBackground(presentation, { slideIndex } = {}) {
@@ -151,7 +152,7 @@ export function readBackground(presentation, { slideIndex } = {}) {
   if (value.type === "theme") return { ...base, slot: value.slot };
   if (value.type === "solid") return { ...base, color: value.color };
   if (value.type === "gradient") return { ...base, angle: value.gradient?.angle, stops: structuredClone(value.gradient?.stops ?? []) };
-  if (value.type === "image") return { ...base, src: value.src, alt: value.alt, fit: value.fit, focus: value.focus && { ...value.focus }, overlay: value.overlay && { ...value.overlay } };
+  if (value.type === "image") return { ...base, src: value.src, alt: value.alt, fit: value.fit, focus: value.focus && { ...value.focus }, recolor: value.recolor && structuredClone(value.recolor), overlay: value.overlay && { ...value.overlay } };
   if (value.type === "pattern") return { ...base, preset: value.pattern?.preset, foregroundColor: value.pattern?.foregroundColor, backgroundColor: value.pattern?.backgroundColor };
   return base;
 }

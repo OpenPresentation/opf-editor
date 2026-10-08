@@ -23,7 +23,7 @@ export {
 // slide's canvas, layout, theme, colour scheme and font families the one way every engine does (slide design, deck design,
 // theme, engine default), with the session's registered catalogs, so the editor measures and composes what the renderer draws
 // and the exporter writes. `options.fonts` is the renderer's fonts handle (its `textMeasurement` measures); `options.catalogs`
-// adds catalogs for this call; `options.onDiagnostic` hears each diagnostic (`unresolved-reference`, `unresolved-font-scheme`);
+// adds catalogs for this call; `options.onDiagnostic` hears each diagnostic (`unresolved-reference`);
 // any other option overrides the resolved one (`layout`, ...).
 function slideContext(presentation, slideIndex, catalogs, { fonts, catalogs: _extra, onDiagnostic, ...overrides } = {}) {
   if (!Number.isInteger(slideIndex) || !presentation.slides?.[slideIndex]) throw new OPFEditorError("slide-index-out-of-range", "Slide index is out of range.");

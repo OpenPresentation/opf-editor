@@ -34,6 +34,7 @@ export interface ImageTreatmentState extends Omit<ImageTreatments, "fit" | "focu
 
 export declare function normalizeFocus(value: unknown): ImageFocus;
 export declare function normalizeOverlay(value: unknown): ImageOverlay;
+export declare function normalizeRecolor(value: unknown): "grayscale" | { dark: string; light: string };
 export declare function normalizePlacement(value: unknown): ImagePlacement;
 /** The image block's framing for a form. Throws `not-an-image-block`. */
 export declare function readImageTreatments(presentation: unknown, blockPath: string | string[]): ImageTreatmentState;

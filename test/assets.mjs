@@ -75,8 +75,8 @@ const uploads = [
   { name: "logo variant", build: (ref, doc) => prepareLogoVariant(doc, "light", ref), check: (doc, ref) => assert.equal(doc.design.logo.light, ref) },
   { name: "organization logo", build: (ref, doc) => prepareDesignOption(doc, "organizationLogo", ref), check: (doc, ref) => assert.equal(doc.organization.logo, ref) },
   { name: "watermark", build: (ref, doc) => prepareDesignOption(doc, "watermark", { src: ref }), check: (doc, ref) => assert.equal(doc.design.watermark, ref) },
-  { name: "slide image", build: (ref, doc) => prepareDesignOption(doc, "slideImage", { src: ref }, { slideIndex: 0 }), check: (doc, ref) => assert.equal(doc.slides[0].design.slideImage.src, ref) },
-  { name: "background", build: (ref, doc) => prepareBackground(doc, { type: "image", image: { src: ref, fit: "cover" } }), check: (doc, ref) => assert.equal(doc.design.background.image.src, ref) },
+  { name: "background shorthand", build: (ref, doc) => prepareBackground(doc, ref, { slideIndex: 0 }), check: (doc, ref) => assert.equal(doc.slides[0].design.background, ref) },
+  { name: "background", build: (ref, doc) => prepareBackground(doc, { type: "image", src: ref, fit: "contain", alt: "Backdrop" }), check: (doc, ref) => assert.equal(doc.design.background.src, ref) },
   { name: "footer image", build: (ref, doc) => prepareHeaderFooterZone(doc, "footer", "right", { image: ref }), check: (doc, ref) => assert.equal(doc.design.footer.right.image, ref) },
 ];
 for (const [index, entry] of uploads.entries()) {
