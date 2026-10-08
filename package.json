@@ -118,6 +118,10 @@
       "types": "./dist/background-options.d.ts",
       "default": "./dist/background-options.js"
     },
+    "./image-options": {
+      "types": "./dist/image-options.d.ts",
+      "default": "./dist/image-options.js"
+    },
     "./review": {
       "types": "./dist/review.d.ts",
       "default": "./dist/review.js"
