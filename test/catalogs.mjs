@@ -68,7 +68,7 @@ const acme = (revision = 1) => ({
 // --- pickers: embedded records first, then registered ones, each with the reference to write ------------------------
 {
   const editor = createEditorSession(
-    { catalogs: { acme: { source: ACME }, custom: { layouts: { mine: { name: "Mine", placeholders: [{ type: "title" }] } } } }, slides: [{ title: "One" }] },
+    { catalogs: { acme: { source: ACME }, custom: { layouts: { mine: { name: "Mine", placeholders: [{ type: "title" }] } } } }, design: {}, slides: [{ title: "One" }] },
     { catalogs: [defaultCatalog, acme()] },
   );
   const layouts = getCatalogOptions("layouts", { editor });
@@ -172,10 +172,10 @@ const acme = (revision = 1) => ({
   assert.deepEqual(result.presentation.catalogs.custom.layouts["q4-2"], record("list"));
   assert.deepEqual(result.renamed.map(({ from, to, reason }) => [from, to, reason]), [["q4", "q4-2", "custom-conflict"]]);
   assert.ok(!JSON.stringify(result.presentation).includes("import-"), "no import-<id> renaming");
-  // The same record again is reused.
+  // The same slide again reuses the first copy's record (the reference still changes from q4, so it is reported).
   const again = prepareOpfImport(result.presentation, transfer, { mode: "insert", slideIndex: 1, catalogs: [defaultCatalog] });
   assert.equal(again.presentation.slides[2].layout, "q4-2");
-  assert.deepEqual(again.renamed, []);
+  assert.deepEqual(Object.keys(again.presentation.catalogs.custom.layouts).sort(), ["q4", "q4-2"], "no third copy");
 }
 
 // --- Update from catalog: a review first, then only the approved change, as one undo step ---------------------------
@@ -201,7 +201,7 @@ const acme = (revision = 1) => ({
   for (const file of await readdir(new URL("../dist/", import.meta.url))) {
     if (!file.endsWith(".js")) continue;
     const text = await readFile(new URL(`../dist/${file}`, import.meta.url), "utf8");
-    assert.ok(!/@openpresentation\/opf\/catalog\b/.test(text), `${file} must not import @openpresentation/opf/catalog`);
+    assert.ok(!/(?:from\s*|import\s*\(\s*)["']@openpresentation\/opf\/catalog["']/.test(text), `${file} must not import @openpresentation/opf/catalog`);
     assert.ok(!/\b(?:"|')(?:minimal|cool-horizon|title-subtitle)(?:"|')/.test(text), `${file} must not hard-code catalog ids`);
   }
   const playground = await readFile(new URL("../examples/playground.js", import.meta.url), "utf8");

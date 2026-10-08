@@ -83,6 +83,8 @@ for (const [name, input, expected, reported] of unknownCases) {
   }
   const reference = corePagination(deck);
   assert.deepEqual(reference.families, expected, `core pagination: ${name}`);
-  assert.deepEqual(reference.diagnostics.filter((diagnostic) => diagnostic.kind === "fontSchemes"), fontDiagnostics, `core pagination: ${name}`);
+  // The same reference, path and fallback as core pagination (the message names the host catalogs each call registered).
+  const shape = (list) => list.map(({ code, kind, reference, path, fallback }) => ({ code, kind, reference, path, fallback }));
+  assert.deepEqual(shape(reference.diagnostics.filter((diagnostic) => diagnostic.kind === "fontSchemes")), shape(fontDiagnostics), `core pagination: ${name}`);
 }
 console.log("unresolved font schemes: engine default base and one diagnostic, as in every engine");

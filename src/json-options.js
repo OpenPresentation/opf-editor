@@ -104,13 +104,10 @@ export function getJsonFieldContext(source, position, loadedCatalogs = []) {
     const registered = new Set((Array.isArray(loadedCatalogs) ? loadedCatalogs : []).map(entry => entry?.source));
     const unloadedSource = Boolean(catalog) && Object.entries(presentation.catalogs ?? {}).some(([name, group]) => name !== "custom" && group && typeof group === "object" && typeof group.source === "string" && !registered.has(group.source));
     if (catalog && typeof node.value === "string") {
-        let available = [];
-        try {
-            available = listCatalogRecords(presentation, catalog, { catalogs: Array.isArray(loadedCatalogs) ? loadedCatalogs : [] });
-        }
-        catch {
-            available = [];
-        }
+        const hostCatalogs = Array.isArray(loadedCatalogs) ? loadedCatalogs : [];
+        // A draft whose own catalogs are malformed still offers the host's records; a malformed host list offers nothing.
+        const attempt = (document) => { try { return listCatalogRecords(document, catalog, { catalogs: hostCatalogs }); } catch { return undefined; } };
+        const available = attempt(presentation) ?? attempt({ ...presentation, catalogs: undefined }) ?? [];
         for (const option of available) {
             records.set(option.id, option.record);
             options.set(option.id, { value: option.id, label: option.label, description: option.description,

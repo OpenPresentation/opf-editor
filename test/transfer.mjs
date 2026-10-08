@@ -86,7 +86,7 @@ assert.deepEqual(twiceResult.renamed, []);
 const differing = structuredClone(imported);
 differing.catalogs.custom.fontSchemes["custom-font"].major = "Lora";
 const renamed = prepareOpfImport(result.presentation, parseOpfTransfer(JSON.stringify(differing)));
-assert.equal(renamed.presentation.slides.at(-1).design.fontScheme, "custom-font-2");
+assert.equal(renamed.presentation.slides[renamed.slideIndex].design.fontScheme, "custom-font-2");
 assert.deepEqual(renamed.renamed.map((entry) => [entry.kind, entry.from, entry.to, entry.reason]), [["fontSchemes", "custom-font", "custom-font-2", "custom-conflict"]]);
 const editor = createEditorSession(source, { rejectInvalid: true });
 editor.applyPatch([{ op: "replace", path: "", value: result.presentation }]);

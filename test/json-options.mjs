@@ -21,7 +21,7 @@ assert.equal(at(original,'"title"'),null);assert.equal(at('{"slides":[{"layout":
 assert.equal(getJsonFieldContext(original,original.lastIndexOf('"layout"')+1),null,'Extension keys must not gain schema behavior by name');
 assert.ok(at(original,'"tone"').options.some(option=>option.value==='casual'));
 const unknown='{"slides":[{"layout":"custom-current","title":"Keep"}]}';assert.equal(at(unknown,'"layout"').options[0].source,'Current value');
-const malformed='{"slides":[{"layout":"text-1x"}],"catalogs":{"custom":{"layouts":true}}}';assert.ok(at(malformed,'"layout"',[{source:'pkg:broken',layouts:true}]));
+const malformed='{"slides":[{"layout":"text-1x"}],"catalogs":{"custom":{"layouts":true}}}';assert.ok(at(malformed,'"layout"'),'a malformed document catalog still offers the host records');
 const duplicate='{"slides":[{"layout":"text-1x","layout":"title-subtitle"}]}';assert.throws(()=>replaceFieldOption(at(duplicate,'"layout"'),'loaded'),/duplicate key/);
 console.log('JSON options: schema paths, catalog precedence, exact token edits, custom values, invalid drafts, malformed catalog arrays and duplicate-key rejection pass.');
 

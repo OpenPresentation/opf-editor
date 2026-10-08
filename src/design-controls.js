@@ -1183,7 +1183,8 @@ export function createDesignControls(container, options = {}) {
     }
     const imageUi = dynamic.image;
     if (imageUi) {
-      dynamic.imagePath = content?.key === "image" ? blockPath : undefined;
+      // The slide's own image (a root `image`) is not an image block: it takes no framing fields.
+      dynamic.imagePath = content?.key === "image" && blockPath.split(".").length > 2 ? blockPath : undefined;
       imageUi.details.hidden = !dynamic.imagePath;
       if (dynamic.imagePath) imageUi.load(dynamic.imagePath);
     }

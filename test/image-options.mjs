@@ -57,9 +57,8 @@ const deck = () => ({
   editor.undo();
   editor.undo();
   assert.deepEqual(editor.presentation, deck());
-  // The slide's own image (Slide.image) is an image block too and can be placed.
-  setImageTreatment(editor, "slides.1", { placement: { edge: "left" }, fit: "cover" });
-  assert.deepEqual(editor.get("slides.1.placement"), { edge: "left" });
+  // The slide's own image (Slide.image) is not an image block: it takes no framing fields.
+  assert.throws(() => setImageTreatment(editor, "slides.1", { fit: "contain" }), (error) => error.code === "not-an-image-block");
   // The image-treatments switch takes the same fields for one block.
   const switched = switchDimension(editor, "image-treatments", { shape: "circle" }, { path: "slides.0.blocks.0" });
   assert.equal(switched.scope, "block");

@@ -86,7 +86,7 @@ export interface CanvasEditor {
   /** True while the crop layer is open. */
   readonly cropping: boolean;
   /**
-   * Open the crop layer for the picture at `path` (an image block, a slide's `image`, or `slides.N.design.slideImage`); `tool: "focus"`
+   * Open the crop layer for the picture at `path` (an image block or a slide's `image`); `tool: "focus"`
    * starts with the focal point. Apply writes one undoable change (see `@openpresentation/opf-editor/image-crop`). Resolves to whether it opened.
    */
   cropImage(path: string, options?: { tool?: "crop" | "focus" }): Promise<boolean>;
