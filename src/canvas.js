@@ -1023,7 +1023,7 @@ export function createCanvasEditor(container, options = {}) {
     get layoutEditing() { return layoutHandles.enabled; },
     /** True while the crop layer is open. */
     get cropping() { return !!imageCropper?.isOpen; },
-    /** Open the crop layer for the picture at `path` (an image block, a slide's `image`, a slide image). `tool: "focus"` starts with the focal point. */
+    /** Open the crop layer for the picture at `path` (an image block or a slide's `image`). `tool: "focus"` starts with the focal point. */
     cropImage(path, cropOptions) {
       if (!imageCropper) return Promise.resolve(false);
       return imageCropper.open(path, cropOptions);

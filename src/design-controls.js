@@ -873,7 +873,7 @@ export function createDesignControls(container, options = {}) {
         field.set(currentSwitchValue(editor.presentation, dimension).value);
       });
     };
-    single("narrative", "Narrative", "narratives", "The narrative plan the deck points at (a catalog id; a custom one is a record in the JSON source). The slides do not change, and keep their beat links.");
+    single("narrative", "Narrative", "narratives", "The narrative plan the deck points at (a catalog reference; a custom one is a record embedded in the document's catalogs). The slides do not change, and keep their beat links.");
     single("tone", "Tone", "tones");
     single("purpose", "Purpose", "purposes", "What the deck is for. Authoring metadata: the slides do not change. A goal written in the JSON source shows as custom.");
     const audience = selectField("audience", "Audience", {
@@ -888,7 +888,7 @@ export function createDesignControls(container, options = {}) {
     body.append(audience.wrap);
     syncs.push(() => {
       audience.setOptions(listSwitchOptions(editor.presentation, "audiences", catalogOptions()).map((entry) => ({ value: entry.id, label: entry.label })));
-      // The root audience is a string, one inline Audience object or an array of both: the picker shows the catalog ids.
+      // The root audience is a string, one inline Audience object or an array of both: the picker shows the references.
       const value = editor.presentation.audience;
       const entries = Array.isArray(value) ? value : value === undefined ? [] : [value];
       audience.set(entries.map((entry) => (entry && typeof entry === "object" ? entry.id : entry)).filter((id) => typeof id === "string"));

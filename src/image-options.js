@@ -1,8 +1,8 @@
 // Image blocks (FA-22/FA-23, OPF 0.15): every content picture is an image block, and its framing lives on the block: fit and
 // focus, the treatments (shape, corner radius, border, opacity, recolor, overlay, aspect ratio) and placement (bleed to one slide
 // edge, the only thing that moves content aside). Each change is one validated JSON Patch applied as one undoable transaction;
-// the `prepare…` form returns the patch without touching a session. There is no slide image and no image fill any more:
-// `design.imageFit` (a design option) is the deck or slide default fit.
+// the `prepare…` form returns the patch without touching a session. `design.imageFit` (a design option) is the deck or slide
+// default fit.
 import { getValueAtPath, opfPathToJsonPointer, splitOpfPath } from "./index.js";
 import { checkedDocument, fail, same } from "./edit-helpers.js";
 import { checkFormat } from "./checks.js";

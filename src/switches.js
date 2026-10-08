@@ -256,9 +256,9 @@ export function prepareDimensionSwitch(presentation, dimension, value, options =
     // A slide's design cannot set dimensions (FA-07), so no slide can shadow the deck's size.
     patches = sameSize ? [] : designPatches(presentation, [], { dimensions: value });
   } else if (dimension === "purposes") {
-    // A catalog id, free-form goal text (no id check: any goal is valid) or an inline Purpose object; the schema validates it.
+    // A catalog reference, free-form goal text (no reference check: any goal is valid) or an inline Purpose object; the schema validates it.
     if (typeof value !== "string" && !(value && typeof value === "object" && !Array.isArray(value)))
-      throw fail("invalid-switch-value", "Switch purposes to a catalog id, a goal string or a purpose object.", { value });
+      throw fail("invalid-switch-value", "Switch purposes to a catalog reference, a goal string or a purpose object.", { value });
     if (typeof value === "string" && value.length === 0) throw fail("invalid-switch-value", "Switch purposes to a non-empty goal.", { value });
     const supplied = typeof value === "string" ? catalogChoiceIfSupplied(presentation, dimension, value, options) : undefined;
     patches = [...(supplied?.patches ?? []), ...rootPatch(presentation, "purpose", supplied?.reference ?? value)];
@@ -590,7 +590,7 @@ export function currentSwitchValue(presentation, dimension, options = {}) {
     return { value: size && typeof size === "object" && !Array.isArray(size) && Object.keys(size).length === 1 && size.preset ? size.preset : size, scope: "deck" };
   }
   if (dimension === "purposes") {
-    // A catalog id or goal text reads as itself, a Purpose object as its id (else the object).
+    // A catalog reference or goal text reads as itself, a Purpose object as its id (else the object).
     const purpose = presentation.purpose;
     return { value: purpose && typeof purpose === "object" && !Array.isArray(purpose) ? (purpose.id ?? purpose) : purpose, scope: "deck" };
   }

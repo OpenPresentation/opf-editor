@@ -119,6 +119,6 @@ export interface CompatibleChartType extends SwitchOption {
 export declare function listSwitchOptions(presentation: unknown, dimension: SwitchDimension, options?: Pick<DimensionSwitchOptions, "catalogs" | "vocabularies">): SwitchOption[];
 /** Chart types the chart's inline data can use as it is (data-shape compatibility from `vocabularies.chartTypes`, not an engine-support claim). `path` or `slideIndex` picks the chart. */
 export declare function compatibleChartTypes(presentation: unknown, options?: Pick<DimensionSwitchOptions, "slideIndex" | "path" | "catalogs" | "vocabularies">): CompatibleChartType[];
-/** The value a dimension currently has: `{ value, scope }`, with the catalog id for catalog dimensions. `slide-sizes` reads the deck's design.dimensions, else its theme's (a preset string, or the object for a custom size); `purposes` reads the goal text or Purpose id. */
+/** The value a dimension currently has: `{ value, scope }`, with the reference (`id` or `name:id`) for catalog dimensions. `slide-sizes` reads the deck's design.dimensions, else its theme's (a preset string, or the object for a custom size); `purposes` reads the goal text or Purpose id. */
 export declare function currentSwitchValue(presentation: unknown, dimension: SwitchDimension, options?: Pick<DimensionSwitchOptions, "slideIndex" | "path" | "owner" | "index" | "catalogs">): { value: unknown; scope: "deck" | "slide" | "block" };
 export { blockConversionTargets } from "./block-convert.js";

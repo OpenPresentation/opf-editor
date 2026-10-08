@@ -73,7 +73,7 @@ Version 0.7.0 uses core 0.10.0 and renderer 0.8.0. Code source/metadata edits pr
 - Compatibility target: `@openpresentation/opf`
 - Renderer relationship: built on `@openpresentation/opf-render` trace output
 - Headless JSON edit bindings for renderer trace attributes
-- Structured catalog controls that only commit known catalog IDs
+- Structured catalog controls that only commit catalog references that resolve (in the document or the host's registered catalogs)
 - JSON Patch state transitions with inverse patches for undo/redo
 - Optional DOM controls plus React and Svelte bindings in separate embeddable entry points
 - Dimension switches, safe block conversion and content actions (list levels, grouping, regions, images to design, slide split and merge), design-level options, table style and cell merge as headless APIs (`/switches`, `/block-convert`, `/content-actions`, `/design-options`, `/tables`, `/assets`, `/backgrounds`) and one accessible DOM panel (`/design-controls`)
