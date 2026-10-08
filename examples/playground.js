@@ -294,6 +294,8 @@ function refresh() {
   });
 }
 editor.subscribe(refresh);
+// FA-23: an edit of a catalog's record (in Source, Properties or a panel) forks it into this deck's own records; tell the user.
+editor.subscribe(event => { if (event.meta?.notice) setTimeout(() => status(event.meta.notice)); });
 element('apply').onclick = () => act(() => editor.set(selectedPath, typeof selectedValue === 'string' ? element('value').value : JSON.parse(element('value').value)));
 element('undo').onclick = () => act(() => editor.undo());
 element('redo').onclick = () => act(() => editor.redo());

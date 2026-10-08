@@ -154,8 +154,10 @@ export function createDesignControls(container, options = {}) {
     try {
       const change = action();
       const warnings = change?.warnings?.length ? ` ${change.warnings.map((warning) => warning.message).join(" ")}` : "";
+      // An edit of a catalog's record forked it into the deck's own records: say so (FA-23).
+      const notice = change?.notice ? ` ${change.notice}` : "";
       if (change && change.changed === false) say("Already set. Nothing changed.");
-      else say(`${typeof done === "function" ? done(change) : (done ?? "Changed.")}${warnings} Undo restores the previous state.`);
+      else say(`${typeof done === "function" ? done(change) : (done ?? "Changed.")}${warnings}${notice} Undo restores the previous state.`);
       options.onChange?.(change);
     } catch (error) {
       complain(messageOf(error));

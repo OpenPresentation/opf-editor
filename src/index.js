@@ -4,7 +4,7 @@ import { collectReservedPresentationIds } from "./presentation-ids.js";
 import { composeSlide } from "@openpresentation/opf/composition";
 import { catalogKinds, resolveSlideContext, stats } from "@openpresentation/opf";
 import { checkFormat, errorFindings } from "./checks.js";
-import { listCatalogRecords, mergeCatalogs } from "./catalogs.js";
+import { forkEditedRecords, forkNotice, listCatalogRecords, mergeCatalogs } from "./catalogs.js";
 
 export {
   REFERENCE_FINDING_CODES,
@@ -13,6 +13,10 @@ export {
   catalogRecordLabel,
   catalogsFor,
   checkCatalogUpdates,
+  editedCatalogRecords,
+  FORKED_RECORD_KINDS,
+  forkEditedRecords,
+  forkNotice,
   listCatalogRecords,
   mergeCatalogs,
   moveToCustom,
@@ -159,13 +163,30 @@ export function createEditorSession(input, options = {}) {
 
   function commitPatch(operations, meta = {}) {
     assertPatchOperations(operations);
-    const patches = operations.map(normalizeOperation);
+    let patches = operations.map(normalizeOperation);
     const before = presentation;
     let next, inversePatches;
     try {
       ({ presentation: next, inverse: inversePatches } = applyPatchWithInverse(before, patches));
     } catch (error) {
       throw editorPatchError(error);
+    }
+    // Owner rule (FA-23): an edit of a record under catalogs.default or a named group forks it into catalogs.custom (every reference
+    // follows, the original is dropped), in this same undo step. Catalog updates and moves change catalog records on purpose.
+    let forks = [];
+    if (meta.catalogRecordEdit !== "in-place") {
+      const forked = forkEditedRecords(before, next, { catalogs, forkIds: meta.forkIds });
+      if (forked.forks.length) {
+        forks = forked.forks;
+        for (const key of new Set([...Object.keys(next), ...Object.keys(forked.document)]))
+          if (!jsonEqual(next[key], forked.document[key])) patches = [...patches, forked.document[key] === undefined ? { op: "remove", path: formatPointer([key]) } : { op: Object.hasOwn(next, key) ? "replace" : "add", path: formatPointer([key]), value: clone(forked.document[key]) }];
+        try {
+          ({ presentation: next, inverse: inversePatches } = applyPatchWithInverse(before, patches));
+        } catch (error) {
+          throw editorPatchError(error);
+        }
+        meta = { ...meta, forked: forks, notice: forks.map(forkNotice).join(" ") };
+      }
     }
     const nextValidation = check(next);
 
@@ -195,7 +216,8 @@ export function createEditorSession(input, options = {}) {
       presentation: clone(presentation),
       patches: clonePatchOperations(patches),
       inversePatches: clonePatchOperations(inversePatches),
-      validation
+      validation,
+      ...(forks.length ? { forked: forks, notice: meta.notice } : {})
     };
   }
 

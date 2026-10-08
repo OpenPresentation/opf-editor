@@ -237,3 +237,42 @@ console.log("catalogs ok: one merged list, references from catalogRecords, embed
   assert.deepEqual(editor.presentation, doc);
 }
 console.log("catalogs ok: not-in-source records move to custom with their references");
+
+// --- owner rule: editing a catalog's record forks it into catalogs.custom, in one undo step -----------------------------
+{
+  const embedded = prepareSave({ catalogs: { acme: { source: ACME } }, design: { theme: "acme:brand", colorScheme: "acme:ocean" }, slides: [{ layout: "acme:hero", title: "x" }, { layout: "acme:hero", title: "y" }] }, { catalogs: [acme(1)] }).document;
+  const editor = createEditorSession(embedded, { catalogs: [acme(1)] });
+  const events = [];
+  editor.subscribe((event) => events.push(event));
+  const change = editor.set("catalogs.acme.layouts.hero.name", "Our hero");
+  assert.deepEqual(change.forked, [{ from: { group: "acme", kind: "layouts", id: "hero" }, to: { group: "custom", kind: "layouts", id: "hero-custom" } }]);
+  assert.match(change.notice, /now this presentation's own \(hero-custom\); it no longer receives catalog updates/);
+  assert.equal(events.at(-1).meta.notice, change.notice, "the session event carries the notice");
+  assert.equal(editor.get("catalogs.custom.layouts.hero-custom.name"), "Our hero", "the edit lands on the fork");
+  assert.equal(editor.get("catalogs.acme.layouts.hero"), undefined, "the original is dropped");
+  assert.deepEqual(editor.presentation.slides.map((slide) => slide.layout), ["hero-custom", "hero-custom"], "every reference follows the fork");
+  assert.equal(editor.snapshot().undoDepth, 1, "the fork and the edit are one undo step");
+  // Update from catalog no longer lists the forked record.
+  const updates = checkCatalogUpdates(editor.presentation, { catalogs: [acme(2)] });
+  assert.ok(!updates.changes.some((entry) => entry.kind === "layouts"), "a forked record receives no catalog updates");
+  // A fork id the user gives.
+  editor.applyPatch([{ op: "replace", path: "/catalogs/acme/colorSchemes/ocean/accent1", value: "#123456" }], { forkIds: { "acme:colorSchemes:ocean": "our-ocean" } });
+  assert.equal(editor.get("design.colorScheme"), "our-ocean");
+  assert.equal(editor.get("catalogs.custom.themes"), undefined, "only the edited record forks");
+  // Undo restores both the catalog's record and the references.
+  editor.undo();
+  editor.undo();
+  assert.deepEqual(editor.presentation, embedded);
+  // A custom record is edited in place.
+  const own = createEditorSession({ catalogs: { custom: { layouts: { mine: { name: "Mine", placeholders: [{ type: "title" }] } } } }, slides: [{ layout: "mine", title: "x" }] });
+  const inPlace = own.set("catalogs.custom.layouts.mine.name", "Mine, renamed");
+  assert.equal(inPlace.forked, undefined);
+  assert.equal(own.get("slides.0.layout"), "mine");
+  assert.equal(own.get("catalogs.custom.layouts.mine.name"), "Mine, renamed");
+  // Applying an approved catalog update changes the catalog's record in place (it is not a user edit).
+  const updating = createEditorSession(embedded, { catalogs: [acme(2)] });
+  const applied = applyCatalogUpdate(updating, { refs: [{ kind: "colorSchemes", reference: "acme:ocean" }] });
+  assert.equal(applied.forked, undefined);
+  assert.equal(updating.get("design.colorScheme"), "acme:ocean");
+}
+console.log("catalogs ok: editing a catalog record forks it into custom (one undo step, references follow, no catalog updates)");

@@ -105,7 +105,7 @@ export function applyCatalogUpdate(editor, options = {}) {
   if (!Array.isArray(options.refs) || !options.refs.length) throw new OPFEditorError("no-approved-updates", "Choose the catalog updates to apply.");
   const update = checkCatalogUpdates(editor.presentation, { catalogs: catalogsFor(editor, options), refs: options.refs });
   if (!update.patch.length) return { changed: false, changes: [], presentation: editor.presentation, patches: [], inversePatches: [], validation: editor.validation };
-  const change = editor.applyPatch(update.patch, { ...options.meta, source: options.meta?.source ?? "catalog-update", catalogUpdate: update.changes.map(({ kind, reference }) => ({ kind, reference })) });
+  const change = editor.applyPatch(update.patch, { ...options.meta, source: options.meta?.source ?? "catalog-update", catalogRecordEdit: "in-place", catalogUpdate: update.changes.map(({ kind, reference }) => ({ kind, reference })) });
   return { ...change, changed: true, changes: update.changes };
 }
 
@@ -151,8 +151,11 @@ export function prepareMoveToCustom(presentation, target, options = {}) {
   if (group === "custom" || record === undefined) throw new OPFEditorError("not-a-catalog-record", "Choose a record embedded under catalogs.default or a named catalog group.", { group, kind, id });
   const catalogs = mergeCatalogs(options.catalogs);
   const custom = isObject(groups.custom?.[kind]) ? groups.custom[kind] : {};
-  let next = id;
-  for (let n = 2; Object.hasOwn(custom, next) && !sameJson(custom[next], record); n += 1) next = `${id}-${n}`;
+  const wanted = typeof options.id === "string" && options.id ? options.id : id;
+  // The same move as core's `moveToCustom(document, { kind, reference }, { catalogs, id })` (FA wave C); this body is replaced by a
+  // call to it once the core release that exports it is the editor's dependency (a missing named export would fail at load).
+  let next = wanted;
+  for (let n = 2; Object.hasOwn(custom, next) && !sameJson(custom[next], record); n += 1) next = `${wanted}-${n}`;
   const result = structuredClone(presentation);
   const setAt = (path, value) => {
     let holder = result;
@@ -178,10 +181,61 @@ export function prepareMoveToCustom(presentation, target, options = {}) {
   return { presentation: applyJsonPatch(presentation, patches), patches, changed: true, from: { group, kind, id }, to: { group: "custom", kind, id: next } };
 }
 
-/** `prepareMoveToCustom` on the session's document, as ONE undoable step (`meta.source: "catalog-move-to-custom"`). */
+/**
+ * `prepareMoveToCustom` on the session's document, as ONE undoable step (`meta.source: "catalog-move-to-custom"`). `options.id` names
+ * the custom record (default: the record's id, `<id>-2` on a conflict).
+ */
 export function moveToCustom(editor, target, options = {}) {
   assertSession(editor);
-  const prepared = prepareMoveToCustom(editor.presentation, target, { catalogs: catalogsFor(editor, options) });
-  const change = editor.applyPatch(prepared.patches, { ...options.meta, source: options.meta?.source ?? "catalog-move-to-custom" });
+  const prepared = prepareMoveToCustom(editor.presentation, target, { catalogs: catalogsFor(editor, options), ...(options.id ? { id: options.id } : {}) });
+  const change = editor.applyPatch(prepared.patches, { ...options.meta, source: options.meta?.source ?? "catalog-move-to-custom", catalogRecordEdit: "in-place" });
   return { ...change, changed: true, from: prepared.from, to: prepared.to };
+}
+
+/** The record kinds a user edits, which an edit forks into `catalogs.custom` when they live under a catalog's group. */
+export const FORKED_RECORD_KINDS = Object.freeze(["layouts", "themes", "colorSchemes", "fontSchemes"]);
+
+/**
+ * Records under `catalogs.default` or a named group whose content an edit from `before` to `after` changed (present in both, not
+ * equal). An added or removed record is not an edit. Returns `[{ group, kind, id }]`.
+ */
+export function editedCatalogRecords(before, after) {
+  const out = [];
+  const groupsBefore = isObject(before?.catalogs) ? before.catalogs : {};
+  const groupsAfter = isObject(after?.catalogs) ? after.catalogs : {};
+  for (const [group, value] of Object.entries(groupsAfter)) {
+    if (group === "custom" || !isObject(value) || !isObject(groupsBefore[group])) continue;
+    for (const kind of FORKED_RECORD_KINDS) {
+      const was = isObject(groupsBefore[group][kind]) ? groupsBefore[group][kind] : {};
+      const now = isObject(value[kind]) ? value[kind] : {};
+      for (const id of Object.keys(now)) if (Object.hasOwn(was, id) && !sameJson(was[id], now[id])) out.push({ group, kind, id });
+    }
+  }
+  return out;
+}
+
+/** The notice an editor shows after a fork: the record is the deck's own now and no longer receives catalog updates. */
+export function forkNotice(fork) {
+  const label = { layouts: "layout", themes: "theme", colorSchemes: "color scheme", fontSchemes: "font scheme" }[fork.from.kind] ?? fork.from.kind;
+  return `The ${label} ${fork.from.id} is now this presentation's own (${fork.to.id}); it no longer receives catalog updates.`;
+}
+
+/**
+ * Owner rule (FA-23): editing a record that lives under `catalogs.default` or a named group forks it into `catalogs.custom` instead
+ * of changing the catalog's record in place. Given the document before and after an edit, returns the document after the forks
+ * (each edited record moved to custom as `<id>-custom`, or `forkIds[<group>:<kind>:<id>]`, every reference rewritten, the
+ * original dropped) and `forks: [{ from, to }]`. Nothing to fork returns `after` and `[]`.
+ */
+export function forkEditedRecords(before, after, options = {}) {
+  let document = after;
+  const forks = [];
+  for (const target of editedCatalogRecords(before, after)) {
+    const custom = isObject(document.catalogs?.custom?.[target.kind]) ? document.catalogs.custom[target.kind] : {};
+    let id = options.forkIds?.[`${target.group}:${target.kind}:${target.id}`] ?? `${target.id}-custom`;
+    for (let n = 2; Object.hasOwn(custom, id); n += 1) id = `${target.id}-custom-${n}`;
+    const moved = prepareMoveToCustom(document, target, { catalogs: options.catalogs, id });
+    document = moved.presentation;
+    forks.push({ from: moved.from, to: moved.to });
+  }
+  return { document, forks };
 }
