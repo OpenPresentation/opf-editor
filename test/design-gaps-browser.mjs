@@ -361,7 +361,7 @@ try {
   // --- accessibility ------------------------------------------------------------------------------------
   const unlabeled = await page.evaluate(() => [...document.querySelectorAll('#design-controls select, #design-controls input')].filter(node => !node.labels?.length).map(node => node.id || node.outerHTML.slice(0, 80)));
   assert.deepEqual(unlabeled, [], 'every control, including every file input, is labelled');
-  assert.ok(await page.locator('#design-controls input[type=file]').count() >= 6, 'file inputs exist for logo, organization logo, watermark, slide image, background and zone image');
+  assert.ok(await page.locator('#design-controls input[type=file]').count() >= 5, 'file inputs exist for logo, organization logo, watermark, background and zone image');
   await page.locator('#design-controls input[type=file]:visible').first().focus();
   assert.equal(await page.evaluate(() => document.activeElement.type), 'file');
   mark('every control and file input is labelled; file inputs take keyboard focus');

@@ -430,7 +430,7 @@ export function createDesignControls(container, options = {}) {
       body.append(field.wrap);
       syncs.push(() => {
         field.setOptions(listSwitchOptions(editor.presentation, dimension, catalogOptions()).map((entry) => ({ value: entry.id, label: entry.label })));
-        const current = currentSwitchValue(editor.presentation, dimension, perSlide ? scoped() : {});
+        const current = currentSwitchValue(editor.presentation, dimension, { ...catalogOptions(), ...(perSlide ? scoped() : {}) });
         field.set(current.value, perSlide ? sourceNote(current.scope, current.value !== undefined) : "");
       });
       return field;
@@ -447,7 +447,7 @@ export function createDesignControls(container, options = {}) {
     body.append(slideSize.wrap);
     syncs.push(() => {
       slideSize.setOptions(listSwitchOptions(editor.presentation, "slide-sizes").map((entry) => ({ value: entry.id, label: entry.label })));
-      const { value } = currentSwitchValue(editor.presentation, "slide-sizes");
+      const { value } = currentSwitchValue(editor.presentation, "slide-sizes", catalogOptions());
       slideSize.set(value && typeof value === "object" ? "Custom size" : value);
     });
 
