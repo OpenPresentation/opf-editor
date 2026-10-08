@@ -115,7 +115,7 @@ export interface CompatibleChartType extends SwitchOption {
   /** True for the chart's present type, which is always listed. */
   current: boolean;
 }
-/** Values a picker can offer: a catalog dimension lists core's `catalogRecords` (embedded records, then `catalogs`); `charts` and `socials` list core's vocabularies, `languages` the tags `vocabularies.languages` describes; `blocks` lists the content kinds and `slide-sizes` the presets. `purposes` lists the catalogs; any other goal text is also a valid switch value. */
+/** Values a picker can offer: a catalog dimension lists core's `catalogRecords` (embedded records, then `catalogs`); `charts` and `socials` list core's vocabularies, `languages` core's `LANGUAGES` tags; `blocks` lists the content kinds and `slide-sizes` the presets. `purposes` lists the catalogs; any other goal text is also a valid switch value. */
 export declare function listSwitchOptions(presentation: unknown, dimension: SwitchDimension, options?: Pick<DimensionSwitchOptions, "catalogs" | "vocabularies">): SwitchOption[];
 /** Chart types the chart's inline data can use as it is (data-shape compatibility from `vocabularies.chartTypes`, not an engine-support claim). `path` or `slideIndex` picks the chart. */
 export declare function compatibleChartTypes(presentation: unknown, options?: Pick<DimensionSwitchOptions, "slideIndex" | "path" | "catalogs" | "vocabularies">): CompatibleChartType[];

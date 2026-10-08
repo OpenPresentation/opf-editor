@@ -8,7 +8,7 @@
 // gives (`id` or `name:id`). Languages, chart types and social platforms are engine vocabularies, checked against core's
 // tables; their labels come from the host's display metadata (`options.vocabularies`, the shape of `catalogDisplay` from
 // `@openpresentation/opf/catalog`), never from data the editor ships.
-import { CHART_TYPES, SOCIAL_PLATFORMS, isXYChartType, parseReference, resolveChartData, resolveReference } from "@openpresentation/opf";
+import { CHART_TYPES, LANGUAGES, SOCIAL_PLATFORMS, isXYChartType, parseReference, resolveChartData, resolveReference } from "@openpresentation/opf";
 import { chartOptionTarget } from "@openpresentation/opf/composition";
 import { createValuePatch, applyJsonPatch, getValueAtPath, opfPathToJsonPointer, splitOpfPath } from "./index.js";
 import { createContentBlock, prepareBlockReplace } from "./blocks.js";
@@ -452,7 +452,7 @@ const displayLabel = (record, id) => (typeof record?.name === "string" && record
  * The values a picker can offer for a dimension. A catalog-backed dimension lists core's `catalogRecords` (the document's embedded
  * records first, then `options.catalogs`'), each `{ id, label, record, reference, group, source, origin }` with `id` the reference
  * to write. `charts` lists core's `CHART_TYPES` and `socials` core's `SOCIAL_PLATFORMS`, labelled from `options.vocabularies`;
- * `languages` lists the tags `options.vocabularies.languages` describes (the host's display metadata). `blocks` lists the content
+ * `languages` lists core's `LANGUAGES` tags. `blocks` lists the content
  * kinds. Use `compatibleChartTypes` to narrow `charts` to the types the chart's data can use.
  */
 export function listSwitchOptions(presentation, dimension, options = {}) {
@@ -466,7 +466,11 @@ export function listSwitchOptions(presentation, dimension, options = {}) {
     const display = displayRecords(options, VOCABULARY.socials);
     return Object.keys(SOCIAL_PLATFORMS).map((id) => ({ id, label: displayLabel(display.get(id), id), record: { ...SOCIAL_PLATFORMS[id], ...display.get(id) } }));
   }
-  if (dimension === "languages") return [...displayRecords(options, VOCABULARY.languages)].map(([id, record]) => ({ id, label: displayLabel(record, id), record }));
+  if (dimension === "languages") {
+    // Core's language table (the tags engines know the script, direction and default fonts of), labelled from the host's display metadata.
+    const display = displayRecords(options, VOCABULARY.languages);
+    return LANGUAGES.map((language) => ({ id: language.tag, label: displayLabel(display.get(language.tag), language.tag), record: { ...language, ...display.get(language.tag) } }));
+  }
   const kind = CATALOG_KIND[dimension];
   if (!kind) return [];
   return listCatalogRecords(presentation ?? {}, kind, { catalogs: catalogsOf(options) });
