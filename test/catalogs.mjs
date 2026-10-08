@@ -12,6 +12,8 @@ import {
   createEditorSession,
   getCatalogOptions,
   mergeCatalogs,
+  moveToCustom,
+  catalogRecordAt,
   prepareSave,
   referenceFindings,
   saveDocument,
@@ -209,3 +211,29 @@ const acme = (revision = 1) => ({
 }
 
 console.log("catalogs ok: one merged list, references from catalogRecords, embed on save and copy, copySlides on paste, approved catalog updates, reference findings");
+
+// --- a record its catalog does not publish: the finding, and "move to custom" -------------------------------------------
+{
+  const doc = {
+    catalogs: { acme: { source: ACME, layouts: { "q4-special": { name: "Q4", placeholders: [{ type: "title" }] } }, themes: { promo: { name: "Promo", colorScheme: "ocean" } } } },
+    design: { theme: "acme:promo" },
+    slides: [{ layout: "acme:q4-special", title: "x" }],
+  };
+  const editor = createEditorSession(doc, { catalogs: [defaultCatalog, acme()] });
+  const notInSource = referenceFindings(editor.validation).filter((finding) => finding.ruleId === "opf/catalog-record-not-in-source");
+  assert.deepEqual(notInSource.map((finding) => catalogRecordAt(finding.path)).sort((a, b) => a.kind.localeCompare(b.kind)), [{ group: "acme", kind: "layouts", id: "q4-special" }, { group: "acme", kind: "themes", id: "promo" }]);
+  const moved = moveToCustom(editor, { group: "acme", kind: "themes", id: "promo" });
+  assert.deepEqual(moved.to, { group: "custom", kind: "themes", id: "promo" });
+  assert.equal(editor.get("design.theme"), "promo", "the reference follows the record");
+  assert.equal(editor.get("catalogs.custom.themes.promo.colorScheme"), "acme:ocean", "a reference inside it keeps naming acme's record");
+  assert.equal(editor.get("catalogs.acme.themes"), undefined);
+  assert.equal(editor.snapshot().undoDepth, 1);
+  moveToCustom(editor, { group: "acme", kind: "layouts", id: "q4-special" });
+  assert.equal(editor.get("slides.0.layout"), "q4-special");
+  assert.deepEqual(referenceFindings(editor.validation), [], "nothing left to report");
+  assert.throws(() => moveToCustom(editor, { group: "custom", kind: "layouts", id: "q4-special" }), (error) => error.code === "not-a-catalog-record");
+  editor.undo();
+  editor.undo();
+  assert.deepEqual(editor.presentation, doc);
+}
+console.log("catalogs ok: not-in-source records move to custom with their references");

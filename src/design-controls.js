@@ -35,7 +35,7 @@ import {
 } from "./design-options.js";
 import { createContentControls } from "./content-controls.js";
 import { IMAGE_EDGES, IMAGE_FITS, IMAGE_SHAPES, readImageTreatments, setImageTreatment } from "./image-options.js";
-import { applyCatalogUpdate, checkCatalogUpdates, mergeCatalogs, referenceFindings } from "./catalogs.js";
+import { applyCatalogUpdate, catalogRecordAt, checkCatalogUpdates, mergeCatalogs, moveToCustom, referenceFindings } from "./catalogs.js";
 import { describeTableCell, mergeTableCells, parseTableCellPath, readTableStyle, setTableCellStyle, setTableStyle, splitTableCell } from "./table-options.js";
 
 /** The sections a panel can show. `selection` and `table` follow the current selection; the rest follow the deck or the current slide. */
@@ -1091,7 +1091,21 @@ export function createDesignControls(container, options = {}) {
     body.append(intro, findings, h("div", { class: "opf-dc-actions" }, check, applyButton), updates);
     syncs.push(() => {
       const list = referenceFindings(editor.validation);
-      findings.replaceChildren(...list.map((finding) => h("li", { "data-rule": finding.ruleId }, `${finding.path ? `${finding.path}: ` : ""}${finding.message}`)));
+      findings.replaceChildren(
+        ...list.map((finding) => {
+          const item = h("li", { "data-rule": finding.ruleId }, `${finding.path ? `${finding.path}: ` : ""}${finding.message}`);
+          // A record the registered catalog does not publish belongs to the document: offer to move it to custom.
+          const target = finding.ruleId === "opf/catalog-record-not-in-source" ? catalogRecordAt(finding.path) : undefined;
+          if (target)
+            item.append(
+              " ",
+              button(`Move ${target.id} to this document's own records`, () =>
+                run(() => moveToCustom(editor, target, catalogOptions()), (change) => `Moved ${target.kind} ${target.id} to catalogs.custom${change.to.id === target.id ? "" : ` as ${change.to.id}`}; its references follow.`),
+              ),
+            );
+          return item;
+        }),
+      );
       findings.hidden = list.length === 0;
     });
   }

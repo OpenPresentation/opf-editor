@@ -35,6 +35,14 @@ export declare function applyCatalogUpdate(
   options: { refs: readonly { kind: CatalogKind; reference: string }[]; catalogs?: readonly Catalog[]; meta?: Record<string, unknown> },
 ): EditorChange & { changed: boolean; changes: CatalogRecordChange[] };
 
-export declare const REFERENCE_FINDING_CODES: readonly ["opf/unresolved-reference", "opf/undeclared-catalog"];
-/** The `opf/unresolved-reference` and `opf/undeclared-catalog` findings of a report. */
+export declare const REFERENCE_FINDING_CODES: readonly ["opf/unresolved-reference", "opf/undeclared-catalog", "opf/catalog-record-not-in-source"];
+/** The reference and embedded-record findings (`REFERENCE_FINDING_CODES`) of a report. */
 export declare function referenceFindings(validation: ValidationReport | undefined): ValidationReport["findings"];
+
+export interface CatalogRecordRef { group: string; kind: CatalogKind; id: string }
+/** The record a `opf/catalog-record-not-in-source` finding path names (`/catalogs/<group>/<kind>/<id>`). */
+export declare function catalogRecordAt(path: string): CatalogRecordRef | undefined;
+/** Move a record embedded under `default` or a named group into `catalogs.custom`, rewriting the references that resolved to it. */
+export declare function prepareMoveToCustom(presentation: unknown, target: CatalogRecordRef, options?: { catalogs?: readonly Catalog[] }): { presentation: unknown; patches: JsonPatchOperation[]; changed: boolean; from: CatalogRecordRef; to: CatalogRecordRef };
+/** `prepareMoveToCustom` as one undoable step on the session. */
+export declare function moveToCustom(editor: EditorSession, target: CatalogRecordRef, options?: { catalogs?: readonly Catalog[]; meta?: Record<string, unknown> }): EditorChange & { changed: boolean; from: CatalogRecordRef; to: CatalogRecordRef };

@@ -4,8 +4,8 @@
 // one list the editor hands to core (resolution, validation, embedding, copying, updates), to the renderer and to the exporter.
 // Pickers list core's `catalogRecords` and write the reference it gives (`id` or `name:id`); saving and exporting embed every
 // referenced record with core's `embed`, so a saved document renders the same with no catalog registered.
-import { catalogRecords, embed, updateFromCatalog } from "@openpresentation/opf";
-import { OPFEditorError } from "./index.js";
+import { catalogKinds, catalogReferenceSites, catalogRecords, embed, resolveReference, updateFromCatalog } from "@openpresentation/opf";
+import { OPFEditorError, applyJsonPatch, opfPathToJsonPointer } from "./index.js";
 
 const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
@@ -109,10 +109,14 @@ export function applyCatalogUpdate(editor, options = {}) {
   return { ...change, changed: true, changes: update.changes };
 }
 
-/** Core finding codes about catalog references, which the editor surfaces next to its catalog controls. */
-export const REFERENCE_FINDING_CODES = Object.freeze(["opf/unresolved-reference", "opf/undeclared-catalog"]);
+/**
+ * Core finding codes about catalog references and embedded records, which the editor surfaces next to its catalog controls:
+ * a reference that resolves nowhere, a prefix with no catalog group, and a record embedded under a catalog's group that the
+ * registered catalog does not publish (offer `moveToCustom`).
+ */
+export const REFERENCE_FINDING_CODES = Object.freeze(["opf/unresolved-reference", "opf/undeclared-catalog", "opf/catalog-record-not-in-source"]);
 
-/** The `opf/unresolved-reference` and `opf/undeclared-catalog` findings of a validation report (the session's `validation`). */
+/** The reference and embedded-record findings (`REFERENCE_FINDING_CODES`) of a validation report (the session's `validation`). */
 export function referenceFindings(validation) {
   return (validation?.findings ?? []).filter((finding) => REFERENCE_FINDING_CODES.includes(finding.ruleId ?? finding.code));
 }
@@ -120,4 +124,64 @@ export function referenceFindings(validation) {
 function assertSession(editor) {
   if (!editor || typeof editor.applyPatch !== "function" || typeof editor.subscribe !== "function")
     throw new OPFEditorError("invalid-editor", "Expected an editor session created by createEditorSession.");
+}
+
+/**
+ * The record an `opf/catalog-record-not-in-source` finding names, from its path (`/catalogs/<group>/<kind>/<id>` or the dotted
+ * form): `{ group, kind, id }`, or undefined for a path that names no embedded record.
+ */
+export function catalogRecordAt(path) {
+  const parts = typeof path === "string" ? (path.startsWith("/") ? path.slice(1).split("/").map((part) => part.replace(/~1/g, "/").replace(/~0/g, "~")) : path.split(".")) : [];
+  if (parts.length !== 4 || parts[0] !== "catalogs" || !catalogKinds.includes(parts[2])) return undefined;
+  return { group: parts[1], kind: parts[2], id: parts[3] };
+}
+
+const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Move a record embedded under `default` or a named group into `catalogs.custom` (the fix the `opf/catalog-record-not-in-source`
+ * finding offers): the document owns it from then on. Every reference that resolved to it is rewritten to the custom id, a custom
+ * record with the same id and other content makes the moved one `<id>-2`, and references written inside the moved record that
+ * resolved in its old named group keep naming that group (`acme:ocean`). Returns `{ presentation, patches, changed, from, to }`.
+ */
+export function prepareMoveToCustom(presentation, target, options = {}) {
+  const { group, kind, id } = target ?? {};
+  const groups = isObject(presentation?.catalogs) ? presentation.catalogs : {};
+  const record = isObject(groups[group]?.[kind]) ? groups[group][kind][id] : undefined;
+  if (group === "custom" || record === undefined) throw new OPFEditorError("not-a-catalog-record", "Choose a record embedded under catalogs.default or a named catalog group.", { group, kind, id });
+  const catalogs = mergeCatalogs(options.catalogs);
+  const custom = isObject(groups.custom?.[kind]) ? groups.custom[kind] : {};
+  let next = id;
+  for (let n = 2; Object.hasOwn(custom, next) && !sameJson(custom[next], record); n += 1) next = `${id}-${n}`;
+  const result = structuredClone(presentation);
+  const setAt = (path, value) => {
+    let holder = result;
+    for (const key of path.slice(0, -1)) holder = holder[key];
+    holder[path.at(-1)] = value;
+  };
+  for (const site of catalogReferenceSites(presentation)) {
+    const resolved = resolveReference(presentation, site.kind, site.reference, { catalogs, ...(site.group ? { group: site.group } : {}) });
+    if (!resolved) continue;
+    const inMoved = site.group === group && site.path[2] === kind && site.path[3] === id;
+    if (site.kind === kind && resolved.group === group && resolved.id === id) setAt(site.path, next);
+    else if (inMoved && resolved.group === group && group !== "default" && !site.reference.includes(":")) setAt(site.path, `${group}:${resolved.id}`);
+  }
+  // The moved record's own references live at its new path.
+  const moved = structuredClone(result.catalogs[group][kind][id]);
+  delete result.catalogs[group][kind][id];
+  if (!Object.keys(result.catalogs[group][kind]).length) delete result.catalogs[group][kind];
+  result.catalogs.custom ??= {};
+  result.catalogs.custom[kind] ??= {};
+  result.catalogs.custom[kind][next] = moved;
+  const patches = [{ op: "test", path: "/catalogs", value: structuredClone(presentation.catalogs) }];
+  for (const key of Object.keys(result)) if (!sameJson(result[key], presentation[key])) patches.push({ op: "replace", path: opfPathToJsonPointer([key]), value: structuredClone(result[key]) });
+  return { presentation: applyJsonPatch(presentation, patches), patches, changed: true, from: { group, kind, id }, to: { group: "custom", kind, id: next } };
+}
+
+/** `prepareMoveToCustom` on the session's document, as ONE undoable step (`meta.source: "catalog-move-to-custom"`). */
+export function moveToCustom(editor, target, options = {}) {
+  assertSession(editor);
+  const prepared = prepareMoveToCustom(editor.presentation, target, { catalogs: catalogsFor(editor, options) });
+  const change = editor.applyPatch(prepared.patches, { ...options.meta, source: options.meta?.source ?? "catalog-move-to-custom" });
+  return { ...change, changed: true, from: prepared.from, to: prepared.to };
 }

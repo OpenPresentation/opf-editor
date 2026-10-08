@@ -75,7 +75,7 @@ export interface EditorSession {
   composeSlide(slideIndex: number, options?: ComposeSlideOptions & EditorDiagnosticOptions): SlideComposition;
   setComposition(slideIndex: number, composition: Composition, meta?: Record<string, unknown>): EditorChange;
   readonly presentation: unknown;
-  /** The `format` and `references` report of the document, checked against the registered catalogs. */
+  /** The `format` report of the document plus the catalog reference rules, checked against the registered catalogs. */
   readonly validation: ValidationReport;
   /** The host's registered catalogs, frozen; the first is the host default. */
   readonly catalogs: readonly Catalog[];
