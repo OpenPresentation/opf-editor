@@ -21,7 +21,7 @@ const bundle=await build({alias,stdin:{resolveDir,contents:`
   import {mountJsonCodeEditor} from ${JSON.stringify(editorImport)};
   import {defaultCatalog} from '@openpresentation/opf/catalog';
   // OPF 0.15: the host (this page) registers the default catalog; extra layouts join it as the app's own records.
-  window.layoutContracts={count:Object.keys(defaultCatalog.layouts).length,metric:defaultCatalog.layouts['number-1x']?.placeholders.some(slot=>slot.type==='metric')};
+  window.layoutContracts={count:Object.keys(defaultCatalog.layouts).length,chart1x:Object.keys(defaultCatalog.layouts).filter(id=>id.includes('chart-1x')).length,metric:defaultCatalog.layouts['number-1x']?.placeholders.some(slot=>slot.type==='metric')};
   window.changes=[];window.failures=[];
   window.mount=(code,extra)=>{
     const catalogs=[extra?{...defaultCatalog,layouts:{...defaultCatalog.layouts,...extra}}:defaultCatalog];
@@ -88,7 +88,7 @@ try{
   assert.equal(grouped,similarCount,'Similar holds exactly the current, same and compatible groups');
   assert.ok((await menu.getByRole('group',{name:'Different counts',exact:true}).innerText()).includes('Text × 3'));
   await menu.getByRole('button',{name:`Similar (${similarCount})`,exact:true}).click();
-  await menu.getByRole('combobox').fill('chart-1x');assert.equal(await menu.getByRole('option').count(),1);
+  await menu.getByRole('combobox').fill('chart-1x');assert.equal(await menu.getByRole('option').count(),contracts.chart1x,'the search lists every registered layout matching chart-1x');
   await menu.getByRole('combobox').fill('');assert.equal(await menu.getByRole('option').count(),similarCount);
   await menu.getByRole('combobox').press('ArrowDown');
   const active=await menu.getByRole('combobox').getAttribute('aria-activedescendant');
@@ -105,7 +105,8 @@ try{
     const cover=JSON.stringify({slides:[{layout:'title-subtitle',title:'Keep title',subtitle:'Keep subtitle',notes:'Keep notes'}]},null,2);
     await page.evaluate(code=>mount(code),cover);await at('"layout"',1);await source.press('Control+Space');await menu.waitFor();
     await menu.getByRole('combobox').fill('number-1x');
-    assert.ok((await menu.getByRole('option').innerText()).includes('Title + Metric'));
+    // The registered catalog has number-1x variants too; the exact id is listed first and highlighted.
+    assert.ok((await menu.getByRole('option').first().innerText()).includes('Title + Metric'));
     await menu.getByRole('combobox').press('Enter');
     const changed=await read();
     assert.deepEqual(JSON.parse(changed).slides[0],{...JSON.parse(cover).slides[0],layout:'number-1x',metric:{value:'',label:''}});

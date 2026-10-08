@@ -45,7 +45,7 @@ const acme = (revision = 1) => ({
   assert.deepEqual(merged.map((catalog) => catalog.source), [defaultCatalog.source, ACME]);
   assert.equal(merged[1], first, "the earlier catalog with a source wins");
   assert.ok(Object.isFrozen(merged));
-  assert.throws(() => mergeCatalogs([{ layouts: {} }]), (error) => error instanceof OPFEditorError && error.code === "invalid-catalog");
+  assert.throws(() => mergeCatalogs([{ layouts: {} }]), (error) => error instanceof OPFEditorError && error.code === "invalid-catalogs");
 }
 
 // --- the session's registration, setCatalogs and validation against the registered list ---------------------------
@@ -64,7 +64,14 @@ const acme = (revision = 1) => ({
   assert.deepEqual(bare.presentation, doc, "registering catalogs never changes the document");
 
   const undeclared = createEditorSession({ slides: [{ layout: "foo:hero", title: "x" }] });
-  assert.ok(referenceFindings(undeclared.validation).some((finding) => finding.ruleId === "opf/undeclared-catalog" && finding.severity === "error"));
+  const undeclaredFindings = referenceFindings(undeclared.validation).filter((finding) => finding.ruleId === "opf/undeclared-catalog");
+  assert.equal(undeclaredFindings.length, 1, "one finding per path");
+  assert.equal(undeclaredFindings[0].severity, "error");
+  assert.equal(undeclared.validation.valid, false, "an undeclared prefix makes the document invalid (a format error)");
+  // A strict session refuses an edit that introduces one; the document is unchanged.
+  const strict = createEditorSession({ slides: [{ title: "x" }] }, { rejectInvalid: true });
+  assert.throws(() => strict.set("slides.0.layout", "foo:hero"), (error) => error.code === "invalid-opf-edit");
+  assert.equal(strict.get("slides.0.layout"), undefined);
 }
 
 // --- pickers: embedded records first, then registered ones, each with the reference to write ------------------------
@@ -174,9 +181,10 @@ const acme = (revision = 1) => ({
   assert.deepEqual(result.presentation.catalogs.custom.layouts["q4-2"], record("list"));
   assert.deepEqual(result.renamed.map(({ from, to, reason }) => [from, to, reason]), [["q4", "q4-2", "custom-conflict"]]);
   assert.ok(!JSON.stringify(result.presentation).includes("import-"), "no import-<id> renaming");
-  // The same slide again reuses the first copy's record (the reference still changes from q4, so it is reported).
+  // The same slide again reuses the first copy's record, which is not a rename.
   const again = prepareOpfImport(result.presentation, transfer, { mode: "insert", slideIndex: 1, catalogs: [defaultCatalog] });
   assert.equal(again.presentation.slides[2].layout, "q4-2");
+  assert.deepEqual(again.renamed, [], "a reused record is not listed as renamed");
   assert.deepEqual(Object.keys(again.presentation.catalogs.custom.layouts).sort(), ["q4", "q4-2"], "no third copy");
 }
 

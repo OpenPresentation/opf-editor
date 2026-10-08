@@ -4,15 +4,16 @@
 // one list the editor hands to core (resolution, validation, embedding, copying, updates), to the renderer and to the exporter.
 // Pickers list core's `catalogRecords` and write the reference it gives (`id` or `name:id`); saving and exporting embed every
 // referenced record with core's `embed`, so a saved document renders the same with no catalog registered.
-import { catalogKinds, catalogReferenceSites, catalogRecords, embed, resolveReference, updateFromCatalog } from "@openpresentation/opf";
-import { OPFEditorError, applyJsonPatch, opfPathToJsonPointer } from "./index.js";
+import { catalogKinds, catalogRecords, embed, moveToCustom as coreMoveToCustom, updateFromCatalog } from "@openpresentation/opf";
+import { OPFEditorError } from "./index.js";
 
 const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
 /**
  * One catalog list from any number of lists (or single catalogs): the session's registration first, then each host list, in order.
  * A catalog is identified by its `source`; the first catalog with a source wins and later ones with the same source are dropped,
- * so the host default (the first entry) never moves. Entries that are not catalogs throw `invalid-catalog`.
+ * so the host default (the first entry) never moves. Entries that are not catalogs throw `invalid-catalogs` (core's
+ * `OPFCatalogsOptionError` code).
  */
 export function mergeCatalogs(...lists) {
   const merged = [];
@@ -22,7 +23,7 @@ export function mergeCatalogs(...lists) {
     for (const catalog of Array.isArray(list) ? list : [list]) {
       if (catalog === undefined || catalog === null) continue;
       if (!isObject(catalog) || typeof catalog.source !== "string" || catalog.source === "")
-        throw new OPFEditorError("invalid-catalog", "A registered catalog is an object with a non-empty source, such as defaultCatalog from @openpresentation/opf/catalog.", { catalog });
+        throw new OPFEditorError("invalid-catalogs", "A registered catalog is an object with a non-empty source, such as defaultCatalog from @openpresentation/opf/catalog.", { catalog });
       if (sources.has(catalog.source)) continue;
       sources.add(catalog.source);
       merged.push(catalog);
@@ -140,45 +141,20 @@ const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /**
  * Move a record embedded under `default` or a named group into `catalogs.custom` (the fix the `opf/catalog-record-not-in-source`
- * finding offers): the document owns it from then on. Every reference that resolved to it is rewritten to the custom id, a custom
- * record with the same id and other content makes the moved one `<id>-2`, and references written inside the moved record that
- * resolved in its old named group keep naming that group (`acme:ocean`). Returns `{ presentation, patches, changed, from, to }`.
+ * finding offers, and the fork an edit makes) with core's `moveToCustom`: the document owns it from then on. Every reference that
+ * resolved to it is rewritten to the custom id (`options.id`, else its id, `<id>-2` and up on a conflict), and references written
+ * inside it keep naming what they named. Returns `{ presentation, patches, changed, from, to, references }`.
  */
 export function prepareMoveToCustom(presentation, target, options = {}) {
   const { group, kind, id } = target ?? {};
   const groups = isObject(presentation?.catalogs) ? presentation.catalogs : {};
   const record = isObject(groups[group]?.[kind]) ? groups[group][kind][id] : undefined;
   if (group === "custom" || record === undefined) throw new OPFEditorError("not-a-catalog-record", "Choose a record embedded under catalogs.default or a named catalog group.", { group, kind, id });
-  const catalogs = mergeCatalogs(options.catalogs);
-  const custom = isObject(groups.custom?.[kind]) ? groups.custom[kind] : {};
-  const wanted = typeof options.id === "string" && options.id ? options.id : id;
-  // The same move as core's `moveToCustom(document, { kind, reference }, { catalogs, id })` (FA wave C); this body is replaced by a
-  // call to it once the core release that exports it is the editor's dependency (a missing named export would fail at load).
-  let next = wanted;
-  for (let n = 2; Object.hasOwn(custom, next) && !sameJson(custom[next], record); n += 1) next = `${wanted}-${n}`;
-  const result = structuredClone(presentation);
-  const setAt = (path, value) => {
-    let holder = result;
-    for (const key of path.slice(0, -1)) holder = holder[key];
-    holder[path.at(-1)] = value;
-  };
-  for (const site of catalogReferenceSites(presentation)) {
-    const resolved = resolveReference(presentation, site.kind, site.reference, { catalogs, ...(site.group ? { group: site.group } : {}) });
-    if (!resolved) continue;
-    const inMoved = site.group === group && site.path[2] === kind && site.path[3] === id;
-    if (site.kind === kind && resolved.group === group && resolved.id === id) setAt(site.path, next);
-    else if (inMoved && resolved.group === group && group !== "default" && !site.reference.includes(":")) setAt(site.path, `${group}:${resolved.id}`);
-  }
-  // The moved record's own references live at its new path.
-  const moved = structuredClone(result.catalogs[group][kind][id]);
-  delete result.catalogs[group][kind][id];
-  if (!Object.keys(result.catalogs[group][kind]).length) delete result.catalogs[group][kind];
-  result.catalogs.custom ??= {};
-  result.catalogs.custom[kind] ??= {};
-  result.catalogs.custom[kind][next] = moved;
-  const patches = [{ op: "test", path: "/catalogs", value: structuredClone(presentation.catalogs) }];
-  for (const key of Object.keys(result)) if (!sameJson(result[key], presentation[key])) patches.push({ op: "replace", path: opfPathToJsonPointer([key]), value: structuredClone(result[key]) });
-  return { presentation: applyJsonPatch(presentation, patches), patches, changed: true, from: { group, kind, id }, to: { group: "custom", kind, id: next } };
+  // Core's moveToCustom is the one implementation: references follow, the record's own references keep naming what they named.
+  const reference = group === "default" ? id : `${group}:${id}`;
+  const moved = coreMoveToCustom(presentation, { kind, reference }, { catalogs: mergeCatalogs(options.catalogs), ...(options.id ? { id: options.id } : {}) });
+  const patches = [{ op: "test", path: "/catalogs", value: structuredClone(presentation.catalogs) }, ...moved.patch];
+  return { presentation: moved.document, patches, changed: true, from: { group, kind, id }, to: { group: "custom", kind, id: moved.to.id }, references: moved.references ?? [] };
 }
 
 /**
