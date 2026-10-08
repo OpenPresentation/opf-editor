@@ -17,7 +17,7 @@ import { populateLayoutPlaceholders } from "./layout-placeholders.js";
 import { blockConversionTargets, prepareBlockConversion } from "./block-convert.js";
 import { checkFormat } from "./checks.js";
 import { listCatalogRecords, mergeCatalogs } from "./catalogs.js";
-import { imageTreatmentPatches } from "./image-options.js";
+import { IMAGE_TREATMENT_FIELDS, imageTreatmentPatches, readImageTreatments } from "./image-options.js";
 
 /** The schema's DimensionPreset values (RR-41, FA-13: with the social-feed ratios), the values of the slide-sizes switch. */
 export const SLIDE_SIZE_PRESETS = Object.freeze(["16:9", "4:3", "16:10", "1:1", "4:5", "9:16", "letter", "a4", "widescreen", "standard"]);
@@ -416,7 +416,8 @@ export function prepareDimensionSwitch(presentation, dimension, value, options =
 }
 
 /**
- * Switch one dimension of the session's document as a single undoable transaction. Returns the
+ * Switch one dimension of the session's document as a single undoable transaction, resolving references with the session's
+ * registered catalogs (and `options.catalogs`). Returns the
  * editor change plus `dimension`, `scope`, `changed` and `shadowed` (slides whose own design
  * hides a deck-level switch). Switching to the current value commits nothing.
  */
@@ -424,7 +425,8 @@ export function switchDimension(editor, dimension, value, options = {}) {
   if (!editor || typeof editor.applyPatch !== "function" || typeof editor.subscribe !== "function")
     throw fail("invalid-editor", "Expected an editor session created by createEditorSession.");
   const { meta, ...switchOptions } = options;
-  const prepared = prepareDimensionSwitch(editor.presentation, dimension, value, switchOptions);
+  // The session's registered catalogs first, then any the caller adds for this switch: the one list core resolves with.
+  const prepared = prepareDimensionSwitch(editor.presentation, dimension, value, { ...switchOptions, catalogs: mergeCatalogs(editor.catalogs, options.catalogs) });
   const { presentation, patches, ...summary } = prepared;
   void presentation;
   if (!prepared.changed) return { ...summary, presentation: editor.presentation, patches: [], inversePatches: [], validation: editor.validation };
@@ -571,6 +573,12 @@ export function currentSwitchValue(presentation, dimension, options = {}) {
     return { value: owner ? getValueAtPath(presentation, [...owner, "chart", "type"]) : undefined, scope: "slide" };
   }
   if (dimension === "blocks") return { value: undefined, scope: "block" };
+  if (dimension === "image-treatments") {
+    // The treatments of the image block at `options.path` (FA-22); without a path there is nothing to read.
+    if (options.path === undefined) return { value: undefined, scope: "block" };
+    const state = readImageTreatments(presentation, options.path);
+    return { value: Object.fromEntries(IMAGE_TREATMENT_FIELDS.map((key) => [key, state[key]])), scope: "block" };
+  }
   if (dimension === "slide-sizes") {
     // The size the deck composes at: its own design.dimensions, else the theme's; a {preset} object reads as its preset.
     // A custom size (inches without a preset) reads as the object itself. Unset reads as undefined (composed as widescreen).
