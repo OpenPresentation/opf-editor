@@ -5,6 +5,9 @@
   "license": "MIT",
   "type": "module",
   "private": false,
+  "opf": {
+    "requiresUnreleasedCore": "0.18.0"
+  },
   "engines": {
     "node": ">=22"
   },
@@ -247,9 +250,6 @@
     "test:export-license-browser": "node test/export-license-browser.mjs",
     "test:chart-options-browser": "node test/chart-options-browser.mjs",
     "test:numbering-panel-browser": "node test/numbering-panel-browser.mjs"
-  },
-  "opf": {
-    "requiresUnreleasedCore": "0.18.0"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.3",

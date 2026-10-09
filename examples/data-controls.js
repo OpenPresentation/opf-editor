@@ -1,6 +1,6 @@
-import {importData,parseTabularData} from '@openpresentation/opf/data';
+import {ingest,parseTabularData} from '@openpresentation/opf/data';
 import {prepareDatasetImport} from '../src/data.js';
-import {renderSlideSvg} from '@openpresentation/opf-render/svg';
+import {toSvg} from '@openpresentation/opf-render/svg';
 import {whenFontsReady} from '../src/font-gate.js';
 
 export function installDataControls({editor,getCanvas,getSlideIndex,getSelectedPath,setSlideIndex,status,fonts}) {
@@ -61,12 +61,12 @@ export function installDataControls({editor,getCanvas,getSlideIndex,getSelectedP
    if(!$('data-text').value.trim())return;
    const data=parseTabularData($('data-text').value,options()),key=JSON.stringify(data.columns);
    if(columnsKey!==key){columnsKey=key;$('data-category').replaceChildren(...data.columns.map(name=>new Option(name,name)));$('data-series').replaceChildren(...data.columns.map((name,i)=>{const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=name;input.checked=i>0;label.append(input,document.createTextNode(name));input.onchange=update;return label;}));}
-   content=importData($('data-text').value,{...options(),as:$('data-as').value,chartType:$('data-chart-type').value,category:$('data-category').value,series:[...$('data-series').querySelectorAll('input:checked')].map(input=>input.value)});
+   content=ingest($('data-text').value,{...options(),as:$('data-as').value,chartType:$('data-chart-type').value,category:$('data-category').value,series:[...$('data-series').querySelectorAll('input:checked')].map(input=>input.value)});
    // A one-slide draft inherits deck design/assets for an accurate content preview.
    const deck=editor.presentation, preview={...deck,slides:[{title:$('data-slide-title').value,...content}]};
    // FF-41: the preview draws only once the faces the data needs (a CSV in Japanese or Arabic, an Aptos deck) are loaded.
    const show=()=>{
-    $('data-preview').innerHTML=renderSlideSvg(preview,0,{catalogs:editor.catalogs,fonts,embedFonts:false,trace:false});
+    $('data-preview').innerHTML=toSvg(preview,1,{catalogs:editor.catalogs,fonts,text:'system',trace:false});
     const table=document.createElement('table');
     for(const [i,row]of [data.columns,...data.rows.slice(0,8)].entries()){const tr=document.createElement('tr');for(const value of row){const td=document.createElement(i?'td':'th');td.textContent=value===null?'—':String(value);tr.append(td);}table.append(tr);}
     $('data-grid').append(table);$('data-summary').textContent=`${data.rows.length} rows · ${data.columns.length} columns${data.rows.length>8?' · first 8 rows shown below':''}`;
