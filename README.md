@@ -29,9 +29,9 @@ The release after 0.14.2 moves the editor onto core 0.15 (a breaking, clean spec
 
   ```js
   import { createEditorSession, saveDocument } from "@openpresentation/opf-editor";
-  import { defaultCatalog, catalogDisplay } from "@openpresentation/opf/catalog"; // the host app's choice, not the library's
+  import { gallery, catalogDisplay } from "@openpresentation/gallery"; // the host app's choice, not the library's
 
-  const editor = createEditorSession(doc, { catalogs: [defaultCatalog, acmeCatalog] }); // the first is the host default
+  const editor = createEditorSession(doc, { catalogs: [gallery, acmeCatalog] }); // the first is the host default
   editor.catalogs;                      // the frozen list; editor.setCatalogs([...]) replaces it (one "catalogs" event)
   const { document } = saveDocument(editor); // core embed: every referenced record embedded once, renders with no catalog
   ```
@@ -63,7 +63,7 @@ const control = mountJsonCodeEditor(container, {
   code: source,
   label: 'OPF JSON document',
   lineNumbers: true,
-  catalogs: editor.catalogs, // the host's Catalog[] (for example [defaultCatalog])
+  catalogs: editor.catalogs, // the host's Catalog[] (for example [gallery])
   onChange: nextSource => receiveDraft(nextSource),
   onError: error => showError(error),
 });
@@ -329,7 +329,7 @@ The playground's Content tab mounts the block-level and slide-structure actions 
 
 ### Pickers: options, chart types and current values
 
-`listSwitchOptions(presentation, dimension, { catalogs, vocabularies })` lists what a dimension offers: a catalog dimension lists core's `catalogRecords` (the document's embedded records first, then the host catalogs'), each with the reference to write; `charts`, `socials` and `languages` list core's vocabularies, labelled from `vocabularies` (`catalogDisplay` from `@openpresentation/opf/catalog`, supplied by the host). `compatibleChartTypes(presentation, { slideIndex, path })` lists the chart types the chart's inline data can use as it is, by data shape: the first column labels the categories and each further column is a series (how the renderers read it), a type with N series needs exactly N value columns, except that stacked types and the combo chart take that many or more (combo: two or more), and the single-series, distribution and geographic types are offered only where they fit. Switching a combo chart to another type removes its `line`, `secondaryAxis` and secondary axis title. It is data-shape compatibility, not a claim that an engine draws the type. `currentSwitchValue(presentation, dimension, { slideIndex })` reads the value back as `{ value, scope }`.
+`listSwitchOptions(presentation, dimension, { catalogs, vocabularies })` lists what a dimension offers: a catalog dimension lists core's `catalogRecords` (the document's embedded records first, then the host catalogs'), each with the reference to write; `charts`, `socials` and `languages` list core's vocabularies, labelled from `vocabularies` (`catalogDisplay` from `@openpresentation/gallery`, supplied by the host). `compatibleChartTypes(presentation, { slideIndex, path })` lists the chart types the chart's inline data can use as it is, by data shape: the first column labels the categories and each further column is a series (how the renderers read it), a type with N series needs exactly N value columns, except that stacked types and the combo chart take that many or more (combo: two or more), and the single-series, distribution and geographic types are offered only where they fit. Switching a combo chart to another type removes its `line`, `secondaryAxis` and secondary axis title. It is data-shape compatibility, not a claim that an engine draws the type. `currentSwitchValue(presentation, dimension, { slideIndex })` reads the value back as `{ value, scope }`.
 
 ## Design options (RR-06)
 
@@ -497,7 +497,7 @@ const controls = createDesignControls(designPanel, {
   getSlideIndex: () => slideIndex,
   getSelectedPath: () => selectedPath,
   sections: ["look", "background", "header-footer", "brand", "layout-options", "info", "catalog"],
-  vocabularies: catalogDisplay, // from @openpresentation/opf/catalog, in the host app
+  vocabularies: catalogDisplay, // from @openpresentation/gallery, in the host app
 });
 const selectionControls = createDesignControls(contentPanel, { editor, getSlideIndex, getSelectedPath, sections: ["selection", "image", "table", "slide-content"], onSelectPath: select });
 controls.refresh(); // when the slide or the selection changes

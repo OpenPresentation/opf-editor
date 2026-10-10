@@ -2,7 +2,7 @@
 // the registry's embedded faces, the permissive-license rule, cancellation, findings and the converter hand-off (the real PDF and
 // PNG conversion is checked in a browser by test/playground-download.mjs; the `convert` contract itself by test/convert-contract.mjs).
 import assert from 'node:assert/strict';
-import { defaultCatalog } from '@openpresentation/opf/catalog';
+import { gallery } from '@openpresentation/gallery';
 import { loadFonts } from '@openpresentation/opf-render/fonts-node';
 import { EXPORT_FORMATS, convert, embeddableFonts, exportFileName, slidesToConvert } from '../src/export.js';
 import { crc32, createZip } from '../src/zip.js';
@@ -11,7 +11,7 @@ import { crc32, createZip } from '../src/zip.js';
 import JSZip from 'jszip';
 const fonts = await loadFonts();
 // OPF 0.15: the host registers its catalogs; the deck's roboto scheme resolves in the default catalog.
-const renderOptions = { catalogs: [defaultCatalog] };
+const renderOptions = { catalogs: [gallery] };
 const deck = {
   name: 'Quarterly review', filename: 'q3-review.PPTX', design: { fontScheme: 'roboto' },
   slides: [
@@ -149,7 +149,7 @@ assert.equal(crc32(new TextEncoder().encode('123456789')), 0xcbf43926, 'CRC-32 c
   const handle = { textMeasurement: fonts.textMeasurement, pending: () => [], ensure: async () => {}, registry };
   let seenPdf;
   const converters = { async toPdf(svgs, options) { seenPdf = options; options.onDiagnostic?.({ code: 'pdf-font-substituted', message: 'Proprietary Sans was drawn with Roboto.', path: 'slides.0.title' }); return Uint8Array.from([37, 80, 68, 70]); }, async toPng() { return new Uint8Array(); } };
-  const result = await convert(deck, { format: 'pdf', slides: 1, fonts: handle, catalogs: [defaultCatalog], converters });
+  const result = await convert(deck, { format: 'pdf', slides: 1, fonts: handle, catalogs: [gallery], converters });
   assert.deepEqual(seenPdf.fontData.map(item => item.family), ['Open Sans', 'Noto Sans JP', 'Unlabelled'], 'a face with a non-permissive license is not given to the PDF converter');
   assert.deepEqual([...seenPdf.fontData[0].data], [1, 2, 3], 'the bytes of the face are the registry\'s');
   assert.equal(seenPdf.fonts, undefined);
@@ -160,11 +160,11 @@ assert.equal(crc32(new TextEncoder().encode('123456789')), 0xcbf43926, 'CRC-32 c
   // What the converter then does about text that needed the dropped face is its own report, passed through.
   assert.ok(result.findings.some(item => item.ruleId === 'pdf/pdf-font-substituted' && item.slide === 0), 'the converter\'s substitution notice reaches the caller');
   // Faces handed in explicitly are filtered by the caller; the PDF uses exactly those.
-  const explicit = await convert(deck, { format: 'pdf', slides: 1, fonts: handle, catalogs: [defaultCatalog], embeddedFonts: embeddableFonts(registry), converters });
+  const explicit = await convert(deck, { format: 'pdf', slides: 1, fonts: handle, catalogs: [gallery], embeddedFonts: embeddableFonts(registry), converters });
   assert.equal(explicit.findings.filter(item => item.ruleId === 'fonts/export-font-license').length, 0, 'an explicit embeddedFonts list is the caller\'s choice');
   assert.deepEqual(seenPdf.fontData.map(item => item.family), ['Open Sans', 'Noto Sans JP', 'Unlabelled']);
   // The raster PDF draws images and needs no fonts, but the rule is the same.
-  await convert(deck, { format: 'pdf', raster: true, slides: 1, fonts: handle, catalogs: [defaultCatalog], converters });
+  await convert(deck, { format: 'pdf', raster: true, slides: 1, fonts: handle, catalogs: [gallery], converters });
   assert.ok(!seenPdf.fontData.some(item => item.family === 'Proprietary Sans'));
 }
 

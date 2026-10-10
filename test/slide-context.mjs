@@ -6,11 +6,11 @@ import { resolveSlideContext } from "@openpresentation/opf";
 import { composeSlide } from "@openpresentation/opf/composition";
 import { resolvePresentation } from "@openpresentation/opf-render/svg";
 import * as editorEntry from "../dist/index.js";
-import { defaultCatalog } from "@openpresentation/opf/catalog";
+import { gallery } from "@openpresentation/gallery";
 import { createEditorSession } from "../dist/index.js";
 
 // OPF 0.15 (FA-23): references resolve in the document, then in the catalogs the host registers.
-const gallery = [defaultCatalog];
+const hostCatalogs = [gallery];
 
 assert.equal("resolveSlideFonts" in editorEntry, false, "the editor's own font chain is gone");
 assert.equal("validateOpfDocument" in editorEntry, false, "the editor's own validation adapter is gone");
@@ -21,7 +21,7 @@ const recorder = () => {
   return { families, fonts: { textMeasurement: { measure: (text, size, style) => (families.add(style.fontFamily), text.length * size * 0.5) } } };
 };
 const slide = { id: "s", title: "Title", text: "Body copy" };
-const familiesOf = (presentation, options = {}, index = 0, catalogs = gallery) => {
+const familiesOf = (presentation, options = {}, index = 0, catalogs = hostCatalogs) => {
   const { families, fonts } = recorder();
   createEditorSession(presentation, { catalogs }).composeSlide(index, { fonts, ...options });
   return [...families].sort();
@@ -38,7 +38,7 @@ const cases = [
   ["a scheme only a per-call host catalog has", { catalogs: { host: { source: "pkg:host" } }, design: { fontScheme: "host:host-lora" }, slides: [slide] }, 0, [{ source: "pkg:host", fontSchemes: { "host-lora": { name: "Host Lora", major: "Lora", minor: "Lora" } } }]],
 ];
 for (const [name, presentation, index, extra] of cases) {
-  const expected = resolveSlideContext(presentation, index, { catalogs: [...gallery, ...(extra ?? [])] }).options.fontFamilies;
+  const expected = resolveSlideContext(presentation, index, { catalogs: [...hostCatalogs, ...(extra ?? [])] }).options.fontFamilies;
   const drawn = familiesOf(presentation, extra ? { catalogs: extra } : {}, index);
   const names = [...new Set([expected.heading, expected.body])].sort();
   assert.deepEqual(drawn, names, `${name}: composition measures the families core resolved (${names.join(", ")})`);
@@ -51,11 +51,11 @@ assert.deepEqual(familiesOf({ design: { fontScheme: "roboto" }, slides: [slide] 
 {
   const { fonts } = recorder();
   const presentation = { design: { theme: "classic", fontScheme: "roboto" }, slides: [slide, { id: "two", title: "Two", items: ["a", "b", "c"] }] };
-  const editor = createEditorSession(presentation, { catalogs: gallery });
+  const editor = createEditorSession(presentation, { catalogs: hostCatalogs });
   for (const index of [0, 1]) {
-    assert.deepEqual(editor.composeSlide(index, { fonts }).items, resolvePresentation(presentation, { fonts, catalogs: gallery }).slides[index].geometry.items, `slide ${index}: editor and renderer geometry agree`);
+    assert.deepEqual(editor.composeSlide(index, { fonts }).items, resolvePresentation(presentation, { fonts, catalogs: hostCatalogs }).slides[index].geometry.items, `slide ${index}: editor and renderer geometry agree`);
     // And it is exactly core's composeSlide over core's context, with the same catalogs.
-    assert.deepEqual(editor.composeSlide(index, { fonts }).items, composeSlide(presentation.slides[index], resolveSlideContext(presentation, index, { fonts, catalogs: gallery }).options).items, `slide ${index}: editor.composeSlide is composeSlide over resolveSlideContext`);
+    assert.deepEqual(editor.composeSlide(index, { fonts }).items, composeSlide(presentation.slides[index], resolveSlideContext(presentation, index, { fonts, catalogs: hostCatalogs }).options).items, `slide ${index}: editor.composeSlide is composeSlide over resolveSlideContext`);
   }
 }
 
@@ -63,12 +63,12 @@ assert.deepEqual(familiesOf({ design: { fontScheme: "roboto" }, slides: [slide] 
 {
   const presentation = { design: { theme: "no-such-theme", colorScheme: "no-such-colors", fontScheme: "no-such-fonts" }, slides: [{ ...slide, layout: "no-such-layout" }] };
   const diagnostics = [];
-  const composition = createEditorSession(presentation, { catalogs: gallery }).composeSlide(0, { onDiagnostic: (diagnostic) => diagnostics.push(diagnostic) });
+  const composition = createEditorSession(presentation, { catalogs: hostCatalogs }).composeSlide(0, { onDiagnostic: (diagnostic) => diagnostics.push(diagnostic) });
   assert.ok(composition.items.length > 0, "the slide still composes");
   assert.deepEqual(diagnostics.map((diagnostic) => diagnostic.code), diagnostics.map(() => "unresolved-reference"));
   assert.deepEqual(diagnostics.map((diagnostic) => diagnostic.kind).sort(), ["colorSchemes", "fontSchemes", "layouts", "themes"]);
   assert.deepEqual(diagnostics.find((diagnostic) => diagnostic.kind === "layouts").fallback, "automatic");
-  assert.equal(resolveSlideContext(presentation, 0, { catalogs: gallery }).options.layout, undefined, "an unknown layout composes with no layout record");
+  assert.equal(resolveSlideContext(presentation, 0, { catalogs: hostCatalogs }).options.layout, undefined, "an unknown layout composes with no layout record");
   // A slide with no layout at all is the same: no layout record, no diagnostic.
   const none = [];
   createEditorSession({ slides: [slide] }).composeSlide(0, { onDiagnostic: (diagnostic) => none.push(diagnostic) });

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { validate } from "@openpresentation/opf";
 import { toSvg } from "@openpresentation/opf-render/svg";
 import * as pptx from "@openpresentation/opf-pptx";
-import { defaultCatalog } from "@openpresentation/opf/catalog";
+import { gallery } from "@openpresentation/gallery";
 import { createEditorSession } from "../dist/index.js";
 import {
   TABLE_STYLE_PRESETS,
@@ -46,7 +46,7 @@ const deck = () => ({
   ],
 });
 // OPF 0.15: the themes the fixtures name resolve through the registered default catalog.
-const catalogs = [defaultCatalog];
+const catalogs = [gallery];
 const session = (presentation = deck()) => createEditorSession(presentation, { rejectInvalid: true, catalogs });
 const svg = (presentation) => toSvg(presentation, 1, { catalogs });
 const body = (row, column) => ({ section: "body", row, column });
