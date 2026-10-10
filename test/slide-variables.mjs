@@ -2,12 +2,12 @@
 // substituted, the way the renderer draws it and the exporter writes it, and keeps the tokens in the document it edits.
 import assert from "node:assert/strict";
 import { toSvg } from "@openpresentation/opf-render/svg";
-import { defaultCatalog } from "@openpresentation/opf/catalog";
+import { gallery } from "@openpresentation/gallery";
 import { createEditorSession } from "../dist/index.js";
 import { replaceAll } from "../dist/find-replace.js";
 import { setHeaderFooterZone } from "../dist/design-options.js";
 
-const catalogs = [defaultCatalog];
+const catalogs = [gallery];
 const deck = () => ({
   name: "Quarterly review",
   design: { theme: "minimal", fontScheme: "roboto", footer: { right: { text: "{{slide.number}} / {{deck.slideCount}}" } } },

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { toPptx } from '@openpresentation/opf-pptx';
 import { toSvg } from '@openpresentation/opf-render/svg';
-import { defaultCatalog } from '@openpresentation/opf/catalog';
+import { gallery } from '@openpresentation/gallery';
 import { startPlayground } from './support/playground-harness.mjs';
 
 // RR-25 in a real browser, on the built playground: the in-canvas crop tool and the focal point picker. A 400 x 200 picture
@@ -244,11 +244,11 @@ try {
     for (const fill of [undefined, 'cover']) {
       const variant = structuredClone(deck);
       if (fill) variant.design.imageFit = fill;
-      const svg = toSvg(variant, slideIndex + 1, { trace: true, catalogs: [defaultCatalog] });
+      const svg = toSvg(variant, slideIndex + 1, { trace: true, catalogs: [gallery] });
       const tag = svg.match(/<image\b[^>]*data-opf-path="slides\.\d+\.(?:blocks\.0\.)?image"[^>]*>/)[0];
       const attr = (name) => tag.match(new RegExp(`\\s${name}="([^"]*)"`))[1];
       const frame = { x: +attr('x'), y: +attr('y'), width: +attr('width'), height: +attr('height') };
-      const bytes = await toPptx(variant, { imageFormat: 'preserve', strictAssets: true, catalogs: [defaultCatalog] });
+      const bytes = await toPptx(variant, { imageFormat: 'preserve', strictAssets: true, catalogs: [gallery] });
       const zip = await JSZip.loadAsync(bytes);
       const xml = await zip.file(`ppt/slides/slide${slideIndex + 1}.xml`).async('string');
       const pictures = [...xml.matchAll(/<p:pic>[\s\S]*?<\/p:pic>/g)].map((match) => match[0]);

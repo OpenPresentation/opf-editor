@@ -2,11 +2,11 @@
 // catalogs.custom.narratives). The Narrative picker lists the document's own records first and switches by reference.
 import assert from "node:assert/strict";
 import { validate } from "@openpresentation/opf";
-import { defaultCatalog } from "@openpresentation/opf/catalog";
+import { gallery } from "@openpresentation/gallery";
 import { createEditorSession } from "../dist/index.js";
 import { currentSwitchValue, listSwitchOptions, switchDimension } from "../dist/switches.js";
 
-const catalogs = [defaultCatalog];
+const catalogs = [gallery];
 const record = {
   name: "Proof Arc",
   duration: { min: 8, max: 20 },

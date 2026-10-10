@@ -1,6 +1,9 @@
 {
   "name": "@openpresentation/opf-editor",
   "version": "0.18.0",
+  "opf": {
+    "requiresUnreleasedCore": "0.19.0"
+  },
   "description": "Embeddable local OPF editor primitives built on the deterministic renderer.",
   "license": "MIT",
   "type": "module",
@@ -314,6 +317,7 @@
     "@expo-google-fonts/roboto-mono": "0.4.2",
     "@expo-google-fonts/stix-two-math": "0.4.0",
     "@expo-google-fonts/tinos": "0.4.2",
+    "@openpresentation/gallery": "0.0.1",
     "@openpresentation/opf-pptx": "^0.18.0",
     "@openpresentation/opf-render": "^0.18.0",
     "@resvg/resvg-js": "2.6.2",

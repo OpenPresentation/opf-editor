@@ -14,10 +14,10 @@ const bundled = await build({stdin: {resolveDir: fileURLToPath(new URL('../', im
   import {createEditorSession} from './dist/index.js';
   import {createCanvasEditor} from './dist/canvas.js';
   import { loadFonts } from '@openpresentation/opf-render/fonts-browser';
-  import { defaultCatalog } from '@openpresentation/opf/catalog';
+  import { gallery } from '@openpresentation/gallery';
   window.mountCanvas = async ({deck, faces}) => {
     const fonts = await loadFonts({ faces: faces.map((face) => ({...face, data: Uint8Array.from(atob(face.dataUrl.split(',')[1]), (c) => c.charCodeAt(0))})), substitutionPolicy: 'visual', fallbackFamily: 'Roboto' });
-    const editor = createEditorSession(deck, {rejectInvalid: true, catalogs: [defaultCatalog]});
+    const editor = createEditorSession(deck, {rejectInvalid: true, catalogs: [gallery]});
     window.cv = createCanvasEditor(document.querySelector('#canvas'), {editor, fonts});
     await cv.ready;
   };`}, bundle: true, platform: 'browser', format: 'iife', write: false, minify: true});

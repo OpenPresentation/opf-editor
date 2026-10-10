@@ -11,7 +11,7 @@ import {installTransferControls} from './transfer-controls.js';
 import { createEditorSession, saveDocument } from '../src/index.js';
 // FA-23: the editor library ships no catalog data. This app is the host: it registers the default catalog (the pptx.gallery
 // snapshot core publishes as an opt-in subpath) and hands the session's one list to every render, check, embed and export.
-import { catalogDisplay, defaultCatalog } from '@openpresentation/opf/catalog';
+import { catalogDisplay, gallery } from '@openpresentation/gallery';
 import {createCanvasEditor} from '../src/canvas.js';
 import { whenFontsReady } from '../src/font-gate.js';
 import * as browserFonts from '@openpresentation/opf-render/fonts-browser';
@@ -47,7 +47,7 @@ const fontRegistry = fonts.registry;
 // document or draws a slide (initial load, Source Apply and the gallery handoff, import, undo and redo, font and language
 // switches, slide navigation, thumbnails, previews and export) goes through whenFontsReady(fonts, ...) or the canvas's own gate.
 // The faces a document needs that are not loaded yet; a document the renderer cannot resolve reports none and fails when it renders.
-const catalogs = [defaultCatalog];
+const catalogs = [gallery];
 const renderOptions = () => ({ catalogs: editor.catalogs });
 const pendingFonts = deck => { try { return fonts.pending(deck, renderOptions()); } catch { return []; } };
 // toSvg measures each script with its own face and falls back per glyph (Japanese under Aptos draws with Noto Sans JP where
