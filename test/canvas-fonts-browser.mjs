@@ -18,19 +18,19 @@ import { createEditorSession } from ${JSON.stringify(path.join(repo, 'src/index.
 import { createCanvasEditor } from ${JSON.stringify(path.join(repo, 'src/canvas.js').replace(/\\/g, '/'))};
 import { switchDimension } from ${JSON.stringify(path.join(repo, 'src/switches.js').replace(/\\/g, '/'))};
 import { loadFonts } from '@openpresentation/opf-render/fonts-browser';
-import { defaultCatalog } from '@openpresentation/opf/catalog';
+import { gallery } from '@openpresentation/gallery';
 const faces = await fetch('./fonts.json').then(response => response.json());
 const fonts = await loadFonts({ faces: faces.map(face => ({ family: face.family, weight: face.weight, italic: face.italic, license: face.license, data: Uint8Array.from(atob(face.dataUrl.split(',')[1]), character => character.charCodeAt(0)) })), substitutionPolicy: 'visual', fallbackFamily: 'Roboto', scriptBaseUrl: './script-fonts/', lazyFontsBaseUrl: new URL('./', document.baseURI).href });
 const editor = createEditorSession({ name: 'Canvas fonts', design: { theme: 'classic', fontScheme: 'roboto' }, slides: [
   { id: 'one', title: 'Quarterly review', text: 'Sales grew twelve percent.' },
   { id: 'two', title: 'Second slide', text: 'More detail follows.' },
-] }, { rejectInvalid: true, catalogs: [defaultCatalog] });
+] }, { rejectInvalid: true, catalogs: [gallery] });
 const events = [], errors = [];
 // FF-41: a layout only a host catalog knows, passed to the canvas as renderOptions.catalogs; the canvas merges it after the
 // session's registered catalogs and hands that one list to the gate (OPF 0.15: decks name it as host:host-bullets).
-const host = { source: 'pkg:host', layouts: { 'host-bullets': { ...defaultCatalog.layouts['list-1x'], name: 'Host bullets' } } };
+const host = { source: 'pkg:host', layouts: { 'host-bullets': { ...gallery.layouts['list-1x'], name: 'Host bullets' } } };
 const renderOptions = { catalogs: [host] };
-const pending = document => fonts.pending(document, { catalogs: [defaultCatalog, host] });
+const pending = document => fonts.pending(document, { catalogs: [gallery, host] });
 const canvas = createCanvasEditor(document.getElementById('canvas'), { editor, fonts, renderOptions,
   onFonts: event => events.push(event.state), onError: error => errors.push(error.message) });
 window.harness = { editor, canvas, switchDimension, fonts, pending, events, errors };

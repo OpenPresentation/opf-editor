@@ -6,7 +6,7 @@ import { schemas, validate } from "@openpresentation/opf";
 import { toSvg } from "@openpresentation/opf-render/svg";
 import * as pptx from "@openpresentation/opf-pptx";
 import { resolveSlideContext } from "@openpresentation/opf";
-import { defaultCatalog } from "@openpresentation/opf/catalog";
+import { gallery } from "@openpresentation/gallery";
 import { createEditorSession } from "../dist/index.js";
 import { switchDimension } from "../dist/switches.js";
 import {
@@ -48,7 +48,7 @@ const deck = () => ({
     { id: "data", title: "Data", blocks: [{ chart: { type: "column", data: { columns: ["Q", "V"], rows: [["Q1", 12], ["Q2", 18]] } } }, { text: "Supporting text" }] },
   ],
 });
-const catalogs = [defaultCatalog];
+const catalogs = [gallery];
 const session = (presentation = deck()) => createEditorSession(presentation, { rejectInvalid: true, catalogs });
 const svg = (presentation, slideIndex = 0) => toSvg(presentation, slideIndex + 1, { catalogs });
 

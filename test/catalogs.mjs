@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { validate } from "@openpresentation/opf";
-import { defaultCatalog } from "@openpresentation/opf/catalog";
+import { gallery } from "@openpresentation/gallery";
 import {
   OPFEditorError,
   applyCatalogUpdate,
@@ -41,8 +41,8 @@ const acme = (revision = 1) => ({
 // --- mergeCatalogs: one list, the first catalog per source wins, the host default never moves --------------------
 {
   const first = acme(1), second = acme(2);
-  const merged = mergeCatalogs([defaultCatalog, first], undefined, [second], first);
-  assert.deepEqual(merged.map((catalog) => catalog.source), [defaultCatalog.source, ACME]);
+  const merged = mergeCatalogs([gallery, first], undefined, [second], first);
+  assert.deepEqual(merged.map((catalog) => catalog.source), [gallery.source, ACME]);
   assert.equal(merged[1], first, "the earlier catalog with a source wins");
   assert.ok(Object.isFrozen(merged));
   assert.throws(() => mergeCatalogs([{ layouts: {} }]), (error) => error instanceof OPFEditorError && error.code === "invalid-catalogs");
@@ -78,7 +78,7 @@ const acme = (revision = 1) => ({
 {
   const editor = createEditorSession(
     { catalogs: { acme: { source: ACME }, custom: { layouts: { mine: { name: "Mine", placeholders: [{ type: "title" }] } } } }, design: {}, slides: [{ title: "One" }] },
-    { catalogs: [defaultCatalog, acme()] },
+    { catalogs: [gallery, acme()] },
   );
   const layouts = getCatalogOptions("layouts", { editor });
   assert.equal(layouts[0].id, "mine", "the document's own record is listed first");
@@ -114,7 +114,7 @@ const acme = (revision = 1) => ({
 {
   const editor = createEditorSession(
     { catalogs: { acme: { source: ACME } }, design: { colorScheme: "forest-green", fontScheme: "georgia" }, slides: [{ title: "One" }, { title: "Two" }] },
-    { catalogs: [defaultCatalog, acme()] },
+    { catalogs: [gallery, acme()] },
   );
   const deck = switchDimension(editor, "themes", "acme:brand", {});
   assert.deepEqual(deck.patches, [
@@ -127,7 +127,7 @@ const acme = (revision = 1) => ({
   const slide = switchDimension(editor, "themes", "acme:brand", { slideIndex: 1 });
   assert.deepEqual(editor.get("slides.1.design"), { theme: "acme:brand", colorScheme: "acme:ocean", fontScheme: "acme:inter" });
   assert.equal(slide.scope, "slide");
-  const bundleOff = createEditorSession({ design: { fontScheme: "georgia" }, slides: [{ title: "x" }] }, { catalogs: [defaultCatalog] });
+  const bundleOff = createEditorSession({ design: { fontScheme: "georgia" }, slides: [{ title: "x" }] }, { catalogs: [gallery] });
   switchDimension(bundleOff, "themes", "classic", { bundle: false });
   assert.deepEqual(bundleOff.get("design"), { fontScheme: "georgia", theme: "classic" });
 }
@@ -150,17 +150,17 @@ const acme = (revision = 1) => ({
 // --- save and copy embed every referenced record, so the file renders with no catalog --------------------------------
 {
   const doc = { design: { theme: "classic" }, slides: [{ layout: "two-column", title: "A", blocks: [{ text: "1" }, { text: "2" }] }, { layout: "two-column", title: "B" }, { layout: "title", title: "C" }] };
-  const editor = createEditorSession(doc, { catalogs: [defaultCatalog] });
+  const editor = createEditorSession(doc, { catalogs: [gallery] });
   const saved = saveDocument(editor);
   assert.deepEqual(editor.presentation, doc, "saving does not change the session");
   assert.ok(saved.document.catalogs.default.layouts["two-column"], "the used layout is embedded once");
   assert.ok(saved.document.catalogs.default.themes.classic);
-  assert.equal(saved.document.catalogs.default.source, defaultCatalog.source);
+  assert.equal(saved.document.catalogs.default.source, gallery.source);
   assert.deepEqual(saved.unresolved, []);
   const reopened = validate(saved.document, { only: ["format", "references"] });
   assert.deepEqual(reopened.findings.filter((finding) => finding.ruleId === "opf/unresolved-reference"), [], "the saved file resolves with no host catalog");
   for (const record of Object.values(saved.document.catalogs.default.layouts)) assert.ok(!Object.keys(record).some((key) => key.startsWith("x-") || key === "$schema" || key === "id"));
-  assert.deepEqual(prepareSave(saved.document, { catalogs: [defaultCatalog] }).document, saved.document, "embedding is idempotent");
+  assert.deepEqual(prepareSave(saved.document, { catalogs: [gallery] }).document, saved.document, "embedding is idempotent");
   const copied = JSON.parse(serializeOpfTransfer(editor.presentation, { catalogs: editor.catalogs }));
   assert.deepEqual(copied, saved.document, "copying the presentation hands on the embedded document");
   const slide = JSON.parse(serializeOpfTransfer(editor.presentation, { scope: "slide", slideIndex: 2, catalogs: editor.catalogs }));
@@ -174,7 +174,7 @@ const acme = (revision = 1) => ({
   const target = { catalogs: { custom: { layouts: { q4: record("text") } } }, slides: [{ id: "own", layout: "q4", title: "Ours" }] };
   const incoming = { catalogs: { custom: { layouts: { q4: record("list") } } }, slides: [{ id: "theirs", layout: "q4", title: "Theirs" }] };
   const transfer = parseOpfTransfer(JSON.stringify(incoming));
-  const result = prepareOpfImport(target, transfer, { mode: "insert", slideIndex: 0, catalogs: [defaultCatalog] });
+  const result = prepareOpfImport(target, transfer, { mode: "insert", slideIndex: 0, catalogs: [gallery] });
   assert.equal(result.slideIndex, 1);
   assert.equal(result.presentation.slides[0].layout, "q4", "the target's own slide is unchanged");
   assert.equal(result.presentation.slides[1].layout, "q4-2", "a differing custom record is renamed <id>-2");
@@ -182,7 +182,7 @@ const acme = (revision = 1) => ({
   assert.deepEqual(result.renamed.map(({ from, to, reason }) => [from, to, reason]), [["q4", "q4-2", "custom-conflict"]]);
   assert.ok(!JSON.stringify(result.presentation).includes("import-"), "no import-<id> renaming");
   // The same slide again reuses the first copy's record, which is not a rename.
-  const again = prepareOpfImport(result.presentation, transfer, { mode: "insert", slideIndex: 1, catalogs: [defaultCatalog] });
+  const again = prepareOpfImport(result.presentation, transfer, { mode: "insert", slideIndex: 1, catalogs: [gallery] });
   assert.equal(again.presentation.slides[2].layout, "q4-2");
   assert.deepEqual(again.renamed, [], "a reused record is not listed as renamed");
   assert.deepEqual(Object.keys(again.presentation.catalogs.custom.layouts).sort(), ["q4", "q4-2"], "no third copy");
@@ -211,11 +211,12 @@ const acme = (revision = 1) => ({
   for (const file of await readdir(new URL("../dist/", import.meta.url))) {
     if (!file.endsWith(".js")) continue;
     const text = await readFile(new URL(`../dist/${file}`, import.meta.url), "utf8");
-    assert.ok(!/(?:from\s*|import\s*\(\s*)["']@openpresentation\/opf\/catalog["']/.test(text), `${file} must not import @openpresentation/opf/catalog`);
+    // RR-78: neither the gallery package nor core's former /catalog subpath.
+    assert.ok(!/(?:from\s*|import\s*\(\s*)["']@openpresentation\/(?:gallery|opf\/catalog)["'/]/.test(text), `${file} must not import @openpresentation/gallery`);
     assert.ok(!/\b(?:"|')(?:minimal|cool-horizon|title-subtitle)(?:"|')/.test(text), `${file} must not hard-code catalog ids`);
   }
   const playground = await readFile(new URL("../examples/playground.js", import.meta.url), "utf8");
-  assert.match(playground, /from '@openpresentation\/opf\/catalog'/, "the playground registers the default catalog");
+  assert.match(playground, /from '@openpresentation\/gallery'/, "the playground registers the gallery (RR-78: @openpresentation/gallery)");
 }
 
 console.log("catalogs ok: one merged list, references from catalogRecords, embed on save and copy, copySlides on paste, approved catalog updates, reference findings");
@@ -227,7 +228,7 @@ console.log("catalogs ok: one merged list, references from catalogRecords, embed
     design: { theme: "acme:promo" },
     slides: [{ layout: "acme:q4-special", title: "x" }],
   };
-  const editor = createEditorSession(doc, { catalogs: [defaultCatalog, acme()] });
+  const editor = createEditorSession(doc, { catalogs: [gallery, acme()] });
   const notInSource = referenceFindings(editor.validation).filter((finding) => finding.ruleId === "opf/catalog-record-not-in-source");
   assert.deepEqual(notInSource.map((finding) => catalogRecordAt(finding.path)).sort((a, b) => a.kind.localeCompare(b.kind)), [{ group: "acme", kind: "layouts", id: "q4-special" }, { group: "acme", kind: "themes", id: "promo" }]);
   const moved = moveToCustom(editor, { group: "acme", kind: "themes", id: "promo" });

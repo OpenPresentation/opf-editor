@@ -10,7 +10,7 @@ import {
   jsonPointerToOpfPath,
   opfPathToJsonPointer
 } from "../dist/index.js";
-import { defaultCatalog } from "@openpresentation/opf/catalog";
+import { gallery } from "@openpresentation/gallery";
 
 const presentation = {
   name: "Editor smoke",
@@ -26,7 +26,7 @@ const presentation = {
 };
 
 // OPF 0.15: the host registers its catalogs; references resolve in the document, then in them.
-const editor = createEditorSession(presentation, { rejectInvalid: true, catalogs: [defaultCatalog] });
+const editor = createEditorSession(presentation, { rejectInvalid: true, catalogs: [gallery] });
 assert.equal(editor.validation.valid, true);
 assert.equal(opfPathToJsonPointer("slides.0.title"), "/slides/0/title");
 assert.equal(jsonPointerToOpfPath("/slides/0/title"), "slides.0.title");

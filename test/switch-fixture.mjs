@@ -1,10 +1,10 @@
 // Shared fixture for the FF-16 dimension-switch tests (switches.mjs, switches-export.mjs).
 // One case per pptx.gallery dimension, with the exact patch the switch must produce.
 // OPF 0.15 (FA-23): the deck's references resolve through the default catalog the tests register as the host.
-import { defaultCatalog } from "@openpresentation/opf/catalog";
+import { gallery } from "@openpresentation/gallery";
 
 /** The host catalogs every switch test registers: the pptx.gallery snapshot core publishes as `/catalog`. */
-export const catalogs = [defaultCatalog];
+export const catalogs = [gallery];
 
 // The slide sizes (the schema's DimensionPreset) and each one's composed canvas in px (96 per inch)
 // and exported slide size in EMU (914400 per inch), as core and opf-pptx produce them.

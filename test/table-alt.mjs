@@ -1,7 +1,7 @@
 // FA-27: Table.alt in the editor. The table panel's alt field and "Decorative" box edit it as one validated, undoable patch (inline and
 // dataset-backed tables alike); find and replace reaches it; the preview names the table with it and the PPTX export carries it.
 import assert from "node:assert/strict";
-import { defaultCatalog } from "@openpresentation/opf/catalog";
+import { gallery } from "@openpresentation/gallery";
 import { toSvg } from "@openpresentation/opf-render/svg";
 import * as pptx from "@openpresentation/opf-pptx";
 import { createEditorSession } from "../dist/index.js";
@@ -29,7 +29,7 @@ assert.deepEqual(readTableAlt({ ...table, alt: "" }), { alt: "", decorative: tru
   // The renderer labels the table's group with its alt (role="img" before opf-render's FA-30, role="group" since, so the
   // cells stay readable); either way the alt text is the accessible name.
   assert.match(toSvg(editor.presentation, 1), /aria-label="North America leads EMEA in Q4, \$18\.1M to \$11\.5M\." role="(?:img|group)"|role="(?:img|group)"[^>]*aria-label="North America leads EMEA in Q4/, "the preview names the table");
-  const bytes = await pptx.toPptx(structuredClone(editor.presentation), { strictAssets: true, catalogs: [defaultCatalog] });
+  const bytes = await pptx.toPptx(structuredClone(editor.presentation), { strictAssets: true, catalogs: [gallery] });
   const back = await pptx.fromPptx(bytes);
   assert.equal((back.slides[0].table ?? back.slides[0].blocks.find((block) => block.table).table).alt, "North America leads EMEA in Q4, $18.1M to $11.5M.", "alt survives the PPTX round trip");
   // Emptying the field removes alt; it does not mark the table decorative.

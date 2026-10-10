@@ -3,13 +3,13 @@
 // transfers in the same fonts that core pagination, opf-render preview and opf-pptx export use.
 import assert from "node:assert/strict";
 import { ENGINE_DEFAULT_FONT_SCHEME, paginate, validate } from "@openpresentation/opf";
-import { defaultCatalog } from "@openpresentation/opf/catalog";
+import { gallery } from "@openpresentation/gallery";
 import { createEditorSession } from "../dist/index.js";
 import { parseOpfTransfer, prepareOpfImport } from "../dist/transfer.js";
 
 assert.deepEqual({ major: ENGINE_DEFAULT_FONT_SCHEME.major, minor: ENGINE_DEFAULT_FONT_SCHEME.minor }, { major: "Aptos Display", minor: "Aptos" });
 
-const catalogs = [defaultCatalog];
+const catalogs = [gallery];
 const textSlide = { id: "text", title: "Title", text: "Body copy" };
 const bareTheme = (extra = {}) => ({
   name: "Theme without font scheme",

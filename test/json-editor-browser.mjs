@@ -19,12 +19,12 @@ if(process.env.OPF_CORE_ROOT){
 }
 const bundle=await build({alias,stdin:{resolveDir,contents:`
   import {mountJsonCodeEditor} from ${JSON.stringify(editorImport)};
-  import {defaultCatalog} from '@openpresentation/opf/catalog';
+  import {gallery} from '@openpresentation/gallery';
   // OPF 0.15: the host (this page) registers the default catalog; extra layouts join it as the app's own records.
-  window.layoutContracts={count:Object.keys(defaultCatalog.layouts).length,chart1x:Object.keys(defaultCatalog.layouts).filter(id=>id.includes('chart-1x')).length,metric:defaultCatalog.layouts['number-1x']?.placeholders.some(slot=>slot.type==='metric')};
+  window.layoutContracts={count:Object.keys(gallery.layouts).length,chart1x:Object.keys(gallery.layouts).filter(id=>id.includes('chart-1x')).length,metric:gallery.layouts['number-1x']?.placeholders.some(slot=>slot.type==='metric')};
   window.changes=[];window.failures=[];
   window.mount=(code,extra)=>{
-    const catalogs=[extra?{...defaultCatalog,layouts:{...defaultCatalog.layouts,...extra}}:defaultCatalog];
+    const catalogs=[extra?{...gallery,layouts:{...gallery.layouts,...extra}}:gallery];
     window.control?.destroy();window.changes=[];
     window.control=mountJsonCodeEditor(document.querySelector('#editor'),{code,label:'OPF JSON',lineNumbers:true,catalogs,onChange:source=>changes.push(source),onError:error=>failures.push(error.message)});
   };`},bundle:true,platform:'browser',format:'iife',write:false,metafile:true});

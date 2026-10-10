@@ -7,7 +7,7 @@
 // tones) resolve through core with the host's registered catalogs (`options.catalogs`, `Catalog[]`) and write the reference core
 // gives (`id` or `name:id`). Languages, chart types and social platforms are engine vocabularies, checked against core's
 // tables; their labels come from the host's display metadata (`options.vocabularies`, the shape of `catalogDisplay` from
-// `@openpresentation/opf/catalog`), never from data the editor ships.
+// `@openpresentation/gallery`), never from data the editor ships.
 import { CHART_TYPES, LANGUAGES, SOCIAL_PLATFORMS, isXYChartType, parseReference, resolveChartData, resolveReference } from "@openpresentation/opf";
 import { chartOptionTarget } from "@openpresentation/opf/composition";
 import { createValuePatch, applyJsonPatch, getValueAtPath, opfPathToJsonPointer, splitOpfPath } from "./index.js";

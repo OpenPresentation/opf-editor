@@ -2,7 +2,7 @@
 // chart types a chart's data can use, and the value a dimension has now.
 import assert from "node:assert/strict";
 import { CHART_TYPES, LANGUAGES, SOCIAL_PLATFORMS } from "@openpresentation/opf";
-import { catalogDisplay, defaultCatalog } from "@openpresentation/opf/catalog";
+import { catalogDisplay, gallery } from "@openpresentation/gallery";
 import { createEditorSession } from "../dist/index.js";
 import { SLIDE_SIZE_PRESETS, SWITCH_DIMENSIONS, compatibleChartTypes, currentSwitchValue, listSwitchOptions, switchDimension } from "../dist/switches.js";
 import { baseDeck, catalogs } from "./switch-fixture.mjs";
@@ -20,7 +20,7 @@ for (const [dimension, kind] of [
   ["purposes", "purposes"],
 ]) {
   const options = listSwitchOptions({}, dimension, { catalogs });
-  assert.deepEqual(sorted(options.map((option) => option.id)), sorted(Object.keys(defaultCatalog[kind])), `${dimension} lists the registered catalog`);
+  assert.deepEqual(sorted(options.map((option) => option.id)), sorted(Object.keys(gallery[kind])), `${dimension} lists the registered catalog`);
   assert.ok(options.every((option) => typeof option.label === "string" && option.label && option.origin === "host" && option.group === "default"), `${dimension} labels`);
   assert.deepEqual(listSwitchOptions({}, dimension), [], `${dimension}: no catalog registered, nothing to offer`);
 }
@@ -32,12 +32,12 @@ assert.equal(listSwitchOptions({}, "languages", { vocabularies: catalogDisplay }
 {
   const caller = { source: "pkg:caller", fontSchemes: { caller: { name: "Caller", major: "Inter", minor: "Inter" } } };
   const presentation = { catalogs: { team: { source: "pkg:caller" }, custom: { fontSchemes: { "team-mono": { name: "Team Mono", major: "Inter", minor: "Inter" }, georgia: { name: "Georgia (team)", major: "Georgia", minor: "Georgia" } } } } };
-  const options = listSwitchOptions(presentation, "font-schemes", { catalogs: [defaultCatalog, caller] });
+  const options = listSwitchOptions(presentation, "font-schemes", { catalogs: [gallery, caller] });
   assert.deepEqual(options.slice(0, 2).map((option) => option.id), ["team-mono", "georgia"], "the document's records come first");
   assert.equal(options[1].label, "Georgia (team)", "a document record shadows the catalog's record with the same reference");
   assert.equal(options.filter((option) => option.id === "georgia").length, 1, "no duplicates");
   assert.ok(options.some((option) => option.id === "team:caller" && option.source === "pkg:caller"), "a named group's registered records use name:id");
-  assert.equal(options.length, Object.keys(defaultCatalog.fontSchemes).length + 2);
+  assert.equal(options.length, Object.keys(gallery.fontSchemes).length + 2);
   assert.deepEqual(listSwitchOptions({}, "blocks").map((option) => option.id), ["text", "list", "chart", "table", "metric", "quote", "code", "timeline", "group", "image", "video"]);
   assert.deepEqual(listSwitchOptions({}, "backgrounds"), [], "free-form dimensions have no catalog");
   // RR-41: the slide sizes are the schema's ten presets, each labelled with its size in inches.
@@ -47,7 +47,7 @@ assert.equal(listSwitchOptions({}, "languages", { vocabularies: catalogDisplay }
   assert.equal(sizes.find((option) => option.id === "4:5").label, "4:5 portrait (7.5 x 9.375 in)");
   assert.equal(sizes.find((option) => option.id === "a4").label, "A4 (11.69 x 8.27 in)");
   assert.ok(sizes.every((option) => /\d in\)$/.test(option.label)));
-  assert.deepEqual(sorted(Object.keys(defaultCatalog.purposes)), sorted(["inform", "decide", "align", "persuade", "educate", "report", "pitch", "sell", "plan"]));
+  assert.deepEqual(sorted(Object.keys(gallery.purposes)), sorted(["inform", "decide", "align", "persuade", "educate", "report", "pitch", "sell", "plan"]));
 }
 
 // Compatible chart types follow the data shape: the first column labels the categories and each

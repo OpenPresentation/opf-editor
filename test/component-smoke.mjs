@@ -6,7 +6,7 @@ import {
 } from "../dist/index.js";
 import { createOPFReactComponents } from "../dist/react.js";
 import { opfCatalogSelect, opfTextInput } from "../dist/svelte.js";
-import { defaultCatalog } from "@openpresentation/opf/catalog";
+import { gallery } from "@openpresentation/gallery";
 
 const documentRef = fakeDocument();
 const editor = createEditorSession({
@@ -19,7 +19,7 @@ const editor = createEditorSession({
       title: "Original title"
     }
   ]
-}, { catalogs: [defaultCatalog] });
+}, { catalogs: [gallery] });
 
 const titleInput = createTextInput(editor, {
   document: documentRef,
