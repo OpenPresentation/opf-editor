@@ -1,5 +1,5 @@
 // Catalogs (FA-23, OPF 0.15). The editor never ships or imports catalog data: the host registers its catalogs (`Catalog[]`,
-// the shape core's `CatalogOptions.catalogs` takes, for example `defaultCatalog` from `@openpresentation/gallery`), on the
+// the shape core's `CatalogOptions.catalogs` takes, for example `gallery` from `@openpresentation/gallery`), on the
 // session (`createEditorSession(doc, { catalogs })`) or per call. `mergeCatalogs` is the one function that turns those into the
 // one list the editor hands to core (resolution, validation, embedding, copying, updates), to the renderer and to the exporter.
 // Pickers list core's `catalogRecords` and write the reference it gives (`id` or `name:id`); saving and exporting embed every
