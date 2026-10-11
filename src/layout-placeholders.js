@@ -11,6 +11,9 @@ export function layoutSlotTypes(record){
 }
 /** A one-line description of a record's slots, nested groups in parentheses: `title, column (text, text), chart`. */
 export function layoutSlotSummary(record){
+  if(Array.isArray(record?.areas)){
+    try{return layoutStructure(record);}catch{return Object.keys(record.regions??{}).join(', ');}
+  }
   if(!Array.isArray(record?.placeholders))return '';
   try{return layoutStructure(record);}catch{return layoutSlotTypes(record).join(', ');}
 }

@@ -471,7 +471,7 @@ export function createDesignControls(container, options = {}) {
     });
 
     const layout = selectField("layout", "Layout of this slide", {
-      help: "Adds the blank placeholders the layout declares and keeps your content.",
+      help: "Arranges this slide's content in the chosen layout's regions.",
       onChange: (value) => run(() => switchDimension(editor, "layouts", value, { slideIndex: getSlide(), ...catalogOptions() }), `Layout changed to ${layout.select.selectedOptions[0]?.textContent ?? value}.`),
     });
     body.append(layout.wrap);

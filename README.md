@@ -443,7 +443,7 @@ Table alt text (FA-27): `setTableAlt(editor, tablePath, { alt: "North America le
 ```js
 import { addSlide, duplicateSlides, removeSlides, moveSlides, moveSlidesBy, setHidden, addSection, renameSection, removeSection, moveSection, setSection, listSections } from "@openpresentation/opf-editor/slides";
 
-addSlide(editor, { at: 2, layout: "list-2x" });   // the layout's placeholders become empty slots, as when switching a slide's layout
+addSlide(editor, { at: 2, layout: "agenda" });    // OPF 0.19: an adaptive template accepts content in named regions
 duplicateSlides(editor, [1, 3]);                  // copies follow the last selected slide, with fresh ids (also for content ids)
 removeSlides(editor, [4]);                        // a deck keeps at least one slide: cannot-remove-all-slides
 moveSlides(editor, [0, 1], 5);                    // `to` is the drop gap in the original order (0 to the slide count)
@@ -465,6 +465,10 @@ const manager = createSlideManager(document.querySelector("#slide-list"), {
 });
 editor.subscribe(() => manager.render());
 ```
+
+OPF 0.19 layouts have a grid (`areas`) and named content regions. The slide manager's `openLayoutPicker("apply")` groups the 28 built-ins by intent and applies one to the current slide; `openLayoutPicker()` adds a slide. Pass `renderLayoutPreview(presentation, slideIndex, choice)` to render the current slide with each candidate through the shared renderer. The picker shows the record's `preview` when supplied, otherwise a diagram of its areas. It retains content when switching.
+
+`@openpresentation/opf-editor/custom-layout-editor` exports `openCustomLayoutEditor(editor)`, the playground's 12 by 12 grid dialog. Draw named rectangular areas, choose the content kinds, role and flow of each body region, and save the record under `catalogs.custom.layouts` in one undoable transaction. The headless `layoutFromGrid`, `prepareCustomLayout`, `saveCustomLayout` and `pinBlockToRegion` operations are in `/layout-templates`. Canvas Arrange mode shows every template region; empty ones say “Drop content here”, and a top-level block can be dragged or chosen by keyboard for a validated region pin. A full or incompatible region refuses the edit instead of silently ignoring the pin. The host registers the 0.19 catalog with the session; the editor ships no catalog data.
 
 `@openpresentation/opf-editor/outline` and `/outline-view` edit the deck as an outline: a row per slide title, subtitle, text paragraph and list item, and a read-only row for content that is not text (a chart, a table, an image) or text that carries formatting, so nothing is flattened away. Typing commits as one change when the row loses focus or on Enter. Enter adds a line (after a title: a slide), Alt+Up and Alt+Down move a bullet with the bullets nested under it, or a slide with its text, Alt+Shift+Right demotes and Alt+Shift+Left promotes. Demoting a bullet nests it (`level`); promoting a top-level bullet turns it into a new slide that takes the bullets after it; demoting a plain slide makes it a bullet of the slide before it (refused, with the reason, when that would drop content such as notes, blocks or a design). Backspace on an empty line removes it. Tab keeps moving focus, so the outline is no keyboard trap.
 

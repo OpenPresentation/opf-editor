@@ -174,6 +174,14 @@
       "types": "./dist/slide-manager.d.ts",
       "default": "./dist/slide-manager.js"
     },
+    "./layout-templates": {
+      "types": "./dist/layout-templates.d.ts",
+      "default": "./dist/layout-templates.js"
+    },
+    "./custom-layout-editor": {
+      "types": "./dist/custom-layout-editor.d.ts",
+      "default": "./dist/custom-layout-editor.js"
+    },
     "./outline-view": {
       "types": "./dist/outline-view.d.ts",
       "default": "./dist/outline-view.js"
@@ -209,6 +217,9 @@
   },
   "types": "./dist/index.d.ts",
   "sideEffects": false,
+  "opf": {
+    "requiresUnreleasedCore": "0.19.0"
+  },
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "node scripts/check-syntax.mjs src test scripts examples",
@@ -222,7 +233,7 @@
     "check:font-hotlinks": "node --test scripts/check-font-hotlinks.test.mjs && node scripts/check-font-hotlinks.mjs",
     "check:font-hotlinks:built": "node scripts/check-font-hotlinks.mjs --built dist artifacts/playground",
     "build:playground": "node scripts/build-playground.mjs",
-    "test:playground": "npm run build:playground && npm run check:font-hotlinks:built && node test/playground-pptx.mjs && node test/playground-script-fonts.mjs artifacts/playground-script-fonts && node test/playground-lazy-fonts.mjs artifacts/playground-lazy-fonts && node test/playground-base-fonts.mjs artifacts/playground-base-fonts && node test/playground-source.mjs && node test/design-controls-browser.mjs && node test/design-gaps-browser.mjs && node test/chart-options-browser.mjs && node test/persistence-browser.mjs && node test/slides-browser.mjs && node test/template-panel-browser.mjs && node test/numbering-panel-browser.mjs && node test/playground-ensure-fonts.mjs artifacts/playground-ensure-fonts && node test/canvas-fonts-browser.mjs artifacts/canvas-fonts && node test/find-replace-browser.mjs && node test/image-crop-browser.mjs && node test/mobile-browser.mjs && node test/review-panel-browser.mjs && node test/review-hook-browser.mjs && node test/playground-download.mjs artifacts/playground-download",
+    "test:playground": "npm run build:playground && npm run check:font-hotlinks:built && node test/playground-pptx.mjs && node test/playground-script-fonts.mjs artifacts/playground-script-fonts && node test/playground-lazy-fonts.mjs artifacts/playground-lazy-fonts && node test/playground-base-fonts.mjs artifacts/playground-base-fonts && node test/playground-source.mjs && node test/design-controls-browser.mjs && node test/design-gaps-browser.mjs && node test/chart-options-browser.mjs && node test/persistence-browser.mjs && node test/slides-browser.mjs && node test/layout-templates-browser.mjs && node test/template-panel-browser.mjs && node test/numbering-panel-browser.mjs && node test/playground-ensure-fonts.mjs artifacts/playground-ensure-fonts && node test/canvas-fonts-browser.mjs artifacts/canvas-fonts && node test/find-replace-browser.mjs && node test/image-crop-browser.mjs && node test/mobile-browser.mjs && node test/review-panel-browser.mjs && node test/review-hook-browser.mjs && node test/playground-download.mjs artifacts/playground-download",
     "test:code-browser": "node test/code-browser.mjs",
     "test:selection-browser": "node test/selection-browser.mjs",
     "test:click-entry-browser": "node test/click-entry-browser.mjs",
@@ -274,8 +285,8 @@
     "@expo-google-fonts/caladea": "0.4.2",
     "@expo-google-fonts/cousine": "0.4.3",
     "@expo-google-fonts/gelasio": "0.4.1",
-    "@expo-google-fonts/noto-color-emoji": "0.4.6",
-    "@expo-google-fonts/noto-emoji": "0.4.7",
+    "@expo-google-fonts/noto-color-emoji": "0.4.7",
+    "@expo-google-fonts/noto-emoji": "0.4.8",
     "@expo-google-fonts/noto-naskh-arabic": "0.4.5",
     "@expo-google-fonts/noto-nastaliq-urdu": "0.4.2",
     "@expo-google-fonts/noto-sans": "0.4.2",
@@ -288,23 +299,23 @@
     "@expo-google-fonts/noto-sans-gujarati": "0.4.2",
     "@expo-google-fonts/noto-sans-gurmukhi": "0.4.1",
     "@expo-google-fonts/noto-sans-hebrew": "0.4.1",
-    "@expo-google-fonts/noto-sans-jp": "0.4.3",
+    "@expo-google-fonts/noto-sans-jp": "0.4.4",
     "@expo-google-fonts/noto-sans-kannada": "0.4.3",
     "@expo-google-fonts/noto-sans-khmer": "0.4.3",
-    "@expo-google-fonts/noto-sans-kr": "0.4.3",
+    "@expo-google-fonts/noto-sans-kr": "0.4.4",
     "@expo-google-fonts/noto-sans-lao": "0.4.2",
     "@expo-google-fonts/noto-sans-malayalam": "0.4.2",
     "@expo-google-fonts/noto-sans-math": "0.4.2",
     "@expo-google-fonts/noto-sans-mongolian": "0.4.1",
     "@expo-google-fonts/noto-sans-myanmar": "0.4.2",
     "@expo-google-fonts/noto-sans-oriya": "0.4.2",
-    "@expo-google-fonts/noto-sans-sc": "0.4.3",
+    "@expo-google-fonts/noto-sans-sc": "0.4.4",
     "@expo-google-fonts/noto-sans-sinhala": "0.4.2",
     "@expo-google-fonts/noto-sans-symbols": "0.4.1",
     "@expo-google-fonts/noto-sans-symbols-2": "0.4.1",
     "@expo-google-fonts/noto-sans-syriac": "0.4.2",
     "@expo-google-fonts/noto-sans-tamil": "0.4.3",
-    "@expo-google-fonts/noto-sans-tc": "0.4.3",
+    "@expo-google-fonts/noto-sans-tc": "0.4.4",
     "@expo-google-fonts/noto-sans-telugu": "0.4.2",
     "@expo-google-fonts/noto-sans-thaana": "0.4.2",
     "@expo-google-fonts/noto-sans-thai": "0.4.2",
