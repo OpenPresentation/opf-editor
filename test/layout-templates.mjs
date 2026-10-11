@@ -25,12 +25,21 @@ const input = { id: layout.id, name: layout.record.name, regions: layout.record.
 assert.throws(() => layoutFromGrid({ ...input, cells: [["title", "main"], ["main", "title"]] }), /rectangle/);
 assert.throws(() => layoutFromGrid({ ...input, cells: Array.from({ length: 13 }, () => ["main"]) }), /12 by 12/);
 
+const largest = layoutFromGrid({ id: "largest-grid", name: "Largest", cells: Array.from({ length: 12 }, () => Array(12).fill("main")), regions: { main: { accepts: ["text"], role: "primary", flow: "grid" } } });
+assert.equal(largest.record.areas.length, 12);
+assert.equal(largest.record.areas[0].split(" ").length, 12);
+assert.throws(() => layoutFromGrid({ ...input, cells: [["main", "main"], ["main"]] }), /rectangular grid/);
+assert.throws(() => layoutFromGrid({ ...input, cells: [["main"]], regions: { main: { accepts: [] } } }), /accepted content kinds/);
+assert.throws(() => layoutFromGrid({ ...input, cells: [["main"]], regions: { main: { accepts: ["text"], role: "invalid" } } }), /valid role/);
+assert.throws(() => layoutFromGrid({ ...input, cells: [["main"]], regions: { main: { accepts: ["text"], flow: "row" } } }), /valid flow/);
+
 const original = { name: "Layout test", slides: [{ id: "s1", title: "Review", blocks: [{ text: "First" }, { text: "Second" }] }] };
 const snapshot = structuredClone(original);
 const editor = createEditorSession(original, { rejectInvalid: true });
 const prepared = prepareCustomLayout(original, layout);
 assert.deepEqual(original, snapshot, "prepare does not mutate the input");
 assert.equal(prepared.presentation.catalogs.custom.layouts[layout.id].name, "Review grid");
+assert.equal(validate(prepareCustomLayout(original, largest).presentation, { only: ["format"] }).valid, true);
 saveCustomLayout(editor, layout);
 assert.equal(validate(editor.presentation, { only: ["format"] }).valid, true);
 assert.throws(() => saveCustomLayout(editor, layout), /already exists/);

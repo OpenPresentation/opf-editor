@@ -32,7 +32,9 @@ try {
   await grid.getByLabel("Name", { exact: true }).fill("Review grid");
   await grid.getByLabel("Summary").fill("Recommendation with notes");
   await grid.getByLabel("Paint area").fill("notes");
-  await grid.locator(".opf-grid-cell").nth(5).click();
+  await grid.locator(".opf-grid-cell").nth(5).focus();
+  await grid.locator(".opf-grid-cell").nth(5).press("Space");
+  assert.equal(await grid.locator(".opf-grid-cell").nth(5).evaluate((cell) => cell === document.activeElement), true, "keyboard painting retains cell focus");
   await grid.locator(".opf-grid-cell").nth(8).click();
   await grid.getByRole("button", { name: "Save layout" }).click();
   await page.waitForFunction(() => !document.querySelector("dialog.opf-grid-dialog"));
@@ -53,12 +55,39 @@ try {
   await target.waitFor();
   assert.match(await target.textContent(), /Drop content here/);
   await target.press("Enter");
-  await target.getByRole("button", { name: "Block 1" }).click();
+  await target.getByRole("button", { name: "Block 1" }).press("Enter");
   await page.waitForFunction(() => JSON.parse(document.querySelector("#json").value).slides[0].blocks[0].region === "notes");
   document = await readDoc();
   assert.equal(document.slides[0].blocks[0].region, "notes");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.waitForFunction(() => !JSON.parse(document.querySelector("#json").value).slides[0].blocks[0].region);
+  await target.press("Enter");
+  await target.getByRole("button", { name: "Block 1" }).press("Escape");
+  assert.equal(await target.locator("[data-region-menu]").count(), 0, "Escape closes the region menu");
+  assert.equal(await target.evaluate((node) => node === document.activeElement), true, "Escape returns focus to region");
+  await target.press("Space");
+  await target.getByRole("button", { name: "Block 1" }).press("Space");
+  await page.waitForFunction(() => JSON.parse(document.querySelector("#json").value).slides[0].blocks[0].region === "notes");
+  await page.locator("#custom-layout").click();
+  await page.locator("dialog.opf-grid-dialog[open]").getByRole("button", { name: "Cancel" }).click();
+  assert.equal(await page.locator("#custom-layout").evaluate((node) => node === document.activeElement), true, "custom dialog restores opener focus");
+  document = await readDoc();
+  document.slides[0].blocks = [];
+  await page.getByRole("button", { name: "Source", exact: true }).click();
+  await page.locator("#json").fill(JSON.stringify(document));
+  await page.waitForFunction(() => !globalThis.document.querySelector("#apply-json").disabled && !globalThis.document.querySelector("#json-error").textContent);
+  await page.locator("#apply-json").click();
+  await page.waitForFunction(() => !globalThis.document.querySelector("#source-dialog").open);
+  await page.waitForFunction(() => JSON.parse(globalThis.document.querySelector("#json").value).slides[0].blocks.length === 0);
+  for (const area of ["content", "notes"]) {
+    const empty = page.locator(`.opf-region-drop[data-opf-region='${area}']`);
+    await empty.waitFor();
+    const box = await empty.boundingBox();
+    assert.ok(box.width > 0 && box.height > 0, "empty collapsed regions retain reachable targets");
+    await empty.press("Enter");
+    assert.match(await empty.locator("[data-region-menu]").textContent(), /No compatible blocks/);
+    await empty.press("Escape");
+  }
   assert.deepEqual(errors, []);
   console.log("0.19 layout browser: custom grid, grouped picker, live preview, region placement and undo passed");
 } finally {

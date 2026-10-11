@@ -103,7 +103,7 @@ export function createLayoutHandles(root, options) {
         if(!panel.children.length)panel.textContent='No compatible blocks';node.append(panel);panel.querySelector('button')?.focus();
       };
       node.addEventListener('click',event=>{if(event.target===node||event.target===label)menu();});
-      node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();menu();}});
+      node.addEventListener('keydown',event=>{if(event.key==='Escape'){node.querySelector('[data-region-menu]')?.remove();event.preventDefault();node.focus();}else if(event.target===node&&(event.key==='Enter'||event.key===' ')){event.preventDefault();menu();}});
       layer.append(node);
     }
     // FA-26: the slots of a layout record with placeholder groups, drawn under the handles while arranging: each group and

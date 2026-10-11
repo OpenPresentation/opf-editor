@@ -40,6 +40,7 @@ export function openCustomLayoutEditor(editor, options = {}) {
   let cells = [["title", "title", "title"], ["content", "content", "content"], ["content", "content", "content"]];
   const settings = new Map();
   let down = null;
+  const opener = doc.activeElement;
   const regionNames = () => [...new Set(cells.flat())].filter((value) => value !== "." && value !== "title" && value !== "subtitle");
   function resize() {
     const cols = Number(width.value), rows = Number(height.value);
@@ -53,6 +54,7 @@ export function openCustomLayoutEditor(editor, options = {}) {
     for (let y = Math.min(from.y, to.y); y <= Math.max(from.y, to.y); y++)
       for (let x = Math.min(from.x, to.x); x <= Math.max(from.x, to.x); x++) cells[y][x] = value;
     error.textContent = ""; render();
+    grid.querySelector(`[data-x="${to.x}"][data-y="${to.y}"]`)?.focus();
   }
   function render() {
     grid.replaceChildren(); grid.style.gridTemplateColumns = `repeat(${cells[0].length}, minmax(38px, 1fr))`;
@@ -97,7 +99,7 @@ export function openCustomLayoutEditor(editor, options = {}) {
       dialog.close();
     } catch (cause) { error.textContent = cause?.issues?.[0]?.message ?? cause.message; }
   };
-  dialog.onclose = () => { dialog.remove(); options.onClose?.(); };
+  dialog.onclose = () => { dialog.remove(); opener?.focus?.(); options.onClose?.(); };
   doc.body.append(dialog); render(); dialog.showModal(); id.focus();
   return { dialog, close: () => dialog.close() };
 }
