@@ -11,7 +11,7 @@ import {installTransferControls} from './transfer-controls.js';
 import { createEditorSession, saveDocument } from '../src/index.js';
 // FA-23: the editor library ships no catalog data. This app is the host: it registers the default catalog (the pptx.gallery
 // snapshot core publishes as an opt-in subpath) and hands the session's one list to every render, check, embed and export.
-import { catalogDisplay, defaultCatalog } from '@openpresentation/opf/catalog';
+import { catalogDisplay, gallery as defaultCatalog } from '@openpresentation/gallery';
 import {createCanvasEditor} from '../src/canvas.js';
 import { whenFontsReady } from '../src/font-gate.js';
 import * as browserFonts from '@openpresentation/opf-render/fonts-browser';

@@ -1,6 +1,6 @@
 // OPF 0.19 layout authoring. The catalog owns records; this module owns only editor operations.
 import { resolveSlideContext } from "@openpresentation/opf";
-import { bindRegions } from "@openpresentation/opf/composition";
+import { bindRegions, layoutStructure, layoutTemplate } from "@openpresentation/opf/composition";
 import { applyJsonPatch, createValuePatch, opfPathToJsonPointer } from "./index.js";
 import { checkedDocument, fail } from "./edit-helpers.js";
 import { checkFormat } from "./checks.js";
@@ -97,4 +97,10 @@ export function pinBlockToRegion(editor, slideIndex, blockIndex, region) {
   if (!binding.regions.some((entry) => entry.name === region && entry.blocks.some((block) => block.path === expected && block.pinned)))
     throw fail("layout-region", `The ${region} region cannot accept this block or is full.`);
   return editor.applyPatch(patches, { source: "layout-region", rejectInvalid: true });
+}
+
+/** Region structure of a supported v2 template. */
+export function layoutRegionSummary(record) {
+  if (!Array.isArray(record?.areas)) return "";
+  try { layoutTemplate(record); return layoutStructure(record); } catch { return "Invalid region template"; }
 }

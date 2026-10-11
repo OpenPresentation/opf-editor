@@ -29,7 +29,7 @@ The release after 0.14.2 moves the editor onto core 0.15 (a breaking, clean spec
 
   ```js
   import { createEditorSession, saveDocument } from "@openpresentation/opf-editor";
-  import { defaultCatalog, catalogDisplay } from "@openpresentation/opf/catalog"; // the host app's choice, not the library's
+  import { gallery as defaultCatalog, catalogDisplay } from "@openpresentation/gallery"; // the host app's choice, not the library's
 
   const editor = createEditorSession(doc, { catalogs: [defaultCatalog, acmeCatalog] }); // the first is the host default
   editor.catalogs;                      // the frozen list; editor.setCatalogs([...]) replaces it (one "catalogs" event)
@@ -79,7 +79,7 @@ The control provides indentation, paired quotes/brackets, folding shortcuts, sea
 
 Click a categorical property/value or press `Ctrl+Space`, `Cmd+Space` or `Alt+Down` to open its choices. Records the document embeds come first, then those of the catalogs the host passes as `catalogs` (`Catalog[]`, the session's registered list); there are no built-in records. The actual schema supplies enums and booleans. Prose and extension fields do not gain menus just because their keys resemble schema fields. External catalog URLs are not fetched. `setCatalogs(list)` replaces the host's catalogs and closes stale choices. Supply `onOptions(left?, top?)` to retain an existing menu UI.
 
-In version 0.7.1, layout choices add blank payloads for missing declared placeholders, preserving existing content. Repeated slots use separate blocks; subtitle slots use `subtitle`, and metric slots use `{ "metric": { "value": "", "label": "" } }`. Charts receive the smallest valid data scaffold rather than invented numeric values. Existing positioned content stays in its regions; additional body slots append inside the last region. Non-layout options still change only their value. Custom menus must apply the full source returned by `replaceFieldOption`, or use `fieldOptionEdit(context, value)` and pass its `from`, `to`, and `insert` to `control.api.replace` as one undoable edit. Always check that `context.source` still matches the editor first. Version 0.7.0 only changed the selected token. Version 0.7.1 requires core 0.10.1 for metric, quote and timeline placeholder contracts.
+In OPF 0.19, layout choices change only the template reference and preserve authored content. Empty regions remain available for explicit insertion; choosing a template does not invent blank payloads. The JSON field menu groups templates by intent and describes their supported regions. Hosts apply `replaceFieldOption` or `fieldOptionEdit(context, value)` as one undoable edit and check that `context.source` is still current.
 
 Run `npm run test:json` and `npm run test:json-browser` for the focused model and offline browser checks. The browser runner also accepts a report path followed by a clean installed consumer directory. These checks cover the JSON control; renderer, native PowerPoint and production adoption remain separate acceptance steps.
 
@@ -342,7 +342,7 @@ The playground's Content tab mounts the block-level and slide-structure actions 
 
 ### Pickers: options, chart types and current values
 
-`listSwitchOptions(presentation, dimension, { catalogs, vocabularies })` lists what a dimension offers: a catalog dimension lists core's `catalogRecords` (the document's embedded records first, then the host catalogs'), each with the reference to write; `charts`, `socials` and `languages` list core's vocabularies, labelled from `vocabularies` (`catalogDisplay` from `@openpresentation/opf/catalog`, supplied by the host). `compatibleChartTypes(presentation, { slideIndex, path })` lists the chart types the chart's inline data can use as it is, by data shape: the first column labels the categories and each further column is a series (how the renderers read it), a type with N series needs exactly N value columns, except that stacked types and the combo chart take that many or more (combo: two or more), and the single-series, distribution and geographic types are offered only where they fit. Switching a combo chart to another type removes its `line`, `secondaryAxis` and secondary axis title. It is data-shape compatibility, not a claim that an engine draws the type. `currentSwitchValue(presentation, dimension, { slideIndex })` reads the value back as `{ value, scope }`.
+`listSwitchOptions(presentation, dimension, { catalogs, vocabularies })` lists what a dimension offers: a catalog dimension lists core's `catalogRecords` (the document's embedded records first, then the host catalogs'), each with the reference to write; `charts`, `socials` and `languages` list core's vocabularies, labelled from `vocabularies` (`catalogDisplay` from `@openpresentation/gallery`, supplied by the host). `compatibleChartTypes(presentation, { slideIndex, path })` lists the chart types the chart's inline data can use as it is, by data shape: the first column labels the categories and each further column is a series (how the renderers read it), a type with N series needs exactly N value columns, except that stacked types and the combo chart take that many or more (combo: two or more), and the single-series, distribution and geographic types are offered only where they fit. Switching a combo chart to another type removes its `line`, `secondaryAxis` and secondary axis title. It is data-shape compatibility, not a claim that an engine draws the type. `currentSwitchValue(presentation, dimension, { slideIndex })` reads the value back as `{ value, scope }`.
 
 ## Design options (RR-06)
 
@@ -514,7 +514,7 @@ const controls = createDesignControls(designPanel, {
   getSlideIndex: () => slideIndex,
   getSelectedPath: () => selectedPath,
   sections: ["look", "background", "header-footer", "brand", "layout-options", "info", "catalog"],
-  vocabularies: catalogDisplay, // from @openpresentation/opf/catalog, in the host app
+  vocabularies: catalogDisplay, // from @openpresentation/gallery, in the host app
 });
 const selectionControls = createDesignControls(contentPanel, { editor, getSlideIndex, getSelectedPath, sections: ["selection", "image", "table", "slide-content"], onSelectPath: select });
 controls.refresh(); // when the slide or the selection changes
@@ -778,7 +778,7 @@ The canvas can show draggable, keyboard-accessible dividers for root and nested 
 
 ### Move complete blocks
 
-When the slide's layout record has placeholder groups (FA-26, `{ "type": "group", "composition", "placeholders" }`), Arrange also outlines every slot of the record at its cell (`geometry.slots`): groups, filled regions and labelled empty regions. The slots belong to the record, so they are shown, not edited; the slide's content in them keeps its own selection and handles. Layout pickers and the JSON field menu describe such a record as `title, column (text, text), chart` and compare layouts by their leaf regions.
+For v2 templates, Arrange draws editable region targets from `geometry.regions`, including empty and collapsed regions. Region menus insert accepted content and move compatible blocks with a region pin through the editor session, preserving validation and undo. Nested content groups retain their own composition handles; layout records contain no v1 slots.
 
 Arrange mode also shows numbered block handles. Drag to reorder siblings, use arrow keys for earlier/later, or click a handle to choose an existing destination group/slide and insertion position. The move preserves the whole block, including rich text, table/chart data, and nested groups. Each move is validated, preflighted by the renderer, and undoable. Parent weights stay with layout positions; moves that leave an empty container or create a containment cycle are rejected.
 
@@ -791,3 +791,5 @@ Define cells with `{value, style, rowSpan, colSpan}` and place explicit `null` a
 The core schema rejects overlapping/out-of-bounds spans and hidden content. Model patches can change a span and remove a row atomically; undo restores the complete operation. Styling or restructuring a table remains available through JSON/model edits and the existing structured property forms.
 
 `test/styled-table.mjs` covers model behavior. The core repository's `scripts/build-rich-table-browser.mjs` builds both rich and styled browser fixtures. Browser verification uses actual loaded Roboto fonts and covers merged typing, scalar formatting, partial selection, empty values, cancellation and undo. Native PowerPoint appearance is a separate converter verification boundary.
+
+Final 0.19 local acceptance uses core `e21c472d88057d9d90cfa507fe91b89063f3f29a`, gallery `e0a7eee2dfe996e680b34a907cabfe41905e6d99`, renderer `9fbddcb78dbebcb87355922ca92af7d26c24c48d` and PPTX `006e8a7df9c19e85b230a27f19794e5356cdac78`, installed or linked explicitly. Gallery 2 is a direct host/example/test import. Its development dependency declaration and registry lock reconciliation, along with final core/renderer/PPTX release ranges and packed-consumer checks, remain held for the actual dependency releases. Local candidate checks do not establish a published dependency graph.

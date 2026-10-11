@@ -20,3 +20,5 @@ export declare function layoutFromGrid(input: GridLayoutInput): { id: string; re
 export declare function prepareCustomLayout(presentation: any, layout: { id: string; record: Record<string, unknown> }): { presentation: any; patches: JsonPatchOperation[]; id: string };
 export declare function saveCustomLayout(editor: EditorSession, layout: { id: string; record: Record<string, unknown> }): EditorChange;
 export declare function pinBlockToRegion(editor: EditorSession, slideIndex: number, blockIndex: number, region: string): EditorChange;
+
+export declare function layoutRegionSummary(record: unknown): string;

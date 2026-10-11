@@ -99,7 +99,7 @@ const titleCase = (text) => text.charAt(0).toUpperCase() + text.slice(1);
  * slide and selection; call `refresh()` when they change), `sections` (default: all), `scope`
  * ("deck" or "slide", the initial "Applies to" choice), `catalogs` (host catalogs, `Catalog[]`, merged after the session's
  * registered ones), `vocabularies` (display metadata for languages, chart types and social platforms: `catalogDisplay`
- * from `@openpresentation/opf/catalog`), `onChange(change)`, `onStatus(message, { error })` and `onSelectPath(path)`, called
+ * from `@openpresentation/gallery`), `onChange(change)`, `onStatus(message, { error })` and `onSelectPath(path)`, called
  * after a content conversion or replacement with the path to keep selected (the block, or the inline
  * payload field), because the host's old selection path may no longer exist.
  */

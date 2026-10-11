@@ -7,7 +7,7 @@ import {
   addSection, addSlide, duplicateSlides, hasSections, listSections, moveSection, moveSlides, moveSlidesBy, removeSection, removeSlides, renameSection, setHidden, setSection, slideTitle,
 } from "./slides.js";
 import { listSwitchOptions } from "./switches.js";
-import { layoutSlotSummary } from "./layout-placeholders.js";
+import { layoutRegionSummary } from "./layout-templates.js";
 import { groupLayoutChoices } from "./layout-templates.js";
 import { switchDimension } from "./switches.js";
 
@@ -515,8 +515,8 @@ export function createSlideManager(container, options) {
     };
     const describe = () => {
       const choice = choices.find((entry) => entry.id === select.value);
-      // FA-26: nested placeholder groups show with their mode, for example `title, column (text, text), chart`.
-      const slots = layoutSlotSummary(choice?.record);
+      // Supported templates describe their region names, accepted kinds and flow.
+      const slots = layoutRegionSummary(choice?.record);
       detail.textContent = choice ? `${choice.record?.summary ?? choice.record?.description ?? ""}${slots ? ` Regions: ${slots}.` : ""}`.trim() : "No layout matches.";
       template.replaceChildren(); currentPreview.replaceChildren();
       if (choice?.record?.preview && typeof choice.record.preview === "string") {
