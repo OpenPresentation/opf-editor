@@ -239,7 +239,7 @@ try {
     const drawn = await run(() => ({
       runs: [...document.querySelectorAll('#canvas svg text, #canvas svg tspan')].filter(node => !node.querySelector('tspan') && node.textContent.trim()).map(node => {
         const owner = node.closest('text'), attr = name => node.getAttribute(name) ?? owner.getAttribute(name);
-        return { text: node.textContent.replace(/[⁦-⁩‎‏‪-‮]/g, ''), family: (attr('font-family') ?? '').split(',')[0].trim().replace(/^["']|["']$/g, ''), weight: Number(attr('font-weight') ?? 400), advance: Number(attr('textLength')) };
+        return { text: node.textContent.replace(/[⁦-⁩‎‏‪-‮]/g, ''), path: node.closest('[data-opf-path]')?.getAttribute('data-opf-path'), family: (attr('font-family') ?? '').split(',')[0].trim().replace(/^["']|["']$/g, ''), weight: Number(attr('font-weight') ?? 400), advance: Number(attr('textLength')) };
       }),
       faces: [...document.fonts].filter(face => face.status === 'loaded').map(face => ({ family: face.family.replace(/^["']|["']$/g, ''), weight: Number(face.weight) })),
       pending: window.harness.pending(window.harness.editor.presentation), errors: [...window.harness.errors],
@@ -250,6 +250,9 @@ try {
     assert.ok(drawn.runs.some(run => run.text === sample.text), `${sample.id}: complete original corpus text`);
     for (const weight of [400, 700]) {
       assert.ok(drawn.runs.some(run => run.weight === weight), `${sample.id}: ${weight} is drawn`);
+      const byPath = new Map();
+      for (const run of drawn.runs.filter(run => run.weight === weight)) byPath.set(run.path, (byPath.get(run.path) ?? '') + run.text);
+      assert.ok([...byPath.values()].some(text => text.replace(/\s/g, '') === sample.text.replace(/\s/g, '')), `${sample.id}: complete ${weight} sample in one source path, allowing wrapped lines`);
       assert.ok(drawn.faces.some(face => face.family === 'Noto Sans JP' && face.weight === weight), `${sample.id}: a real loaded ${weight} FontFace backs the SVG`);
     }
     yuReport.push({ id: sample.id, ...drawn });
