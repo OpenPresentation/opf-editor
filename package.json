@@ -332,5 +332,8 @@
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "6.4.299",
     "playwright": "1.63.0"
+  },
+  "opf": {
+    "requiresUnreleasedCore": "0.20.0"
   }
 }
