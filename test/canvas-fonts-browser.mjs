@@ -251,7 +251,10 @@ try {
     for (const weight of [400, 700]) {
       assert.ok(drawn.runs.some(run => run.weight === weight), `${sample.id}: ${weight} is drawn`);
       const byPath = new Map();
-      for (const run of drawn.runs.filter(run => run.weight === weight)) byPath.set(run.path, (byPath.get(run.path) ?? '') + run.text);
+      for (const run of drawn.runs.filter(run => run.weight === weight)) {
+        assert.ok(typeof run.path === 'string' && run.path.trim(), `${sample.id}: every run has a traced source path`);
+        byPath.set(run.path, (byPath.get(run.path) ?? '') + run.text);
+      }
       assert.ok([...byPath.values()].some(text => text.replace(/\s/g, '') === sample.text.replace(/\s/g, '')), `${sample.id}: complete ${weight} sample in one source path, allowing wrapped lines`);
       assert.ok(drawn.faces.some(face => face.family === 'Noto Sans JP' && face.weight === weight), `${sample.id}: a real loaded ${weight} FontFace backs the SVG`);
     }
