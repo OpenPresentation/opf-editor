@@ -98,6 +98,10 @@
       "description": "The standalone browser suites the CI package job runs after test:playground.",
       "tests": [
         {
+          "id": "browser:image-crop-async",
+          "command": "node test/image-crop-async-browser.mjs"
+        },
+        {
           "id": "browser:data-grid",
           "command": "npm run test:data-grid-browser"
         },
