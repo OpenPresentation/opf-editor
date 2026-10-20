@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as renderFonts from '@openpresentation/opf-render/fonts-node';
+import { buildStyles } from './build-styles.mjs';
 const require = createRequire(import.meta.url);
 
 const root = new URL('../', import.meta.url);
@@ -77,4 +78,6 @@ for (const name of ['harfbuzz-subset.wasm', 'harfbuzz.wasm']) await copyFile(ren
 for (const [source, destination] of [['playground.html', 'index.html'], ['playground.css', 'playground.css'], ['galleries.json', 'galleries.json']]) {
   await copyFile(new URL('examples/' + source, root), new URL(destination, output));
 }
+// RR-98: the same styles.css the package ships (tokens, then src/styles/*.css); the page links it before its own harness layout.
+await writeFile(new URL('styles.css', output), (await buildStyles(new URL('src/styles/', root))).css);
 console.log(`Browser editor built in ${fileURLToPath(output)} (${splitFonts ? 'eager faces split: Roboto Regular at start, the rest on demand; ' : ''}${scriptFaces} lazy script faces, ${lazyFaces} lazy preview faces)`);
