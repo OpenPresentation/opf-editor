@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OPF source pane</title>
+<link rel="stylesheet" href="source-pane.css">
+<!-- Temporary: the --opf-ui-* token layer ships in src/styles/tokens.css (another change). Remove this block when the harness loads it. -->
+<style>
+:root, .opf-ui { --opf-ui-bg: hsl(210 30% 98%); --opf-ui-surface: hsl(0 0% 100%); --opf-ui-muted: hsl(214 28% 93%); --opf-ui-muted-2: hsl(214 28% 96%); --opf-ui-fg: hsl(220 28% 11%); --opf-ui-muted-fg: hsl(218 14% 38%); --opf-ui-accent: hsl(214 57% 28%); --opf-ui-accent-strong: hsl(214 57% 28%); --opf-ui-border: hsl(214 22% 83%); --opf-ui-ring: hsl(214 57% 28%); --opf-ui-danger: hsl(0 72% 45%); --opf-ui-warn: hsl(28 75% 38%); --opf-ui-code-bg: hsl(220 30% 96%); --opf-ui-code-border: hsl(214 18% 84%); --opf-ui-shadow-pop: 0 8px 24px rgba(0,0,0,.1); }
+[data-theme=dark] { --opf-ui-bg: hsl(220 24% 9%); --opf-ui-surface: hsl(220 22% 11%); --opf-ui-muted: hsl(220 18% 16%); --opf-ui-muted-2: hsl(220 18% 13%); --opf-ui-fg: hsl(210 28% 92%); --opf-ui-muted-fg: hsl(215 13% 68%); --opf-ui-accent: hsl(214 57% 52%); --opf-ui-accent-strong: hsl(214 74% 72%); --opf-ui-border: hsl(220 17% 24%); --opf-ui-ring: hsl(214 57% 62%); --opf-ui-danger: hsl(0 65% 56%); --opf-ui-warn: hsl(32 80% 70%); --opf-ui-code-bg: hsl(222 22% 13%); --opf-ui-code-border: hsl(220 16% 24%); --opf-ui-shadow-pop: 0 8px 24px rgba(0,0,0,.4); }
+</style>
+<style>
+body { margin: 0; background: var(--opf-ui-bg); color: var(--opf-ui-fg); font: 13px Inter, system-ui, sans-serif; }
+.harness { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); height: 100vh; }
+#pane { min-width: 0; min-height: 0; border-right: 1px solid var(--opf-ui-border); }
+aside { display: flex; flex-direction: column; gap: 8px; padding: 12px; min-width: 0; overflow: auto; }
+aside h2 { margin: 0; font: 600 13px Inter, system-ui, sans-serif; }
+aside pre { margin: 0; padding: 8px; border: 1px solid var(--opf-ui-border); border-radius: 6px; background: var(--opf-ui-surface); font: 12px ui-monospace, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; }
+.row button { min-height: 32px; padding: 0 10px; border: 1px solid var(--opf-ui-border); border-radius: 6px; background: var(--opf-ui-surface); color: var(--opf-ui-fg); font: inherit; cursor: pointer; }
+@media (max-width: 720px) { .harness { grid-template-columns: 1fr; grid-template-rows: 60vh auto; height: auto; } }
+</style>
+</head>
+<body>
+<div class="harness">
+  <div id="pane"></div>
+  <aside>
+    <h2>Session</h2>
+    <div class="row">
+      <button id="demo-undo" type="button">Undo</button>
+      <button id="demo-redo" type="button">Redo</button>
+      <button id="demo-rename-slide" type="button">Retitle slide 1 outside</button>
+      <button id="demo-add-design" type="button">Give slide 1 a design</button>
+      <button id="demo-touch" type="button">Touch density</button>
+      <button id="demo-readonly" type="button">Toggle read only</button>
+    </div>
+    <pre id="doc" aria-label="Session document"></pre>
+    <h2>Events</h2>
+    <pre id="log" aria-label="Host callbacks"></pre>
+  </aside>
+</div>
+<script type="module" src="source-pane.js"></script>
+</body>
+</html>
