@@ -250,7 +250,6 @@
   background: var(--opf-ui-muted-2);
   border: 1.5px solid var(--opf-ui-border-strong);
   border-radius: var(--opf-ui-radius-sm);
-  overflow: hidden;
   pointer-events: none;
   transition: background-color var(--opf-ui-ease), border-color var(--opf-ui-ease);
 }
@@ -279,33 +278,54 @@
 .opf-lx-node[data-kind="split"][data-finding="error"],
 .opf-lx-node[data-kind="split"][data-finding="within"] { outline-color: var(--opf-ui-danger); }
 .opf-lx-node:focus-visible { outline: 2px solid var(--opf-ui-ring); outline-offset: 2px; }
+/* The chip: the region's name and size, outside the box's top edge, in the gutter between regions. A split's tag sits at its top right. */
 .opf-lx-label {
+  --opf-lx-chip-h: 17px;
   position: absolute;
-  top: 4px;
-  left: 6px;
-  max-width: calc(100% - 44px);
+  bottom: calc(100% + 2px);
+  left: -2px;
+  z-index: 2;
+  display: block;
+  max-width: calc(100% + 3px);
+  height: var(--opf-lx-chip-h);
+  padding: 0 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: 500 11.5px var(--opf-ui-mono);
+  background: var(--opf-ui-surface);
+  border: 1px solid var(--opf-ui-border-strong);
+  border-bottom: 0;
+  border-radius: var(--opf-ui-radius-sm) var(--opf-ui-radius-sm) 0 0;
+  font: 500 11px/16px var(--opf-ui-mono);
   color: var(--opf-ui-fg);
 }
-.opf-lx-label::before,
-.opf-lx-size::before { content: attr(data-text); }
-.opf-lx-node[data-kind="split"] > .opf-lx-label { top: 2px; font-size: 10.5px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: var(--opf-ui-muted-fg); }
-.opf-lx-node.is-selected > .opf-lx-label { color: var(--opf-ui-accent-strong); }
-.opf-lx-size {
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  font: 11.5px var(--opf-ui-mono);
+.opf-lx-label::before { content: attr(data-text); }
+.opf-lx-label::after { content: " · " attr(data-size); font-weight: 400; color: var(--opf-ui-muted-fg); }
+.opf-lx-node[data-heading="true"] > .opf-lx-label { background: var(--opf-ui-muted); }
+.opf-lx-node[data-kind="split"] > .opf-lx-label {
+  bottom: calc(100% + 6px);
+  left: auto;
+  right: -2px;
+  max-width: 45%;
+  border-style: dashed;
+  border-bottom: 0;
+  background: var(--opf-ui-surface);
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--opf-ui-muted-fg);
 }
-.opf-lx-node[data-kind="split"] > .opf-lx-size { top: 2px; font-size: 10.5px; }
+.opf-lx-node.is-selected > .opf-lx-label {
+  background: color-mix(in srgb, var(--opf-ui-accent) 14%, var(--opf-ui-surface));
+  border-color: var(--opf-ui-accent);
+  color: var(--opf-ui-accent-strong);
+}
+.opf-lx-node[data-finding="error"] > .opf-lx-label { border-color: var(--opf-ui-danger); }
 .opf-lx-badge { position: absolute; right: 6px; bottom: 4px; display: inline-flex; color: var(--opf-ui-danger); }
 .opf-lx-wire {
   position: absolute;
-  inset: 24px 6px 6px;
+  inset: 6px 6px 14px;
   display: flex;
   flex-wrap: wrap;
   align-content: stretch;
@@ -326,14 +346,16 @@
   font: 10.5px var(--opf-ui-mono);
 }
 .opf-lx-wire-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.opf-lx-wire-heading { flex-direction: column; justify-content: flex-end; flex-wrap: nowrap; gap: 4px; inset: 22px 8px 5px; }
-.opf-lx-bar { display: block; flex: none; height: 6px; background: var(--opf-ui-border-strong); border-radius: var(--opf-ui-radius-sm); }
-.opf-lx-bar-short { width: 55%; }
+.opf-lx-wire-heading { flex-direction: column; justify-content: flex-start; flex-wrap: nowrap; gap: 4px; inset: 5px 8px 14px; }
+.opf-lx-bar { display: block; flex: none; width: 45%; height: 6px; background: var(--opf-ui-border-strong); border-radius: var(--opf-ui-radius-sm); }
+.opf-lx-bar-short { width: 30%; }
+/* A heading row on a very small slide is shorter than the chips of the row under it; its placeholder bars give way. */
+.opf-lx-node[data-heading="true"] { container-type: size; }
+@container (max-height: 44px) { .opf-lx-wire-heading { display: none; } }
 /* Rendered preview: the host's drawing shows through, the boxes become outlines. */
 .opf-lx-canvas[data-rendered="true"] .opf-lx-node { background: transparent; }
 .opf-lx-canvas[data-rendered="true"] .opf-lx-node.is-selected { background: color-mix(in srgb, var(--opf-ui-accent) 8%, transparent); }
 .opf-lx-canvas[data-rendered="true"] .opf-lx-wire { display: none; }
-.opf-lx-canvas[data-rendered="true"] .opf-lx-label { padding: 0 4px; background: var(--opf-ui-surface); border-radius: var(--opf-ui-radius-sm); }
 .opf-lx-canvas[data-rendered="loading"] .opf-lx-frame { opacity: 0.7; }
 
 .opf-lx-divider {
@@ -745,8 +767,7 @@ input.opf-lx-input[data-field="max"] { font-family: var(--opf-ui-mono); font-siz
 .opf-lx-canvas[data-density="touch"] .opf-lx-divider[data-orientation="vertical"]::before { inset: 0 -14px; }
 .opf-lx-canvas[data-density="touch"] .opf-lx-divider[data-orientation="horizontal"]::before { inset: -14px 0; }
 .opf-lx-canvas[data-density="touch"] .opf-lx-divider[data-fixed="false"]::after { background: color-mix(in srgb, var(--opf-ui-accent) 45%, transparent); }
-.opf-lx-canvas[data-density="touch"] .opf-lx-label,
-.opf-lx-canvas[data-density="touch"] .opf-lx-size { font-size: 12px; }
+.opf-lx-canvas[data-density="touch"] .opf-lx-label { --opf-lx-chip-h: 19px; font-size: 12px; line-height: 18px; }
 .opf-lx[data-density="touch"] .opf-lx-actions { grid-template-columns: minmax(0, 1fr); }
 
 @media (prefers-reduced-motion: reduce) {

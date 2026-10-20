@@ -646,7 +646,7 @@ export function nudgePair(record, listPath, index, steps, big = false) {
 
 // --- geometry --------------------------------------------------------------------------------------------------------------
 
-const AUTO_SHARE = 0.16;
+const AUTO_SHARE = 0.18;
 const IMPLICIT_TITLE = 0.14;
 /**
  * Place the tree in a unit box. Returns `nodes` (a box per region and split, in reading order), `dividers` (the gap between two

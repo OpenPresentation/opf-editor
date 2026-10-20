@@ -121,7 +121,7 @@ export function createLayoutCanvas(container, options = {}) {
   }
   function makeNode() {
     const node = el("div", "opf-lx-node");
-    node.append(el("span", "opf-lx-label", { "aria-hidden": "true" }), el("span", "opf-lx-size", { "aria-hidden": "true" }));
+    node.append(el("span", "opf-lx-label", { "aria-hidden": "true" }));
     node.addEventListener("click", (event) => { if (event.detail === 0 && node.dataset.path !== undefined) model.select([node.dataset.path.split(".").map(Number)]); });
     return node;
   }
@@ -171,10 +171,11 @@ export function createLayoutCanvas(container, options = {}) {
       if (split) node.removeAttribute("aria-pressed"); else node.setAttribute("aria-pressed", String(isSelected(box.path)));
       node.tabIndex = pathKey(box.path) === tabStop ? 0 : -1;
       setBox(node, box);
-      const [label, sizeChip] = node.children;
-      // The words are drawn from data attributes (CSS content), so the box's own accessible name is the one description a screen reader hears.
+      // The name and size are a chip outside the box's top edge (a split's tag sits at the top right), so they never cover the content drawn
+      // inside. The words come from data attributes (CSS content), so the box's own accessible name is the one description a screen reader hears.
+      const label = node.firstElementChild;
       label.dataset.text = split ? (box.entry.direction === "row" ? "row" : "column") : box.entry.name;
-      sizeChip.dataset.text = SIZE_LABEL(box.entry, box.direction);
+      label.dataset.size = SIZE_LABEL(box.entry, box.direction);
       let badge = node.querySelector(":scope > .opf-lx-badge");
       if (issues.length && !badge) { badge = el("span", "opf-lx-badge", { "aria-hidden": "true" }); badge.append(dom.icon("CircleX", 14)); node.append(badge); }
       if (badge) { if (issues.length) badge.title = issues.map((issue) => issue.message).join("\n"); else badge.remove(); }

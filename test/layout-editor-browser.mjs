@@ -703,6 +703,44 @@ try {
     await page.close();
   }
 
+  // 16b. The region chips sit outside the boxes, so they never cover content: not the rendered text of the sample slide, not the
+  // wireframe blocks, not each other; at comfortable and touch density, in light and dark.
+  {
+    const overlaps = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+    const rects = (page, selector) => page.evaluate(selector => [...document.querySelectorAll(selector)].filter(el => { const box = el.getBoundingClientRect(); return box.width > 0 && box.height > 0; }).map(el => { const box = el.getBoundingClientRect(); return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, text: (el.dataset?.text ?? el.textContent ?? '').slice(0, 30) }; }), selector);
+    const apart = (list, others, what) => { for (const a of list) for (const b of others) if (a !== b) assert.ok(!overlaps(a, b), `${what}: chip "${a.text}" meets "${b.text}"`); };
+    for (const dark of [false, true]) {
+      const page = await open(`?layout=hero${dark ? '&dark=1' : ''}`, { width: 1440, height: 900 });
+      await page.locator('.opf-lx-frame').focus();
+      await page.keyboard.press('p');
+      await page.locator('.opf-lx-canvas[data-rendered="true"] .opf-lx-render svg').waitFor({ timeout: 20000 });
+      await clickNode(page, '1.0');
+      const chips = await rects(page, '.opf-lx-label');
+      assert.equal(chips.length, 5, 'a chip for each region and the split');
+      const text = await rects(page, '.opf-lx-render svg text');
+      assert.ok(text.length >= 4, `the sample slide has text boxes (${text.length})`);
+      apart(chips, text, `rendered ${dark ? 'dark' : 'light'}`);
+      apart(chips, chips, 'chips');
+      // Each chip sits above its box, not inside it.
+      const placed = await page.evaluate(() => [...document.querySelectorAll('.opf-lx-node')].map(node => { const chip = node.firstElementChild.getBoundingClientRect(), box = node.getBoundingClientRect(); return chip.bottom <= box.top + 2; }));
+      assert.ok(placed.every(Boolean), 'every chip is outside the top edge of its box');
+      await page.keyboard.press('p');
+      await page.locator('.opf-lx-frame').focus();
+      await page.keyboard.press('p');
+      await page.close();
+    }
+    for (const [viewport, query] of [[{ width: 1440, height: 900 }, '?layout=hero&render=0'], [{ width: 390, height: 844 }, '?layout=hero&render=0&density=touch'], [{ width: 1440, height: 900 }, '?layout=hero&render=0&density=touch&dark=1']]) {
+      const page = await open(query, viewport);
+      await page.locator('.opf-lx-frame').focus();
+      await page.keyboard.press('p');
+      await page.locator('.opf-lx-wire-block').first().waitFor();
+      const chips = await rects(page, '.opf-lx-label');
+      apart(chips, await rects(page, '.opf-lx-wire-block, .opf-lx-bar'), `wireframe ${query}`);
+      apart(chips, chips, `chips ${query}`);
+      await page.close();
+    }
+  }
+
   // 17. Touch density: controls are 40px.
   {
     const page = await open('?layout=hero&density=touch&render=0', { width: 390, height: 844 });
