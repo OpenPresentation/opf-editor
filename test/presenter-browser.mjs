@@ -18,6 +18,11 @@ try {
   const live = () => page.locator('.opf-presenter-live').textContent();
   const log = () => page.evaluate(() => structuredClone(window.log));
   const title = () => page.evaluate(() => document.querySelector('.opf-presenter-slide svg')?.getAttribute('aria-label'));
+  // The shown slide once it is `index`: touch events reach the page a little later on a slow machine.
+  const shownBecomes = async (index, message) => {
+    await page.waitForFunction((wanted) => window.presenter.getSlide() === wanted, index, { timeout: 3000 }).catch(() => {});
+    assert.equal(await shown(), index, message);
+  };
   const press = async (key, times = 1) => { for (let i = 0; i < times; i++) await page.keyboard.press(key); };
   // Mount a presenter on `count` slides with the slides in `hidden` hidden; every callback is logged in the page.
   const mount = (count, hidden = [], extra = '{}') => page.evaluate(([n, h, extraSource]) => {
@@ -153,21 +158,22 @@ try {
   };
   await page.evaluate(() => window.presenter.goTo(0));
   await swipe(700, 300);
-  assert.equal(await shown(), 2, 'swiping left goes forward');
+  await shownBecomes(2, 'swiping left goes forward');
   await swipe(300, 700);
-  assert.equal(await shown(), 0, 'swiping right goes back');
+  await shownBecomes(0, 'swiping right goes back');
   await swipe(500, 540, 300);
   assert.equal(await shown(), 0, 'a short drag is not a swipe');
   await swipe(400, 700, 100, 520);
   assert.equal(await shown(), 0, 'a mostly vertical drag is not a swipe');
   await swipe(700, 300);
-  await page.waitForTimeout(500);
-  assert.equal(await shown(), 2, 'a swipe moves once: the touch does not also click');
+  await shownBecomes(2, 'a swipe moves once');
+  await page.waitForTimeout(700);
+  assert.equal(await shown(), 2, 'and the touch does not also click');
   // A tap is a click: the same zones.
-  await touch('touchStart', 800, 300); await touch('touchEnd'); await page.waitForTimeout(60);
-  assert.equal(await shown(), 3, 'a tap on the right advances');
-  await touch('touchStart', 80, 300); await touch('touchEnd'); await page.waitForTimeout(60);
-  assert.equal(await shown(), 2, 'a tap on the left third goes back');
+  await touch('touchStart', 800, 300); await touch('touchEnd');
+  await shownBecomes(3, 'a tap on the right advances');
+  await touch('touchStart', 80, 300); await touch('touchEnd');
+  await shownBecomes(2, 'a tap on the left third goes back');
   assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.opf-presenter')).touchAction), 'none', 'the browser does not scroll or zoom under a swipe');
   mark('swipe left and right move on touch; short or vertical drags and taps behave');
 
