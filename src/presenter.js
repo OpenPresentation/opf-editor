@@ -13,7 +13,9 @@ const COUNTER_MS = 2000;
 const PRELOAD_DELAY_MS = 20;
 const SWIPE_MIN = 48;
 const SWIPE_MAX_MS = 800;
-const SWIPE_CLICK_GUARD_MS = 450;
+const TAP_SLOP = 10;
+const TAP_MAX_MS = 600;
+const CLICK_GUARD_MS = 450;
 const NEXT_KEYS = new Set(["ArrowRight", " ", "PageDown", "Enter"]);
 const PREVIOUS_KEYS = new Set(["ArrowLeft", "PageUp", "Backspace"]);
 
@@ -231,25 +233,34 @@ export function createPresenter(container, options = {}) {
     else handled = false;
     if (handled) { event.preventDefault(); event.stopPropagation(); }
   }
+  // A press on the left third goes back, anywhere else forward.
+  function byZone(clientX) {
+    const box = root.getBoundingClientRect();
+    return move(clientX < box.left + box.width / 3 ? -1 : 1);
+  }
   function onClick(event) {
     if (!active || closeButton.contains(event.target)) return;
-    if (event.timeStamp < clickGuardUntil) return;
-    const box = root.getBoundingClientRect();
-    if (event.clientX < box.left + box.width / 3) move(-1);
-    else move(1);
+    // A touch is handled on pointerup (below); the click the browser adds after it must not move a second time.
+    if (win.performance.now() < clickGuardUntil) return;
+    byZone(event.clientX);
   }
   function onPointerdown(event) {
     showCounter();
-    swipe = event.pointerType === "mouse" ? null : { id: event.pointerId, x: event.clientX, y: event.clientY, at: event.timeStamp };
+    swipe = event.pointerType === "mouse" ? null : { id: event.pointerId, x: event.clientX, y: event.clientY, at: win.performance.now() };
   }
+  // Touch and pen: a swipe moves, and a tap uses the click zones. Both are read here, so they do not depend on the browser's click for touch.
   function onPointerup(event) {
     const start = swipe;
     swipe = null;
-    if (!start || start.id !== event.pointerId) return;
-    const dx = event.clientX - start.x, dy = event.clientY - start.y;
-    if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) < Math.abs(dy) * 1.5 || event.timeStamp - start.at > SWIPE_MAX_MS) return;
-    clickGuardUntil = event.timeStamp + SWIPE_CLICK_GUARD_MS;
-    move(dx < 0 ? 1 : -1);
+    if (!active || !start || start.id !== event.pointerId) return;
+    const dx = event.clientX - start.x, dy = event.clientY - start.y, now = win.performance.now(), elapsed = now - start.at;
+    if (Math.abs(dx) >= SWIPE_MIN && Math.abs(dx) >= Math.abs(dy) * 1.5 && elapsed <= SWIPE_MAX_MS) {
+      clickGuardUntil = now + CLICK_GUARD_MS;
+      move(dx < 0 ? 1 : -1);
+    } else if (Math.abs(dx) <= TAP_SLOP && Math.abs(dy) <= TAP_SLOP && elapsed <= TAP_MAX_MS && !closeButton.contains(event.target)) {
+      clickGuardUntil = now + CLICK_GUARD_MS;
+      byZone(event.clientX);
+    }
   }
   // Focus stays inside the dialog: the page behind it is not reachable while it is open.
   function onFocusin(event) {

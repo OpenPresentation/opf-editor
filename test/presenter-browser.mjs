@@ -21,7 +21,7 @@ try {
   // The shown slide once it is `index`: touch events reach the page a little later on a slow machine.
   const shownBecomes = async (index, message) => {
     await page.waitForFunction((wanted) => window.presenter.getSlide() === wanted, index, { timeout: 3000 }).catch(() => {});
-    assert.equal(await shown(), index, message);
+    assert.equal(await shown(), index, `${message}; input seen by the page: ${JSON.stringify(await page.evaluate(() => window.inputLog?.slice(-12)))}`);
   };
   const press = async (key, times = 1) => { for (let i = 0; i < times; i++) await page.keyboard.press(key); };
   // Mount a presenter on `count` slides with the slides in `hidden` hidden; every callback is logged in the page.
@@ -148,6 +148,10 @@ try {
   mark('click advances, a click on the left third goes back');
 
   // ---- touch: swipes and taps ---------------------------------------------------------------------------------------------------------
+  await page.evaluate(() => {
+    window.inputLog = [];
+    for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'click']) document.addEventListener(type, (event) => window.inputLog.push(`${type}:${event.pointerType ?? 'mouse'}@${Math.round(event.clientX)}`), true);
+  });
   const cdp = await context.newCDPSession(page);
   const touch = async (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
   const swipe = async (fromX, toX, y = 300, toY = y) => {
