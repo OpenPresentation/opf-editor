@@ -320,21 +320,16 @@ export function createEditorSession(input, options = {}) {
      * never read as the user editing the catalog records the two documents share: records under `catalogs.default` or a named group
      * keep the ids and content the new document carries, and nothing is forked into `catalogs.custom`. `input` is a parsed document,
      * JSON text or bytes. The document is validated like any edit (`meta.rejectInvalid` or the session option refuses an invalid one
-     * and changes nothing). Replacing the document with an equal one changes nothing and records nothing (`changed: false`).
-     * `meta.source` defaults to `"replace-document"`; the event is a `patch` whose `meta.replaceDocument` is true.
+     * and changes nothing). It always records its one change, also when the new document equals the open one (Undo then returns to the
+     * same document, as for any other replace). `meta.source` defaults to `"replace-document"`; the event is a `patch` whose `meta.replaceDocument` is true.
      */
     replaceDocument(input, meta = {}) {
-      const next = parseInput(input);
-      if (canonicalJson(next) === canonicalJson(presentation)) {
-        return { presentation: clone(presentation), patches: [], inversePatches: [], validation, changed: false };
-      }
-      const change = commitPatch([{ op: "replace", path: "", value: next }], {
+      return commitPatch([{ op: "replace", path: "", value: parseInput(input) }], {
         ...meta,
         source: meta.source ?? "replace-document",
         replaceDocument: true,
         catalogRecordEdit: "in-place"
       });
-      return { ...change, changed: true };
     },
     /**
      * The undo and redo stacks as plain data (oldest entry first): `{ undo: [{ patches, inversePatches, meta }], redo: [...] }`.

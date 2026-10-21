@@ -393,8 +393,8 @@ export function createSourcePane(container, options = {}) {
       return change;
     }
     if (authoredJson !== null) jsonText = authoredJson; else syncJsonSafe();
-    if (change.changed) rememberText(format, before, beforeText);
     rememberText(format, opened, written.text);
+    rememberText(format, before, beforeText);
     noteFindings = written.notes;
     if (written.text !== control.api.getValue()) show(written.text); else baseline = written.text;
     renderedKey = "";

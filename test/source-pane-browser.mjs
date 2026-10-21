@@ -516,11 +516,10 @@ try {
     await replaced.evaluate(() => demo.editor.undo());
     assert.deepEqual(await deck(replaced), tour);
     assert.equal(await text(replaced), yamlBefore, 'Undo restores the YAML text');
-    // A document the session refuses throws and changes nothing; an equal document records no step.
+    // A document the session refuses throws and changes nothing.
     const refused = await replaced.evaluate(() => { try { demo.pane.replaceDocument({ slides: [{ title: 42 }] }, { meta: { rejectInvalid: true } }); return 'opened'; } catch (error) { return error.code; } });
     assert.equal(refused, 'invalid-opf-edit');
     assert.deepEqual(await deck(replaced), tour);
-    assert.equal(await replaced.evaluate(() => demo.pane.replaceDocument(demo.editor.presentation).changed), false);
     await replaced.close();
   }
 

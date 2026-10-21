@@ -81,9 +81,9 @@ export interface SourcePane {
    * `document` is a parsed document or JSON text. The pane shows `options.source` (the JSON text the document was read from, kept byte for
    * byte; `document` itself when it is text) in JSON and the document written in YAML or Markdown. Undo and Redo bring back each
    * document's text exactly, in the format that is shown. A document the session refuses throws (`invalid-opf-edit` with `issues`) and
-   * changes nothing. An equal document records no undo step. Works in a read-only pane.
+   * changes nothing. Works in a read-only pane.
    */
-  replaceDocument(document: unknown, options?: ReplaceDocumentOptions): EditorChange & { changed: boolean };
+  replaceDocument(document: unknown, options?: ReplaceDocumentOptions): EditorChange;
   /** Re-read the document from the session. */
   refresh(): void;
   /** Replace the host findings; `null` returns to the session's own validation. */

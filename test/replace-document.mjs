@@ -31,8 +31,7 @@ const session = (document, options = {}) => createEditorSession(document, { cata
   const events = [];
   editor.subscribe((event) => events.push(event));
   const change = editor.replaceDocument(second);
-  assert.equal(change.changed, true);
-  assert.deepEqual(editor.presentation, second, "the session holds exactly the opened document");
+    assert.deepEqual(editor.presentation, second, "the session holds exactly the opened document");
   assert.deepEqual(customIds(editor.presentation), [], "no catalog record is forked");
   assert.deepEqual(layouts(editor.presentation), ["cover", undefined], "references keep their ids");
   assert.equal(change.forked, undefined);
@@ -73,9 +72,10 @@ const session = (document, options = {}) => createEditorSession(document, { cata
   editor.replaceDocument(new TextEncoder().encode(JSON.stringify(second)));
   assert.deepEqual(editor.presentation, second, "bytes are accepted");
   const depth = editor.snapshot().undoDepth;
-  const same = editor.replaceDocument(structuredClone(second));
-  assert.equal(same.changed, false, "an equal document changes nothing");
-  assert.equal(editor.snapshot().undoDepth, depth, "and records no undo step");
+  editor.replaceDocument(structuredClone(second));
+  assert.equal(editor.snapshot().undoDepth, depth + 1, "an equal document still records its one change");
+  editor.undo();
+  assert.deepEqual(editor.presentation, second);
   assert.throws(() => editor.replaceDocument("{ not json"), (error) => error.code === "invalid-json");
   assert.deepEqual(editor.presentation, second);
 }
