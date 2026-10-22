@@ -71,7 +71,8 @@ try {
     await page.mouse.move(900, 500);
     await page.evaluate(() => window.button.setVariant('primary'));
     assert.equal(await button.getAttribute('data-variant'), 'primary', 'setVariant("primary")');
-    await page.waitForTimeout(200);
+    // The variant change fades over 120ms: wait until the two buttons have settled on the same colors (a fixed wait raced a slow runner).
+    await page.waitForFunction(() => { const a = getComputedStyle(document.querySelector('#host .opf-present-button')), b = getComputedStyle(document.querySelector('.opf-export-trigger')); return a.backgroundColor === b.backgroundColor && a.color === b.color && a.borderTopColor === b.borderTopColor; });
     assert.deepEqual(await look('#host .opf-present-button'), await look('.opf-export-trigger'), `primary: same fill, ink, border, radius and height as the Export trigger (${theme})`);
     const primary = await look('#host .opf-present-button');
     assert.equal(primary.background, await token('--opf-ui-accent', 'backgroundColor'), `primary: the accent fill (${theme})`);
