@@ -55,7 +55,9 @@ try {
     await page.evaluate((value) => (value === 'dark' ? document.documentElement.setAttribute('data-theme', 'dark') : document.documentElement.removeAttribute('data-theme')), theme);
     await button.evaluate((node) => node.blur());
     await page.mouse.move(900, 500);
-    await page.waitForTimeout(250); // the theme change fades over 120ms
+    // The theme change fades over 120ms: wait for the quiet button to settle (a fixed wait raced a slow runner).
+    const mutedFg = await token('--opf-ui-muted-fg');
+    await page.waitForFunction((ink) => { const style = getComputedStyle(document.querySelector('#host .opf-present-button')); return style.backgroundColor === 'rgba(0, 0, 0, 0)' && style.borderTopColor === 'rgba(0, 0, 0, 0)' && style.color === ink; }, mutedFg);
     const quiet = await look('#host .opf-present-button');
     assert.equal(quiet.background, transparent, `quiet: a transparent background (${theme})`);
     assert.equal(quiet.border, transparent, `quiet: no visible border (${theme})`);
@@ -64,7 +66,8 @@ try {
     assert.equal(quiet.borderWidth, '1px', `quiet: the border width is kept so the size matches primary (${theme})`);
     await button.hover();
     await page.waitForFunction(() => getComputedStyle(document.querySelector('#host .opf-present-button')).backgroundColor !== 'rgba(0, 0, 0, 0)');
-    await page.waitForTimeout(200); // the 120ms fade
+    const hoverFill = await token('--opf-ui-muted', 'backgroundColor');
+    await page.waitForFunction((fill) => getComputedStyle(document.querySelector('#host .opf-present-button')).backgroundColor === fill, hoverFill); // the 120ms fade
     const hover = await look('#host .opf-present-button');
     assert.equal(hover.background, await token('--opf-ui-muted', 'backgroundColor'), `quiet hover: --opf-ui-muted (${theme})`);
     assert.equal(hover.color, await token('--opf-ui-fg'), `quiet hover: the icon is --opf-ui-fg (${theme})`);
@@ -78,7 +81,7 @@ try {
     assert.equal(primary.background, await token('--opf-ui-accent', 'backgroundColor'), `primary: the accent fill (${theme})`);
     assert.equal(primary.color, await token('--opf-ui-accent-fg'), `primary: the accent ink (${theme})`);
     await page.evaluate(() => window.button.setVariant('quiet'));
-    await page.waitForTimeout(200);
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('#host .opf-present-button')).backgroundColor === 'rgba(0, 0, 0, 0)');
     assert.equal((await look('#host .opf-present-button')).background, transparent, `setVariant("quiet") goes back (${theme})`);
   }
   await page.evaluate(() => document.documentElement.removeAttribute('data-theme'));
